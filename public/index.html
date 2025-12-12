@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>IF Talk - Voice-Powered Interactive Fiction</title>
+  <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="header">
+    <h1>🎮 IF Talk</h1>
+    <div class="header-controls">
+      <div class="voice-help-icon" title="Voice Commands Help">
+        ❓
+        <div class="voice-help-tooltip">
+          <h3>🎤 Voice Commands</h3>
+          <div class="help-section">
+            <strong>Navigation (Never sent to game):</strong>
+            <ul>
+              <li><code>"Restart"</code> - ⏪ Go to beginning</li>
+              <li><code>"Back"</code> - ⬅️ Previous sentence</li>
+              <li><code>"Stop"</code> - ⏹ Stop narration</li>
+              <li><code>"Pause"</code> - ⏸ Pause</li>
+              <li><code>"Play"</code> - ▶ Resume/Start</li>
+              <li><code>"Skip"</code> - ➡️ Next sentence</li>
+              <li><code>"Skip All"</code> - ⏩ Skip to end</li>
+            </ul>
+          </div>
+          <div class="help-section">
+            <strong>Game Commands (Sent to IF):</strong>
+            <ul>
+              <li><code>"Next"</code> / <code>"Enter"</code> / <code>"More"</code> - Press Enter</li>
+              <li><code>"Print [text]"</code> - Send literal text</li>
+              <li><em>Any other speech</em> - AI translates to command</li>
+            </ul>
+          </div>
+          <div class="help-section">
+            <strong>Keyboard Shortcuts:</strong>
+            <ul>
+              <li><code>←/→</code> - Navigate sentences</li>
+              <li><code>M</code> - Mute toggle</li>
+              <li><code>Alt (hold)</code> - Push-to-talk</li>
+              <li><code>Esc</code> - Stop talk mode</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+      <button id="settingsBtn" class="settings-btn" title="Settings">⚙️</button>
+      <div class="voice-selector">
+        <label for="voiceSelect">Voice:</label>
+        <select id="voiceSelect" class="voice-dropdown">
+          <option value="">Loading voices...</option>
+        </select>
+        <button id="testVoiceBtn" class="btn-test-voice" title="Preview selected voice">▶️</button>
+      </div>
+      <button class="btn btn-secondary" id="selectGameBtn">📂 Select Game</button>
+    </div>
+  </div>
+
+  <!-- Settings Panel -->
+  <div class="settings-panel hidden" id="settingsPanel">
+    <div class="settings-header">
+      <h2>⚙️ Settings</h2>
+      <button id="closeSettingsBtn" class="close-settings-btn">✕</button>
+    </div>
+    <div class="settings-content">
+      <div class="settings-section">
+        <h3>🎙️ Voice Settings</h3>
+        <p class="settings-description">Configure different voices for narration and app messages</p>
+        <div class="voice-setting">
+          <label for="appVoiceSelect">App Voice (questions, prompts):</label>
+          <select id="appVoiceSelect" class="voice-dropdown">
+            <option value="">Loading voices...</option>
+          </select>
+          <button id="testAppVoiceBtn" class="btn-test-voice" title="Preview app voice">▶️</button>
+        </div>
+      </div>
+      <div class="settings-section">
+        <h3>🗣️ Pronunciation Dictionary</h3>
+        <p class="settings-description">Fix words that TTS pronounces incorrectly</p>
+        <div id="pronunciationList" class="pronunciation-list"></div>
+        <div class="add-pronunciation">
+          <input type="text" id="newWord" placeholder="Word (e.g., Anchorhead)" class="pronunciation-input">
+          <input type="text" id="newPronunciation" placeholder="Say as (e.g., Anchor-head)" class="pronunciation-input">
+          <button id="addPronunciationBtn" class="btn-small btn-primary">+ Add</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="container">
+    <div class="game-output" id="gameOutput">
+      <div class="welcome" id="welcome">
+        <h2>Welcome to IF Talk</h2>
+        <p>Play interactive fiction with voice control and AI-powered natural language commands.</p>
+
+        <div class="game-list">
+          <h3>Available Games:</h3>
+          <button class="game-card" data-game="Anchorhead.z8">
+            <div class="game-title">Anchorhead</div>
+            <div class="game-desc">Lovecraftian horror - Atmospheric and dark</div>
+          </button>
+          <button class="game-card" data-game="Photopia.z5">
+            <div class="game-title">Photopia</div>
+            <div class="game-desc">Award-winning story - Beautiful and emotional</div>
+          </button>
+          <button class="game-card" data-game="Dungeon.z5">
+            <div class="game-title">Dungeon (Zork)</div>
+            <div class="game-desc">Classic adventure - Treasure hunting</div>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="input-area hidden" id="inputArea">
+    <div class="controls">
+      <button id="toggleTalkModeBtn" class="btn-control btn-talk-mode">🎤 Start Talk Mode</button>
+      <button id="muteBtn" class="btn-control btn-mute hidden">🔇 Mute Mic</button>
+      <div class="narration-controls hidden">
+        <button id="skipToStartBtn" class="btn-nav" title="Skip to beginning"><span class="material-icons">skip_previous</span></button>
+        <button id="prevChunkBtn" class="btn-nav" title="Previous sentence"><span class="material-icons">fast_rewind</span></button>
+        <button id="stopBtn" class="btn-nav" title="Stop narration"><span class="material-icons">stop</span></button>
+        <button id="pausePlayBtn" class="btn-nav" title="Pause/Play"><span class="material-icons">pause</span></button>
+        <button id="nextChunkBtn" class="btn-nav" title="Next sentence"><span class="material-icons">fast_forward</span></button>
+        <button id="skipToEndBtn" class="btn-nav" title="Skip to end"><span class="material-icons">skip_next</span></button>
+      </div>
+      <div class="input-mode-hint">Enter = Direct | Ctrl+Enter = AI translate</div>
+    </div>
+
+    <!-- Narration Progress Slider -->
+    <div class="narration-progress hidden" id="narrationProgress">
+      <div class="progress-info">
+        <span id="currentChunkLabel">0 / 0</span>
+        <span id="narrationStatus">Ready</span>
+      </div>
+      <input type="range" id="narrationSlider" class="narration-slider" min="0" max="0" value="0" step="1">
+    </div>
+
+    <!-- Two-Panel Input Layout -->
+    <div class="input-panels">
+      <!-- Left Panel: Voice Input -->
+      <div class="input-panel voice-panel">
+        <div class="panel-header">🎤 Voice Input</div>
+        <div class="voice-feedback hidden" id="voiceFeedback">
+          <div class="voice-meter-container">
+            <div class="voice-meter-label">Voice Level:</div>
+            <div class="voice-meter-bar">
+              <div class="voice-meter-fill" id="voiceMeterFill"></div>
+            </div>
+          </div>
+          <div class="voice-transcript" id="voiceTranscript">Listening...</div>
+        </div>
+        <div class="panel-history" id="voiceHistoryPanel">
+          <div class="voice-history" id="voiceHistory"></div>
+          <div class="history-expand" id="voiceHistoryToggle">
+            <span class="history-arrow">▼</span>
+            <span class="expand-text">Show More</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right Panel: Text Input -->
+      <div class="input-panel text-panel">
+        <div class="panel-header">
+          ⌨️ Text Input
+          <div class="mode-switch-container" style="margin-left: auto;">
+            <label class="mode-switch">
+              <input type="checkbox" id="modeToggle" checked>
+              <span class="mode-slider"></span>
+            </label>
+            <span class="mode-label" id="modeLabel">AI Mode</span>
+          </div>
+        </div>
+        <div class="input-container">
+          <input type="text" id="userInput" placeholder="Type your command..." autocomplete="off" />
+          <button id="sendBtn" class="btn-primary" title="Send command">Send</button>
+        </div>
+        <div class="panel-history" id="commandHistoryPanel">
+          <div class="command-history" id="commandHistory"></div>
+          <div class="history-expand" id="commandHistoryToggle">
+            <span class="history-arrow">▼</span>
+            <span class="expand-text">Show More</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="status" id="status">Select a game to start</div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

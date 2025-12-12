@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Browser Voice Tester</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      padding: 20px;
+      background: #1e1e2e;
+      color: #e0e0e0;
+    }
+    .voice-card {
+      background: rgba(102, 126, 234, 0.1);
+      border: 1px solid rgba(102, 126, 234, 0.3);
+      padding: 15px;
+      margin: 10px 0;
+      border-radius: 8px;
+      cursor: pointer;
+    }
+    .voice-card:hover {
+      background: rgba(102, 126, 234, 0.2);
+    }
+    .voice-name {
+      font-weight: bold;
+      color: #667eea;
+    }
+    .voice-lang {
+      color: #999;
+      font-size: 12px;
+    }
+    button {
+      background: #667eea;
+      color: white;
+      border: none;
+      padding: 8px 16px;
+      border-radius: 6px;
+      cursor: pointer;
+      margin-left: 10px;
+    }
+    button:hover {
+      background: #764ba2;
+    }
+  </style>
+</head>
+<body>
+  <h1>Available Browser Voices</h1>
+  <p>Click a voice to hear a sample and see its name</p>
+  <div id="voices"></div>
+
+  <script>
+    function loadVoices() {
+      const voices = speechSynthesis.getVoices();
+      const container = document.getElementById('voices');
+
+      container.innerHTML = '';
+
+      if (voices.length === 0) {
+        container.innerHTML = '<p>Loading voices... Refresh page if this persists.</p>';
+        return;
+      }
+
+      voices.forEach((voice, index) => {
+        const card = document.createElement('div');
+        card.className = 'voice-card';
+
+        card.innerHTML = `
+          <div class="voice-name">${index}: ${voice.name}</div>
+          <div class="voice-lang">Language: ${voice.lang} | ${voice.localService ? 'Local' : 'Remote'}</div>
+          <button onclick="testVoice(${index})">Test Voice</button>
+          <button onclick="copyVoiceName('${voice.name}')">Copy Name</button>
+        `;
+
+        container.appendChild(card);
+      });
+
+      console.log('Available voices:', voices.map(v => v.name));
+    }
+
+    window.testVoice = function(index) {
+      const voices = speechSynthesis.getVoices();
+      const voice = voices[index];
+
+      const utterance = new SpeechSynthesisUtterance('Hello! This is how I sound. You are standing in a dark room.');
+      utterance.voice = voice;
+      utterance.rate = 1.1;
+
+      speechSynthesis.cancel();
+      speechSynthesis.speak(utterance);
+
+      console.log('Testing voice:', voice.name);
+    };
+
+    window.copyVoiceName = function(name) {
+      navigator.clipboard.writeText(name);
+      alert('Copied: ' + name + '\n\nAdd to config.json:\n"browserVoice": "' + name + '"');
+    };
+
+    // Load voices
+    if (speechSynthesis.onvoiceschanged !== undefined) {
+      speechSynthesis.onvoiceschanged = loadVoices;
+    }
+
+    loadVoices();
+    setTimeout(loadVoices, 100);  // Fallback
+  </script>
+</body>
+</html>

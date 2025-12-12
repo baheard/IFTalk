@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Navigation Icon Examples v2</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: linear-gradient(135deg, #1e1e2e 0%, #2d2d44 100%);
+      color: #e0e0e0;
+      padding: 40px;
+    }
+
+    h1 {
+      text-align: center;
+      margin-bottom: 40px;
+      color: #667eea;
+    }
+
+    .example {
+      background: rgba(0, 0, 0, 0.3);
+      padding: 30px;
+      margin-bottom: 30px;
+      border-radius: 12px;
+      border: 2px solid rgba(102, 126, 234, 0.3);
+    }
+
+    .example h2 {
+      margin-bottom: 20px;
+      color: #a8d8ea;
+      font-size: 18px;
+    }
+
+    .controls {
+      display: flex;
+      justify-content: flex-start;
+      gap: 15px;
+      align-items: center;
+      padding: 15px;
+      background: rgba(0, 0, 0, 0.2);
+      border-radius: 8px;
+    }
+
+    .btn-control {
+      padding: 10px 20px;
+      border: none;
+      border-radius: 8px;
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      transition: all 0.3s ease;
+    }
+
+    .btn-control:hover {
+      transform: scale(1.05);
+    }
+
+    .btn-nav {
+      padding: 8px 12px;
+      border: none;
+      border-radius: 6px;
+      font-size: 14px;
+      cursor: pointer;
+      background: rgba(255, 255, 255, 0.1);
+      color: white;
+      transition: all 0.3s ease;
+      min-width: 40px;
+    }
+
+    .btn-nav:hover {
+      background: rgba(255, 255, 255, 0.2);
+    }
+
+    .btn-nav.wide {
+      min-width: 60px;
+    }
+
+    .narration-controls {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .description {
+      margin-top: 15px;
+      padding: 12px;
+      background: rgba(102, 126, 234, 0.1);
+      border-radius: 6px;
+      font-size: 13px;
+      color: #b0b0b0;
+    }
+  </style>
+</head>
+<body>
+  <h1>🎵 Navigation Icons - More Creative Options</h1>
+
+  <!-- Option 1: All Text -->
+  <div class="example">
+    <h2>Option 1: All Text (Zero Confusion)</h2>
+    <div class="controls">
+      <button class="btn-control">🎤 Start Talk Mode</button>
+      <button class="btn-control">🔇 Mute</button>
+      <div class="narration-controls">
+        <button class="btn-nav wide" title="Skip to start">Start</button>
+        <button class="btn-nav wide" title="Previous">Back</button>
+        <button class="btn-nav wide" title="Stop">Stop</button>
+        <button class="btn-nav wide" title="Pause">Pause</button>
+        <button class="btn-nav wide" title="Next">Fwd</button>
+        <button class="btn-nav wide" title="Skip to end">End</button>
+      </div>
+    </div>
+    <div class="description">
+      ✓ No ambiguity whatsoever<br>
+      ✓ Immediately clear to all users<br>
+      • Wider buttons needed
+    </div>
+  </div>
+
+  <!-- Option 2: Letters -->
+  <div class="example">
+    <h2>Option 2: Single Letters (Keyboard-Style)</h2>
+    <div class="controls">
+      <button class="btn-control">🎤 Start Talk Mode</button>
+      <button class="btn-control">🔇 Mute</button>
+      <div class="narration-controls">
+        <button class="btn-nav" title="Skip to start">⏮</button>
+        <button class="btn-nav" title="Previous">B</button>
+        <button class="btn-nav" title="Stop">S</button>
+        <button class="btn-nav" title="Pause">P</button>
+        <button class="btn-nav" title="Next">F</button>
+        <button class="btn-nav" title="Skip to end">⏭</button>
+      </div>
+    </div>
+    <div class="description">
+      ✓ Compact yet clear (B=Back, F=Forward, S=Stop, P=Pause)<br>
+      ✓ Skip icons for endpoints<br>
+      • Like keyboard shortcuts
+    </div>
+  </div>
+
+  <!-- Option 3: Arrows with Bars -->
+  <div class="example">
+    <h2>Option 3: Arrows with Bars (Classic)</h2>
+    <div class="controls">
+      <button class="btn-control">🎤 Start Talk Mode</button>
+      <button class="btn-control">🔇 Mute</button>
+      <div class="narration-controls">
+        <button class="btn-nav" title="Skip to start">⏮</button>
+        <button class="btn-nav" title="Previous">◄|</button>
+        <button class="btn-nav" title="Stop">◼</button>
+        <button class="btn-nav" title="Pause">❙❙</button>
+        <button class="btn-nav" title="Next">|►</button>
+        <button class="btn-nav" title="Skip to end">⏭</button>
+      </div>
+    </div>
+    <div class="description">
+      ✓ Bar indicators show single-step movement<br>
+      ✓ Different from play button<br>
+      • Classic cassette/CD style
+    </div>
+  </div>
+
+  <!-- Option 4: Step Indicators -->
+  <div class="example">
+    <h2>Option 4: Step Indicators (Explicit)</h2>
+    <div class="controls">
+      <button class="btn-control">🎤 Start Talk Mode</button>
+      <button class="btn-control">🔇 Mute</button>
+      <div class="narration-controls">
+        <button class="btn-nav" title="Skip to start">⏮</button>
+        <button class="btn-nav" title="Previous">←</button>
+        <button class="btn-nav" title="Stop">■</button>
+        <button class="btn-nav" title="Pause">⏸</button>
+        <button class="btn-nav" title="Next">→</button>
+        <button class="btn-nav" title="Skip to end">⏭</button>
+      </div>
+    </div>
+    <div class="description">
+      ✓ Simple arrows (not triangles)<br>
+      ✓ Clear directional movement<br>
+      • Very different from play
+    </div>
+  </div>
+
+  <!-- Option 5: Numbers -->
+  <div class="example">
+    <h2>Option 5: Numbers (Sequential)</h2>
+    <div class="controls">
+      <button class="btn-control">🎤 Start Talk Mode</button>
+      <button class="btn-control">🔇 Mute</button>
+      <div class="narration-controls">
+        <button class="btn-nav" title="Skip to start">1️⃣</button>
+        <button class="btn-nav" title="Previous">-1</button>
+        <button class="btn-nav" title="Stop">■</button>
+        <button class="btn-nav" title="Pause">⏸</button>
+        <button class="btn-nav" title="Next">+1</button>
+        <button class="btn-nav" title="Skip to end">∞</button>
+      </div>
+    </div>
+    <div class="description">
+      ✓ Unique approach: +1 = next, -1 = previous<br>
+      ✓ Infinity symbol for end<br>
+      • Mathematically inspired
+    </div>
+  </div>
+
+  <!-- Option 6: Mixed Descriptive -->
+  <div class="example">
+    <h2>Option 6: Mixed Descriptive (Balance)</h2>
+    <div class="controls">
+      <button class="btn-control">🎤 Start Talk Mode</button>
+      <button class="btn-control">🔇 Mute</button>
+      <div class="narration-controls">
+        <button class="btn-nav" title="Skip to start">⏮</button>
+        <button class="btn-nav wide" title="Previous">← Back</button>
+        <button class="btn-nav wide" title="Stop">Stop</button>
+        <button class="btn-nav" title="Pause">⏸</button>
+        <button class="btn-nav wide" title="Next">Fwd →</button>
+        <button class="btn-nav" title="Skip to end">⏭</button>
+      </div>
+    </div>
+    <div class="description">
+      ✓ Text for common actions (Back/Fwd/Stop)<br>
+      ✓ Icons for skip and pause<br>
+      • Best clarity for main controls
+    </div>
+  </div>
+
+  <!-- Option 7: Bracket Style -->
+  <div class="example">
+    <h2>Option 7: Bracket Style (Programming-Inspired)</h2>
+    <div class="controls">
+      <button class="btn-control">🎤 Start Talk Mode</button>
+      <button class="btn-control">🔇 Mute</button>
+      <div class="narration-controls">
+        <button class="btn-nav" title="Skip to start">⏮</button>
+        <button class="btn-nav" title="Previous">⟨ Prev</button>
+        <button class="btn-nav" title="Stop">Stop</button>
+        <button class="btn-nav" title="Pause">⏸</button>
+        <button class="btn-nav" title="Next">Next ⟩</button>
+        <button class="btn-nav" title="Skip to end">⏭</button>
+      </div>
+    </div>
+    <div class="description">
+      ✓ Angle brackets clearly show direction<br>
+      ✓ Text prevents confusion<br>
+      • Tech-savvy aesthetic
+    </div>
+  </div>
+
+  <!-- Option 8: Page Style -->
+  <div class="example">
+    <h2>Option 8: Page Navigation Style (Book-Like)</h2>
+    <div class="controls">
+      <button class="btn-control">🎤 Start Talk Mode</button>
+      <button class="btn-control">🔇 Mute</button>
+      <div class="narration-controls">
+        <button class="btn-nav" title="Skip to start">First</button>
+        <button class="btn-nav" title="Previous">‹ Prev</button>
+        <button class="btn-nav" title="Stop">Stop</button>
+        <button class="btn-nav" title="Pause">Pause</button>
+        <button class="btn-nav" title="Next">Next ›</button>
+        <button class="btn-nav" title="Skip to end">Last</button>
+      </div>
+    </div>
+    <div class="description">
+      ✓ Like pagination controls<br>
+      ✓ Very clear labels<br>
+      • Familiar to web users
+    </div>
+  </div>
+
+  <!-- Option 9: Minimal Icons + Key Text -->
+  <div class="example">
+    <h2>Option 9: Minimal Icons + Key Text</h2>
+    <div class="controls">
+      <button class="btn-control">🎤 Start Talk Mode</button>
+      <button class="btn-control">🔇 Mute</button>
+      <div class="narration-controls">
+        <button class="btn-nav" title="Skip to start">⏮</button>
+        <button class="btn-nav" title="Previous">◀</button>
+        <button class="btn-nav wide" title="Stop">Stop</button>
+        <button class="btn-nav" title="Pause">⏸</button>
+        <button class="btn-nav" title="Next">▶</button>
+        <button class="btn-nav" title="Skip to end">⏭</button>
+      </div>
+    </div>
+    <div class="description">
+      ✓ Only "Stop" labeled (most important)<br>
+      ✓ Triangles OK since context is clear<br>
+      • Minimal text approach
+    </div>
+  </div>
+
+  <!-- Option 10: Heavy Text -->
+  <div class="example">
+    <h2>Option 10: Heavy Text (Maximum Clarity)</h2>
+    <div class="controls">
+      <button class="btn-control">🎤 Start Talk Mode</button>
+      <button class="btn-control">🔇 Mute</button>
+      <div class="narration-controls">
+        <button class="btn-nav wide" title="Skip to start">⏮ Start</button>
+        <button class="btn-nav wide" title="Previous">◀ Back</button>
+        <button class="btn-nav wide" title="Stop">■ Stop</button>
+        <button class="btn-nav wide" title="Pause">⏸ Pause</button>
+        <button class="btn-nav wide" title="Next">Fwd ▶</button>
+        <button class="btn-nav wide" title="Skip to end">End ⏭</button>
+      </div>
+    </div>
+    <div class="description">
+      ✓ Every button labeled<br>
+      ✓ Icons as decoration/reinforcement<br>
+      • Takes more space but ultra-clear
+    </div>
+  </div>
+
+  <!-- Option 11: Arrows Only -->
+  <div class="example">
+    <h2>Option 11: Arrows Only (Directional)</h2>
+    <div class="controls">
+      <button class="btn-control">🎤 Start Talk Mode</button>
+      <button class="btn-control">🔇 Mute</button>
+      <div class="narration-controls">
+        <button class="btn-nav" title="Skip to start">⇤</button>
+        <button class="btn-nav" title="Previous">←</button>
+        <button class="btn-nav wide" title="Stop">Stop</button>
+        <button class="btn-nav" title="Pause">∥</button>
+        <button class="btn-nav" title="Next">→</button>
+        <button class="btn-nav" title="Skip to end">⇥</button>
+      </div>
+    </div>
+    <div class="description">
+      ✓ Arrow-only navigation<br>
+      ✓ Thick arrows for skip, thin for step<br>
+      • Only Stop has text
+    </div>
+  </div>
+
+  <!-- Option 12: Skip Text Only -->
+  <div class="example">
+    <h2>Option 12: Skip Actions Labeled (Hybrid)</h2>
+    <div class="controls">
+      <button class="btn-control">🎤 Start Talk Mode</button>
+      <button class="btn-control">🔇 Mute</button>
+      <div class="narration-controls">
+        <button class="btn-nav wide" title="Skip to start">⏮ Start</button>
+        <button class="btn-nav" title="Previous">◀</button>
+        <button class="btn-nav" title="Stop">■</button>
+        <button class="btn-nav" title="Pause">⏸</button>
+        <button class="btn-nav" title="Next">▶</button>
+        <button class="btn-nav wide" title="Skip to end">End ⏭</button>
+      </div>
+    </div>
+    <div class="description">
+      ✓ Skip endpoints labeled<br>
+      ✓ Middle controls iconic<br>
+      • Clear which are "big jumps" vs steps
+    </div>
+  </div>
+
+  <div style="text-align: center; margin-top: 40px; color: #999;">
+    <p>Much wider range this time!</p>
+    <p style="margin-top: 10px;">Pick your favorite (1-12) or mix elements from multiple options!</p>
+  </div>
+</body>
+</html>

@@ -1,0 +1,46 @@
+{
+  "provider": "ollama",
+  "port": 3000,
+
+  "interpreter": "./dfrotz.exe",
+  "interpreterArgs": [],
+
+  "voice": {
+    "enabled": true,
+    "tts": {
+      "method": "browser",
+      "browser": {
+        "voice": "Microsoft David Desktop",
+        "appVoice": "Microsoft Zira Desktop",
+        "rate": 1.1,
+        "pitch": 1.0
+      },
+      "elevenlabs": {
+        "api_key": "YOUR_ELEVENLABS_API_KEY_HERE",
+        "voice_id": "YOUR_VOICE_ID",
+        "instruction_voice_id": "YOUR_INSTRUCTION_VOICE_ID",
+        "model_id": "eleven_turbo_v2",
+        "stability": 0.5,
+        "similarity_boost": 0.75
+      }
+    }
+  },
+
+  "providers": {
+    "ollama": {
+      "baseURL": "http://localhost:11434/v1",
+      "model": "llama3.1",
+      "apiKeyEnv": null
+    },
+    "openai": {
+      "baseURL": "https://api.openai.com/v1",
+      "model": "gpt-4o-mini",
+      "apiKeyEnv": "OPENAI_API_KEY"
+    },
+    "claude": {
+      "baseURL": "https://api.anthropic.com/v1",
+      "model": "claude-sonnet-4-20250514",
+      "apiKeyEnv": "ANTHROPIC_API_KEY"
+    }
+  }
+}

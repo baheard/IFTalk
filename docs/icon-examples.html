@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Navigation Icon Examples</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: linear-gradient(135deg, #1e1e2e 0%, #2d2d44 100%);
+      color: #e0e0e0;
+      padding: 40px;
+    }
+
+    h1 {
+      text-align: center;
+      margin-bottom: 40px;
+      color: #667eea;
+    }
+
+    .example {
+      background: rgba(0, 0, 0, 0.3);
+      padding: 30px;
+      margin-bottom: 30px;
+      border-radius: 12px;
+      border: 2px solid rgba(102, 126, 234, 0.3);
+    }
+
+    .example h2 {
+      margin-bottom: 20px;
+      color: #a8d8ea;
+      font-size: 18px;
+    }
+
+    .controls {
+      display: flex;
+      justify-content: flex-start;
+      gap: 15px;
+      align-items: center;
+      padding: 15px;
+      background: rgba(0, 0, 0, 0.2);
+      border-radius: 8px;
+    }
+
+    .btn-control {
+      padding: 10px 20px;
+      border: none;
+      border-radius: 8px;
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      transition: all 0.3s ease;
+    }
+
+    .btn-control:hover {
+      transform: scale(1.05);
+    }
+
+    .btn-nav {
+      padding: 8px 12px;
+      border: none;
+      border-radius: 6px;
+      font-size: 14px;
+      cursor: pointer;
+      background: rgba(255, 255, 255, 0.1);
+      color: white;
+      transition: all 0.3s ease;
+      min-width: 40px;
+    }
+
+    .btn-nav:hover {
+      background: rgba(255, 255, 255, 0.2);
+    }
+
+    .narration-controls {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .description {
+      margin-top: 15px;
+      padding: 12px;
+      background: rgba(102, 126, 234, 0.1);
+      border-radius: 6px;
+      font-size: 13px;
+      color: #b0b0b0;
+    }
+  </style>
+</head>
+<body>
+  <h1>🎵 Navigation Icon Options (Left Aligned)</h1>
+
+  <!-- Option 1: Current Emoji Style -->
+  <div class="example">
+    <h2>Option 1: Current Emoji Style (Media Player)</h2>
+    <div class="controls">
+      <button class="btn-control">🎤 Start Talk Mode</button>
+      <button class="btn-control">🔇 Mute</button>
+      <div class="narration-controls">
+        <button class="btn-nav" title="Skip to start">⏮️</button>
+        <button class="btn-nav" title="Previous">◀️</button>
+        <button class="btn-nav" title="Stop">⏹️</button>
+        <button class="btn-nav" title="Pause">⏸️</button>
+        <button class="btn-nav" title="Next">▶️</button>
+        <button class="btn-nav" title="Skip to end">⏭️</button>
+      </div>
+    </div>
+    <div class="description">
+      ✓ Standard media player icons<br>
+      ✓ Familiar to most users<br>
+      • Full emoji style
+    </div>
+  </div>
+
+  <!-- Option 2: Simpler Unicode -->
+  <div class="example">
+    <h2>Option 2: Simpler Unicode (Clean)</h2>
+    <div class="controls">
+      <button class="btn-control">🎤 Start Talk Mode</button>
+      <button class="btn-control">🔇 Mute</button>
+      <div class="narration-controls">
+        <button class="btn-nav" title="Skip to start">⏪</button>
+        <button class="btn-nav" title="Previous">◀</button>
+        <button class="btn-nav" title="Stop">⬛</button>
+        <button class="btn-nav" title="Pause">⏸</button>
+        <button class="btn-nav" title="Next">▶</button>
+        <button class="btn-nav" title="Skip to end">⏩</button>
+      </div>
+    </div>
+    <div class="description">
+      ✓ Simpler, lighter feel<br>
+      ✓ Less "emoji" look<br>
+      • Mix of unicode symbols
+    </div>
+  </div>
+
+  <!-- Option 3: Double Arrows -->
+  <div class="example">
+    <h2>Option 3: Double Arrows (Retro)</h2>
+    <div class="controls">
+      <button class="btn-control">🎤 Start Talk Mode</button>
+      <button class="btn-control">🔇 Mute</button>
+      <div class="narration-controls">
+        <button class="btn-nav" title="Skip to start">|◀◀</button>
+        <button class="btn-nav" title="Previous">◀</button>
+        <button class="btn-nav" title="Stop">■</button>
+        <button class="btn-nav" title="Pause">||</button>
+        <button class="btn-nav" title="Next">▶</button>
+        <button class="btn-nav" title="Skip to end">▶▶|</button>
+      </div>
+    </div>
+    <div class="description">
+      ✓ Classic CD/DVD player style<br>
+      ✓ Clear skip vs single navigation<br>
+      • Retro aesthetic
+    </div>
+  </div>
+
+  <!-- Option 4: Text Labels -->
+  <div class="example">
+    <h2>Option 4: Text Labels (Explicit)</h2>
+    <div class="controls">
+      <button class="btn-control">🎤 Start Talk Mode</button>
+      <button class="btn-control">🔇 Mute</button>
+      <div class="narration-controls">
+        <button class="btn-nav" title="Skip to start">|◀◀</button>
+        <button class="btn-nav" title="Previous">Back</button>
+        <button class="btn-nav" title="Stop">Stop</button>
+        <button class="btn-nav" title="Pause">Pause</button>
+        <button class="btn-nav" title="Next">Next</button>
+        <button class="btn-nav" title="Skip to end">▶▶|</button>
+      </div>
+    </div>
+    <div class="description">
+      ✓ No ambiguity - text is clear<br>
+      ✓ Accessible for all users<br>
+      • Wider buttons due to text
+    </div>
+  </div>
+
+  <!-- Option 5: Unicode Arrows -->
+  <div class="example">
+    <h2>Option 5: Unicode Arrows (Elegant)</h2>
+    <div class="controls">
+      <button class="btn-control">🎤 Start Talk Mode</button>
+      <button class="btn-control">🔇 Mute</button>
+      <div class="narration-controls">
+        <button class="btn-nav" title="Skip to start">«</button>
+        <button class="btn-nav" title="Previous">‹</button>
+        <button class="btn-nav" title="Stop">■</button>
+        <button class="btn-nav" title="Pause">||</button>
+        <button class="btn-nav" title="Next">›</button>
+        <button class="btn-nav" title="Skip to end">»</button>
+      </div>
+    </div>
+    <div class="description">
+      ✓ Minimal, elegant look<br>
+      ✓ Clean typography<br>
+      • May be less familiar to some users
+    </div>
+  </div>
+
+  <!-- Option 6: Hybrid Text/Icons -->
+  <div class="example">
+    <h2>Option 6: Hybrid (Icons + Key Actions)</h2>
+    <div class="controls">
+      <button class="btn-control">🎤 Start Talk Mode</button>
+      <button class="btn-control">🔇 Mute</button>
+      <div class="narration-controls">
+        <button class="btn-nav" title="Skip to start">⏮</button>
+        <button class="btn-nav" title="Previous">Prev</button>
+        <button class="btn-nav" title="Stop">■</button>
+        <button class="btn-nav" title="Pause">⏸</button>
+        <button class="btn-nav" title="Next">Next</button>
+        <button class="btn-nav" title="Skip to end">⏭</button>
+      </div>
+    </div>
+    <div class="description">
+      ✓ Balance between icons and text<br>
+      ✓ Most common actions labeled<br>
+      • Mixed style
+    </div>
+  </div>
+
+  <!-- Option 7: Single Character -->
+  <div class="example">
+    <h2>Option 7: Single Character (Compact)</h2>
+    <div class="controls">
+      <button class="btn-control">🎤 Start Talk Mode</button>
+      <button class="btn-control">🔇 Mute</button>
+      <div class="narration-controls">
+        <button class="btn-nav" title="Skip to start">⏮</button>
+        <button class="btn-nav" title="Previous">◄</button>
+        <button class="btn-nav" title="Stop">◼</button>
+        <button class="btn-nav" title="Pause">⏸</button>
+        <button class="btn-nav" title="Next">►</button>
+        <button class="btn-nav" title="Skip to end">⏭</button>
+      </div>
+    </div>
+    <div class="description">
+      ✓ Very compact<br>
+      ✓ Consistent sizing<br>
+      • All single-width characters
+    </div>
+  </div>
+
+  <!-- Option 8: Solid Shapes -->
+  <div class="example">
+    <h2>Option 8: Solid Shapes (Modern)</h2>
+    <div class="controls">
+      <button class="btn-control">🎤 Start Talk Mode</button>
+      <button class="btn-control">🔇 Mute</button>
+      <div class="narration-controls">
+        <button class="btn-nav" title="Skip to start">⏪</button>
+        <button class="btn-nav" title="Previous">◀</button>
+        <button class="btn-nav" title="Stop">⏹</button>
+        <button class="btn-nav" title="Pause">⏸</button>
+        <button class="btn-nav" title="Next">▶</button>
+        <button class="btn-nav" title="Skip to end">⏩</button>
+      </div>
+    </div>
+    <div class="description">
+      ✓ Bold, clear shapes<br>
+      ✓ Modern media player style<br>
+      • Similar to streaming platforms
+    </div>
+  </div>
+
+  <!-- Option 9: Minimal Text -->
+  <div class="example">
+    <h2>Option 9: Minimal Text (Short Labels)</h2>
+    <div class="controls">
+      <button class="btn-control">🎤 Start Talk Mode</button>
+      <button class="btn-control">🔇 Mute</button>
+      <div class="narration-controls">
+        <button class="btn-nav" title="Skip to start">|◀</button>
+        <button class="btn-nav" title="Previous">◀</button>
+        <button class="btn-nav" title="Stop">Stop</button>
+        <button class="btn-nav" title="Pause">⏸</button>
+        <button class="btn-nav" title="Next">▶</button>
+        <button class="btn-nav" title="Skip to end">▶|</button>
+      </div>
+    </div>
+    <div class="description">
+      ✓ Stop button clearly labeled<br>
+      ✓ Others use familiar icons<br>
+      • Best of both worlds
+    </div>
+  </div>
+
+  <div style="text-align: center; margin-top: 40px; color: #999;">
+    <p>Hover over buttons to see tooltips!</p>
+    <p style="margin-top: 10px;">Which icon style do you prefer? Tell me the option number (1-9).</p>
+  </div>
+</body>
+</html>

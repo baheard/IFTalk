@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Navigation Button Examples</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: linear-gradient(135deg, #1e1e2e 0%, #2d2d44 100%);
+      color: #e0e0e0;
+      padding: 40px;
+    }
+
+    h1 {
+      text-align: center;
+      margin-bottom: 40px;
+      color: #667eea;
+    }
+
+    .example {
+      background: rgba(0, 0, 0, 0.3);
+      padding: 30px;
+      margin-bottom: 30px;
+      border-radius: 12px;
+      border: 2px solid rgba(102, 126, 234, 0.3);
+    }
+
+    .example h2 {
+      margin-bottom: 20px;
+      color: #a8d8ea;
+      font-size: 18px;
+    }
+
+    .controls {
+      display: flex;
+      gap: 15px;
+      align-items: center;
+      padding: 15px;
+      background: rgba(0, 0, 0, 0.2);
+      border-radius: 8px;
+    }
+
+    .btn-control {
+      padding: 10px 20px;
+      border: none;
+      border-radius: 8px;
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      transition: all 0.3s ease;
+    }
+
+    .btn-control:hover {
+      transform: scale(1.05);
+    }
+
+    .btn-nav {
+      padding: 8px 12px;
+      border: none;
+      border-radius: 6px;
+      font-size: 14px;
+      cursor: pointer;
+      background: rgba(255, 255, 255, 0.1);
+      color: white;
+      transition: all 0.3s ease;
+      min-width: 40px;
+    }
+
+    .btn-nav:hover {
+      background: rgba(255, 255, 255, 0.2);
+    }
+
+    .narration-controls {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+
+    /* Example 1: Left aligned */
+    .example-1 .controls {
+      justify-content: flex-start;
+    }
+
+    /* Example 2: Centered */
+    .example-2 .controls {
+      justify-content: center;
+    }
+
+    /* Example 3: Space between */
+    .example-3 .controls {
+      justify-content: space-between;
+    }
+
+    /* Example 4: Grouped with separators */
+    .example-4 .controls {
+      justify-content: flex-start;
+      gap: 20px;
+    }
+
+    .example-4 .separator {
+      width: 1px;
+      height: 30px;
+      background: rgba(255, 255, 255, 0.2);
+    }
+
+    /* Example 5: Two rows */
+    .example-5 .controls {
+      flex-direction: column;
+      gap: 15px;
+    }
+
+    .example-5 .row {
+      display: flex;
+      gap: 15px;
+      align-items: center;
+      width: 100%;
+      justify-content: center;
+    }
+
+    /* Example 6: Compact inline */
+    .example-6 .controls {
+      justify-content: center;
+      gap: 10px;
+    }
+
+    .example-6 .narration-controls {
+      gap: 4px;
+      background: rgba(0, 0, 0, 0.3);
+      padding: 4px;
+      border-radius: 8px;
+    }
+
+    /* Example 7: Left side buttons, right side controls */
+    .example-7 .controls {
+      justify-content: space-between;
+    }
+
+    .example-7 .left-group,
+    .example-7 .right-group {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+    }
+  </style>
+</head>
+<body>
+  <h1>🎮 Navigation Button Layout Examples</h1>
+
+  <!-- Example 1: Left Aligned -->
+  <div class="example example-1">
+    <h2>Example 1: Left Aligned (Current Style)</h2>
+    <div class="controls">
+      <button class="btn-control">🎤 Start Talk Mode</button>
+      <button class="btn-control">🔇 Mute</button>
+      <div class="narration-controls">
+        <button class="btn-nav">⏮️</button>
+        <button class="btn-nav">◀️</button>
+        <button class="btn-nav">⏹️</button>
+        <button class="btn-nav">⏸️</button>
+        <button class="btn-nav">▶️</button>
+        <button class="btn-nav">⏭️</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Example 2: Centered -->
+  <div class="example example-2">
+    <h2>Example 2: Centered</h2>
+    <div class="controls">
+      <button class="btn-control">🎤 Start Talk Mode</button>
+      <button class="btn-control">🔇 Mute</button>
+      <div class="narration-controls">
+        <button class="btn-nav">⏮️</button>
+        <button class="btn-nav">◀️</button>
+        <button class="btn-nav">⏹️</button>
+        <button class="btn-nav">⏸️</button>
+        <button class="btn-nav">▶️</button>
+        <button class="btn-nav">⏭️</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Example 3: Space Between -->
+  <div class="example example-3">
+    <h2>Example 3: Space Between (Mode Left, Controls Right)</h2>
+    <div class="controls">
+      <div style="display: flex; gap: 15px;">
+        <button class="btn-control">🎤 Start Talk Mode</button>
+        <button class="btn-control">🔇 Mute</button>
+      </div>
+      <div class="narration-controls">
+        <button class="btn-nav">⏮️</button>
+        <button class="btn-nav">◀️</button>
+        <button class="btn-nav">⏹️</button>
+        <button class="btn-nav">⏸️</button>
+        <button class="btn-nav">▶️</button>
+        <button class="btn-nav">⏭️</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Example 4: Grouped with Separators -->
+  <div class="example example-4">
+    <h2>Example 4: Grouped with Visual Separators</h2>
+    <div class="controls">
+      <button class="btn-control">🎤 Start Talk Mode</button>
+      <button class="btn-control">🔇 Mute</button>
+      <div class="separator"></div>
+      <div class="narration-controls">
+        <button class="btn-nav">⏮️</button>
+        <button class="btn-nav">◀️</button>
+        <button class="btn-nav">⏹️</button>
+        <button class="btn-nav">⏸️</button>
+        <button class="btn-nav">▶️</button>
+        <button class="btn-nav">⏭️</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Example 5: Two Rows -->
+  <div class="example example-5">
+    <h2>Example 5: Two Rows (Mode on Top, Controls Below)</h2>
+    <div class="controls">
+      <div class="row">
+        <button class="btn-control">🎤 Start Talk Mode</button>
+        <button class="btn-control">🔇 Mute</button>
+      </div>
+      <div class="row">
+        <div class="narration-controls">
+          <button class="btn-nav">⏮️</button>
+          <button class="btn-nav">◀️</button>
+          <button class="btn-nav">⏹️</button>
+          <button class="btn-nav">⏸️</button>
+          <button class="btn-nav">▶️</button>
+          <button class="btn-nav">⏭️</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Example 6: Compact Inline -->
+  <div class="example example-6">
+    <h2>Example 6: Compact Inline (All Equal Size)</h2>
+    <div class="controls">
+      <button class="btn-control">🎤 Start Talk Mode</button>
+      <button class="btn-control">🔇 Mute</button>
+      <div class="narration-controls">
+        <button class="btn-nav">⏮️</button>
+        <button class="btn-nav">◀️</button>
+        <button class="btn-nav">⏹️</button>
+        <button class="btn-nav">⏸️</button>
+        <button class="btn-nav">▶️</button>
+        <button class="btn-nav">⏭️</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Example 7: Split Layout -->
+  <div class="example example-7">
+    <h2>Example 7: Split Layout (Mode Left, Controls Right with Gap)</h2>
+    <div class="controls">
+      <div class="left-group">
+        <button class="btn-control">🎤 Start Talk Mode</button>
+        <button class="btn-control">🔇 Mute</button>
+      </div>
+      <div class="right-group">
+        <button class="btn-nav">⏮️</button>
+        <button class="btn-nav">◀️</button>
+        <button class="btn-nav">⏹️</button>
+        <button class="btn-nav">⏸️</button>
+        <button class="btn-nav">▶️</button>
+        <button class="btn-nav">⏭️</button>
+      </div>
+    </div>
+  </div>
+
+  <div style="text-align: center; margin-top: 40px; color: #999;">
+    <p>Try hovering over the buttons to see the interactions!</p>
+    <p style="margin-top: 10px;">Which layout do you prefer? Let me know the example number.</p>
+  </div>
+</body>
+</html>
