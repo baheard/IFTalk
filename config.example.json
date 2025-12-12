@@ -10,8 +10,8 @@
     "tts": {
       "method": "browser",
       "browser": {
-        "voice": "Microsoft David Desktop",
-        "appVoice": "Microsoft Zira Desktop",
+        "voice": "Google UK English Male",
+        "appVoice": "Google US English",
         "rate": 1.1,
         "pitch": 1.0
       },
