@@ -113,11 +113,20 @@
 - **Behavior**: If user types anything manually, they MUST press Enter to send (no auto-send)
 
 ### Two-Panel Input Layout (index.html lines 131-163)
-- **Left panel**: Voice input with meter + live transcript + recognized command history (last 3)
-- **Right panel**: Text input + command history (last 10) with translation display
-- Command history shows: `"go north" → N` when AI translates
+- **Left panel (Voice)**: Only visible when talk mode is active
+  - Voice input with meter + live transcript
+  - Voice command history: Shows last 3 by default, expands to 20 with "Show More"
+  - Expand/collapse state saved to localStorage
+  - Navigation commands (stop, play, back, skip) highlighted in orange
+- **Right panel (Text)**: Always visible
+  - Text input + command history (last 10) with translation display
+  - Command history shows: `"go north" → N` when AI translates
 - Voice history separate from command history
-- **Navigation command highlighting**: App commands (stop, play, back, skip, etc.) shown in orange in voice history (lines 61-103, 106-127)
+- **Voice history management** (lines 67-125):
+  - Stores up to 20 items with metadata `{text, isNavCommand}`
+  - Compact view: Shows last 3 with aging classes (old, older)
+  - Expanded view: Shows up to 20 items without aging effects
+  - Auto-hides expand button if ≤3 items
 
 ### Pronunciation Dictionary System
 - **Client-side** (app.js lines 571-598): localStorage-backed, editable via settings panel

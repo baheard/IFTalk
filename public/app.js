@@ -3,7 +3,8 @@ const socket = io();
 
 // DOM Elements
 const welcome = document.getElementById('welcome');
-const gameOutput = document.getElementById('gameOutput');
+const gameContainer = document.getElementById('gameport');
+const gameOutput = gameContainer;
 const inputArea = document.getElementById('inputArea');
 const userInput = document.getElementById('userInput');
 const sendBtn = document.getElementById('sendBtn');
@@ -20,6 +21,9 @@ const voiceFeedback = document.getElementById('voiceFeedback');
 const voiceMeterFill = document.getElementById('voiceMeterFill');
 const voiceTranscript = document.getElementById('voiceTranscript');
 const voiceHistory = document.getElementById('voiceHistory');
+const voiceHistoryPanel = document.querySelector('.voice-panel');
+const voiceHistoryToggle = document.getElementById('voiceHistoryToggle');
+const voiceHistoryEl = document.getElementById('voiceHistory');
 const commandHistory = document.getElementById('commandHistory');
 const stopBtn = document.getElementById('stopBtn');
 const pausePlayBtn = document.getElementById('pausePlayBtn');
@@ -56,6 +60,8 @@ let isNavigating = false;  // Prevent concurrent navigation operations
 let currentChunkStartTime = 0;  // When current chunk started playing
 let confirmedTranscriptTimeout = null;  // Timeout for moving confirmed text to history
 let voiceHistoryItems = [];  // Track last 3 voice commands: {text, isNavCommand}
+let lastVoiceInputTime = Date.now();  // Track last voice input for idle detection
+let idleCheckInterval = null;  // Interval for checking idle state
 
 // Add voice command to history
 function addToVoiceHistory(text, isNavCommand = false) {
@@ -68,8 +74,8 @@ function addToVoiceHistory(text, isNavCommand = false) {
   // Add to history array with metadata
   voiceHistoryItems.unshift({ text, isNavCommand });
 
-  // Keep only last 3
-  if (voiceHistoryItems.length > 3) {
+  // Keep only last 20
+  if (voiceHistoryItems.length > 20) {
     voiceHistoryItems.pop();
   }
 
@@ -81,7 +87,14 @@ function addToVoiceHistory(text, isNavCommand = false) {
 function updateVoiceHistoryUI() {
   voiceHistory.innerHTML = '';
 
-  voiceHistoryItems.forEach((item, index) => {
+  // Check if expanded
+  const isExpanded = voiceHistoryToggle.classList.contains('expanded');
+  const maxItems = isExpanded ? 20 : 3;
+
+  // Show only the first N items
+  const itemsToShow = voiceHistoryItems.slice(0, maxItems);
+
+  itemsToShow.forEach((item, index) => {
     const div = document.createElement('div');
     div.className = 'voice-history-item';
     div.textContent = item.text;
@@ -91,15 +104,24 @@ function updateVoiceHistoryUI() {
       div.classList.add('nav-command');
     }
 
-    // Add aging classes
-    if (index === 1) {
-      div.classList.add('old');
-    } else if (index === 2) {
-      div.classList.add('older');
+    // Add aging classes (only in compact mode)
+    if (!isExpanded) {
+      if (index === 1) {
+        div.classList.add('old');
+      } else if (index === 2) {
+        div.classList.add('older');
+      }
     }
 
     voiceHistory.appendChild(div);
   });
+
+  // Update toggle button visibility
+  if (voiceHistoryItems.length > 3) {
+    voiceHistoryToggle.style.display = 'flex';
+  } else {
+    voiceHistoryToggle.style.display = 'none';
+  }
 }
 
 // Show confirmed transcript for a moment before moving to history
@@ -235,6 +257,9 @@ function initVoiceRecognition() {
     if (finalTranscript && !hasProcessedResult) {
       console.log('[Voice] Final:', finalTranscript);
 
+      // Update last input time for idle detection
+      lastVoiceInputTime = Date.now();
+
       // Process voice keywords first to determine if it's a nav command
       const processed = processVoiceKeywords(finalTranscript);
       const isNavCommand = (processed === false);  // Navigation commands return false
@@ -315,6 +340,40 @@ function initVoiceRecognition() {
       }, 300);
     }
   };
+}
+
+// Idle detection - stop talk mode if no input for 2 minutes
+function startIdleChecker() {
+  // Clear any existing interval
+  if (idleCheckInterval) {
+    clearInterval(idleCheckInterval);
+  }
+
+  console.log('[Idle] Starting idle checker');
+
+  // Check every 30 seconds
+  idleCheckInterval = setInterval(() => {
+    if (!talkModeActive || isNarrating) {
+      return;  // Don't check if not in talk mode or currently narrating
+    }
+
+    const idleTime = Date.now() - lastVoiceInputTime;
+    const twoMinutes = 2 * 60 * 1000;
+
+    if (idleTime >= twoMinutes) {
+      console.log('[Idle] User idle for 2 minutes, stopping talk mode...');
+      // Automatically stop talk mode
+      toggleTalkModeBtn.click();
+    }
+  }, 30000);  // Check every 30 seconds
+}
+
+function stopIdleChecker() {
+  if (idleCheckInterval) {
+    console.log('[Idle] Stopping idle checker');
+    clearInterval(idleCheckInterval);
+    idleCheckInterval = null;
+  }
 }
 
 // Process voice keywords
@@ -854,6 +913,10 @@ function getPronunciationMap() {
   return {
     'Anchorhead': 'Anchor-head',
     'ANCHORHEAD': 'ANCHOR-HEAD',
+    'Photopia': 'Foto-pia',
+    'PHOTOPIA': 'FOTO-PIA',
+    'Violet': 'Vy-o-let',
+    'VIOLET': 'VY-O-LET'
   };
 }
 
@@ -1113,7 +1176,14 @@ async function speakTextChunked(text, startFromIndex = 0) {
     if (audioData) {
       // Mark when this chunk started playing (for smart back button)
       currentChunkStartTime = Date.now();
+
+      // Highlight text in Parchment output
+      highlightSpokenText(chunkText);
+
       await playAudio(audioData);
+
+      // Remove highlight after audio finishes
+      removeHighlight();
     }
   }
 
@@ -1367,39 +1437,117 @@ function updateNavButtons() {
 async function startGame(gamePath) {
   try {
     currentGamePath = gamePath;
-
     updateStatus('Starting game...', 'processing');
 
-    // Hide welcome, show input
+    // Hide welcome, show game container and input
     welcome.classList.add('hidden');
+    gameContainer.classList.remove('hidden');
     inputArea.classList.remove('hidden');
 
-    // Request game start
-    socket.emit('start-game', gamePath);
+    // Stop any existing narration
+    stopNarration();
 
-    // Wait for initial output
-    socket.once('game-output', (output) => {
-      gameOutput.innerHTML = '';
+    console.log('[ZVM] Loading game:', gamePath);
 
-      // Stop any existing narration (in case restarting game)
-      stopNarration();
+    // Verify libraries are loaded
+    if (typeof window.ZVM === 'undefined') {
+      console.error('[ZVM] ZVM library not loaded');
+      updateStatus('Error: Game engine not loaded');
+      return;
+    }
+    if (typeof window.Glk === 'undefined') {
+      console.error('[ZVM] Glk library not loaded');
+      updateStatus('Error: Glk library not loaded');
+      return;
+    }
+    if (typeof window.GlkOte === 'undefined') {
+      console.error('[ZVM] GlkOte library not loaded');
+      updateStatus('Error: GlkOte library not loaded');
+      return;
+    }
 
-      // Store the game text element reference
-      currentGameTextElement = addGameText(output);
+    // Fetch the story file as binary data
+    updateStatus('Downloading game file...', 'processing');
+    const response = await fetch(gamePath);
+    if (!response.ok) {
+      throw new Error(`Failed to load game file: ${response.statusText}`);
+    }
+    const arrayBuffer = await response.arrayBuffer();
+    const storyData = new Uint8Array(arrayBuffer);
+    console.log('[ZVM] Story file loaded:', storyData.length, 'bytes');
 
-      // Reset narration state for new game
-      pendingNarrationText = output;
-      narrationChunks = [];
-      currentChunkIndex = 0;
-      isPaused = false;
+    // Create ZVM instance
+    const vm = new window.ZVM();
+    window.zvmInstance = vm;
 
-      // Create narration chunks so play button works
-      createNarrationChunks(output);
-      updateNavButtons();
-
-      updateStatus('Ready - Click "Start Talk Mode" for voice');
-      userInput.focus();
+    // Prepare VM with story data and Glk reference (but don't start yet)
+    console.log('[ZVM] Preparing VM...');
+    vm.prepare(storyData, {
+      Glk: window.Glk
     });
+
+    // Create Game interface for GlkOte
+    window.Game = {
+      gameport: 'gameport',  // ID of the container element
+      spacing: 4,
+      accept: function(event) {
+        console.log('[Game] Received event:', event.type);
+
+        if (event.type === 'init') {
+          // GlkOte has measured the gameport and provided metrics
+          console.log('[Game] Init event received with metrics');
+
+          // Now initialize Glk with the VM
+          console.log('[ZVM] Initializing Glk...');
+          window.Glk.init({
+            vm: vm,
+            GlkOte: window.GlkOte
+          });
+
+          // Start VM execution - this will create windows using the metrics
+          console.log('[ZVM] Starting VM...');
+          vm.start();
+
+          console.log('[ZVM] Game initialized successfully');
+          updateStatus('Ready - Click "Start Talk Mode" for voice');
+
+          // Reset narration state
+          pendingNarrationText = null;
+          narrationChunks = [];
+          currentChunkIndex = 0;
+          isPaused = false;
+
+          updateNavButtons();
+          userInput.focus();
+        } else if (event.type === 'line' || event.type === 'char') {
+          // Handle user input events
+          console.log('[Game] Input event:', event);
+          vm.resume(event);
+        } else if (event.type === 'specialresponse') {
+          // Handle file operations
+          console.log('[Game] Special response:', event);
+          vm.resume(event);
+        }
+      }
+    };
+
+    // Verify gameport element exists
+    const gameportEl = document.getElementById('gameport');
+    if (!gameportEl) {
+      throw new Error('Gameport element not found');
+    }
+    console.log('[ZVM] Gameport element found:', gameportEl);
+
+    // Initialize GlkOte - it will use the global window.Game object
+    // GlkOte will measure the gameport and call Game.accept() with init event
+    console.log('[ZVM] Initializing GlkOte...');
+    try {
+      window.GlkOte.init();
+      console.log('[ZVM] GlkOte.init() called successfully');
+    } catch (error) {
+      console.error('[ZVM] GlkOte.init() error:', error);
+      throw error;
+    }
 
   } catch (error) {
     console.error('[Game] Start error:', error);
@@ -1407,7 +1555,10 @@ async function startGame(gamePath) {
   }
 }
 
-// Send command directly
+// Parchment command generation counter
+let parchmentGeneration = 0;
+
+// Send command directly to Parchment
 async function sendCommandDirect(cmd) {
   const input = cmd !== undefined ? cmd : userInput.value;
 
@@ -1417,46 +1568,33 @@ async function sendCommandDirect(cmd) {
 
   updateStatus('Sending...', 'processing');
 
-  // Show command (empty shows as gray [ENTER])
-  addGameText(input, true);
-
   // Add to command history (no translation for direct send)
   // Show "[ENTER]" for empty commands
   addToCommandHistory(input || '[ENTER]');
 
-  // Send to server
-  socket.emit('send-command', input);
+  // Send command to Parchment via Game.accept()
+  try {
+    if (typeof Game !== 'undefined' && Game.accept) {
+      // Send line input event to Parchment
+      Game.accept({
+        type: 'line',
+        window: 1,  // Main window
+        value: input,
+        gen: parchmentGeneration++
+      });
 
-  // Wait for response
-  socket.once('game-output', async (output) => {
-    if (output && output.trim()) {
-      // Stop any currently running narration cleanly before processing new output
-      stopNarration();
-
-      // Store the game text element reference
-      currentGameTextElement = addGameText(output);
-
-      // Reset narration for new text
-      pendingNarrationText = output;
-      narrationChunks = [];  // Clear old chunks
-      currentChunkIndex = 0;
-      isPaused = false;
-
-      // ALWAYS create narration chunks (even if not auto-playing)
-      // This ensures navigation buttons work properly
-      createNarrationChunks(output);
-
-      // Auto-narrate if talk mode is active
-      if (narrationEnabled && !isMuted) {
-        await speakTextChunked(null, 0);  // Play from chunks
-      }
-
-      updateNavButtons();
+      console.log('[Parchment] Sent command:', input || '[ENTER]');
+      updateStatus('Ready');
+    } else {
+      console.error('[Parchment] Game object not available');
+      updateStatus('Error: Game not loaded');
     }
+  } catch (error) {
+    console.error('[Parchment] Error sending command:', error);
+    updateStatus('Error: ' + error.message);
+  }
 
-    updateStatus('Ready');
-    userInput.focus();
-  });
+  userInput.focus();
 }
 
 // Send command with AI translation
@@ -1516,44 +1654,34 @@ async function sendCommand() {
     // Add to command history with translation and confidence
     addToCommandHistory(input, command, confidence);
 
-    // Send to game
-    socket.emit('send-command', command);
+    // Read back the translated command if it came from voice (not manual typing)
+    if (!hasManualTyping) {
+      speakAppMessage(command);
+    }
 
-    // Wait for response
-    socket.once('game-output', async (output) => {
-      if (output && output.trim()) {
-        // Stop any currently running narration cleanly before processing new output
-        stopNarration();
+    // Send translated command to Parchment
+    try {
+      if (typeof Game !== 'undefined' && Game.accept) {
+        Game.accept({
+          type: 'line',
+          window: 1,
+          value: command,
+          gen: parchmentGeneration++
+        });
 
-        // Store the game text element reference
-        currentGameTextElement = addGameText(output);
-
-        // Reset narration for new text
-        pendingNarrationText = output;
-        narrationChunks = [];  // Clear old chunks
-        currentChunkIndex = 0;
-        isPaused = false;
-
-        // ALWAYS create narration chunks (even if not auto-playing)
-        // This ensures navigation buttons work properly
-        createNarrationChunks(output);
-
-        // Reset button to "Start Narration" for new text
-        if (narrationEnabled) {
-          // Auto-narrate if narration is on
-          await speakTextChunked(null, 0);  // Play from chunks
-        } else {
-          // Reset button
-          toggleTalkModeBtn.innerHTML = '▶️ Start Narration';
-          toggleTalkModeBtn.style.background = 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
-        }
-
-        updateNavButtons();
+        console.log('[Parchment] Sent translated command:', command);
+        updateStatus('Ready');
+      } else {
+        console.error('[Parchment] Game object not available');
+        updateStatus('Error: Game not loaded');
       }
+    } catch (error) {
+      console.error('[Parchment] Error sending translated command:', error);
+      updateStatus('Error: ' + error.message);
+    }
 
-      updateStatus('Ready');
-      userInput.focus();
-    });
+    // Note: Game output will be captured by GlkOte.update() hook
+    userInput.focus();
   });
 }
 
@@ -1682,6 +1810,9 @@ toggleTalkModeBtn.addEventListener('click', async () => {
     voiceFeedback.classList.add('hidden');
     stopNarration();
 
+    // Stop idle checker
+    stopIdleChecker();
+
     // Clear voice history
     if (confirmedTranscriptTimeout) {
       clearTimeout(confirmedTranscriptTimeout);
@@ -1691,6 +1822,9 @@ toggleTalkModeBtn.addEventListener('click', async () => {
     voiceHistory.innerHTML = '';
     voiceTranscript.textContent = 'Listening...';
     voiceTranscript.classList.remove('interim', 'confirmed');
+
+    // Hide voice panel
+    voiceHistoryPanel.classList.add('hidden');
 
     // Hide mute button and navigation controls
     muteBtn.classList.add('hidden');
@@ -1705,6 +1839,10 @@ toggleTalkModeBtn.addEventListener('click', async () => {
     listeningEnabled = true;
     narrationEnabled = true;
 
+    // Start idle checker
+    startIdleChecker();
+    lastVoiceInputTime = Date.now();  // Reset timer
+
     // Auto-unmute mic when starting talk mode
     if (isMuted) {
       isMuted = false;
@@ -1715,6 +1853,9 @@ toggleTalkModeBtn.addEventListener('click', async () => {
     // Show mute button and navigation controls
     muteBtn.classList.remove('hidden');
     document.querySelector('.narration-controls').classList.remove('hidden');
+
+    // Show voice panel
+    voiceHistoryPanel.classList.remove('hidden');
 
     toggleTalkModeBtn.innerHTML = '⏹️ Stop Talk Mode';
     toggleTalkModeBtn.style.background = 'rgba(245, 87, 108, 0.8)';
@@ -2058,9 +2199,7 @@ newPronunciationInput.addEventListener('keydown', (e) => {
 });
 
 // History Collapse/Expand Functionality
-const voiceHistoryToggle = document.getElementById('voiceHistoryToggle');
 const commandHistoryToggle = document.getElementById('commandHistoryToggle');
-const voiceHistoryEl = document.getElementById('voiceHistory');
 const commandHistoryEl = document.getElementById('commandHistory');
 
 // Load saved state from localStorage
@@ -2088,6 +2227,9 @@ voiceHistoryToggle.addEventListener('click', () => {
   voiceHistoryToggle.querySelector('.expand-text').textContent = isExpanded ? 'Show Less' : 'Show More';
   localStorage.setItem('voiceHistoryExpanded', isExpanded);
   console.log('[History] Voice history', isExpanded ? 'expanded' : 'compact');
+
+  // Update UI to show correct number of items
+  updateVoiceHistoryUI();
 });
 
 // Toggle command history
@@ -2109,3 +2251,116 @@ initVoiceRecognition();
 loadHistoryState();
 
 console.log('[App] Initialized');
+
+// Hook into ZVM's output for TTS capture
+// Wait for ZVM to load
+window.addEventListener('load', () => {
+  // Give Parchment time to initialize
+  setTimeout(() => {
+    if (typeof GlkOte !== 'undefined' && GlkOte.update) {
+      console.log('[Parchment] Hooking GlkOte.update for TTS capture');
+
+      // Save original update function
+      const originalUpdate = GlkOte.update;
+
+      // Wrap update to capture text output
+      GlkOte.update = function(updateObj) {
+        try {
+          // Extract text from content structure
+          if (updateObj && updateObj.content) {
+            let capturedText = '';
+
+            updateObj.content.forEach(windowContent => {
+              if (windowContent.text) {
+                windowContent.text.forEach(textBlock => {
+                  if (textBlock.content) {
+                    textBlock.content.forEach(run => {
+                      // Check different possible text formats
+                      if (typeof run === 'string') {
+                        capturedText += run;
+                      } else if (Array.isArray(run) && run.length >= 2) {
+                        // Format: ['style', 'text']
+                        capturedText += run[1] || '';
+                      } else if (run.text) {
+                        capturedText += run.text;
+                      }
+                    });
+                  }
+                });
+              }
+            });
+
+            // If we captured text, handle it for TTS
+            if (capturedText.trim()) {
+              console.log('[Parchment] Captured output:', capturedText.substring(0, 100) + '...');
+              handleParchmentOutput(capturedText);
+            }
+          }
+        } catch (error) {
+          console.error('[Parchment] Error capturing output:', error);
+        }
+
+        // Call original update to render
+        return originalUpdate.call(this, updateObj);
+      };
+
+      console.log('[Parchment] Output capture hook installed');
+    } else {
+      console.warn('[Parchment] GlkOte not found - output capture disabled');
+    }
+  }, 1000);
+});
+
+// Handle captured output from Parchment
+function handleParchmentOutput(text) {
+  // Store for potential narration
+  pendingNarrationText = text;
+
+  // If talk mode is active, auto-narrate
+  if (narrationEnabled && !isNarrating) {
+    speakTextChunked(text);
+  }
+}
+
+// Highlight text being spoken for visual feedback
+function highlightSpokenText(text) {
+  try {
+    // GlkOte outputs to #gameport with various content divs
+    const gameOutput = document.querySelector('#gameport .TextBuffer, #gameport #window0, #gameport');
+    if (!gameOutput) return;
+
+    // Find and wrap spoken text with highlight class
+    const walker = document.createTreeWalker(
+      gameOutput,
+      NodeFilter.SHOW_TEXT,
+      null,
+      false
+    );
+
+    const textNodes = [];
+    while (walker.nextNode()) {
+      textNodes.push(walker.currentNode);
+    }
+
+    // Search for matching text and add highlight
+    textNodes.forEach(node => {
+      if (node.textContent.includes(text.substring(0, 50))) {
+        const span = document.createElement('span');
+        span.className = 'tts-highlight';
+        span.textContent = node.textContent;
+        node.parentNode.replaceChild(span, node);
+      }
+    });
+
+  } catch (error) {
+    console.error('[TTS] Highlight error:', error);
+  }
+}
+
+// Remove highlight when done
+function removeHighlight() {
+  const highlights = document.querySelectorAll('.tts-highlight');
+  highlights.forEach(span => {
+    span.classList.remove('tts-highlight');
+  });
+}

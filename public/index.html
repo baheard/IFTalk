@@ -5,6 +5,18 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>IF Talk - Voice-Powered Interactive Fiction</title>
   <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+
+  <!-- jQuery (required by GlkOte) -->
+  <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+
+  <!-- GlkOte display library -->
+  <script src="https://cdn.jsdelivr.net/gh/erkyrath/glkote@latest/glkote.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/gh/erkyrath/glkote@latest/glkapi.js"></script>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/erkyrath/glkote@latest/glkote.css">
+
+  <!-- ifvms ZVM interpreter -->
+  <script src="https://cdn.jsdelivr.net/npm/ifvms@1.1.6/dist/zvm.min.js"></script>
+
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
@@ -47,13 +59,6 @@
         </div>
       </div>
       <button id="settingsBtn" class="settings-btn" title="Settings">⚙️</button>
-      <div class="voice-selector">
-        <label for="voiceSelect">Voice:</label>
-        <select id="voiceSelect" class="voice-dropdown">
-          <option value="">Loading voices...</option>
-        </select>
-        <button id="testVoiceBtn" class="btn-test-voice" title="Preview selected voice">▶️</button>
-      </div>
       <button class="btn btn-secondary" id="selectGameBtn">📂 Select Game</button>
     </div>
   </div>
@@ -68,6 +73,13 @@
       <div class="settings-section">
         <h3>🎙️ Voice Settings</h3>
         <p class="settings-description">Configure different voices for narration and app messages</p>
+        <div class="voice-setting">
+          <label for="voiceSelect">Narrator Voice (game text):</label>
+          <select id="voiceSelect" class="voice-dropdown">
+            <option value="">Loading voices...</option>
+          </select>
+          <button id="testVoiceBtn" class="btn-test-voice" title="Preview narrator voice">▶️</button>
+        </div>
         <div class="voice-setting">
           <label for="appVoiceSelect">App Voice (questions, prompts):</label>
           <select id="appVoiceSelect" class="voice-dropdown">
@@ -90,27 +102,43 @@
   </div>
 
   <div class="container">
-    <div class="game-output" id="gameOutput">
-      <div class="welcome" id="welcome">
-        <h2>Welcome to IF Talk</h2>
-        <p>Play interactive fiction with voice control and AI-powered natural language commands.</p>
+    <!-- Welcome screen (shown before game starts) -->
+    <div class="welcome" id="welcome">
+      <h2>Welcome to IF Talk</h2>
+      <p>Play interactive fiction with voice control and AI-powered natural language commands.</p>
 
-        <div class="game-list">
-          <h3>Available Games:</h3>
-          <button class="game-card" data-game="Anchorhead.z8">
-            <div class="game-title">Anchorhead</div>
-            <div class="game-desc">Lovecraftian horror - Atmospheric and dark</div>
-          </button>
-          <button class="game-card" data-game="Photopia.z5">
-            <div class="game-title">Photopia</div>
-            <div class="game-desc">Award-winning story - Beautiful and emotional</div>
-          </button>
-          <button class="game-card" data-game="Dungeon.z5">
-            <div class="game-title">Dungeon (Zork)</div>
-            <div class="game-desc">Classic adventure - Treasure hunting</div>
-          </button>
-        </div>
+      <div class="game-list">
+        <h3>Available Games:</h3>
+        <button class="game-card" data-game="https://ifarchive.org/if-archive/games/zcode/anchor.z8">
+          <div class="game-title">Anchorhead</div>
+          <div class="game-desc">Lovecraftian horror - Atmospheric and dark</div>
+        </button>
+        <button class="game-card" data-game="https://ifarchive.org/if-archive/games/zcode/LostPig.z8">
+          <div class="game-title">Lost Pig</div>
+          <div class="game-desc">Comedy adventure - Find the pig!</div>
+        </button>
+        <button class="game-card" data-game="https://ifarchive.org/if-archive/games/zcode/photopia.z5">
+          <div class="game-title">Photopia</div>
+          <div class="game-desc">Emotional narrative - Award-winning story</div>
+        </button>
+        <button class="game-card" data-game="https://ifarchive.org/if-archive/games/zcode/Shade.z5">
+          <div class="game-title">Shade</div>
+          <div class="game-desc">Surreal mystery - Strange and atmospheric</div>
+        </button>
+        <button class="game-card" data-game="https://ifarchive.org/if-archive/games/zcode/Violet.z8">
+          <div class="game-title">Violet</div>
+          <div class="game-desc">Romance comedy - One hour to write!</div>
+        </button>
+        <button class="game-card" data-game="https://ifarchive.org/if-archive/games/infocom/zork1.z5">
+          <div class="game-title">Zork I</div>
+          <div class="game-desc">Classic adventure - The Great Underground Empire</div>
+        </button>
       </div>
+    </div>
+
+    <!-- ZVM game container (hidden until game starts) -->
+    <div id="gameport" class="hidden">
+      <div id="windowport"></div>
     </div>
   </div>
 
@@ -141,7 +169,7 @@
     <!-- Two-Panel Input Layout -->
     <div class="input-panels">
       <!-- Left Panel: Voice Input -->
-      <div class="input-panel voice-panel">
+      <div class="input-panel voice-panel hidden">
         <div class="panel-header">🎤 Voice Input</div>
         <div class="voice-feedback hidden" id="voiceFeedback">
           <div class="voice-meter-container">
