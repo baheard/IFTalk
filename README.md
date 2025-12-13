@@ -159,18 +159,23 @@ You'll get a public URL like `https://abc-123.trycloudflare.com`
 ## Architecture
 
 ```
-Browser/Phone (Frontend)
-  ↓ WebSocket
-Node.js Server (Backend)
-  ↓ subprocess
-dfrotz (Game Interpreter)
-  ↓ stdin/stdout
+Browser (Frontend)
+  ↓ WebSocket (for AI translation only)
+Node.js Server (Backend - AI provider)
+  ↑
+Browser
+  ↓ Direct execution
+ZVM Interpreter (ifvms.js in browser)
+  ↓ GlkOte display layer
 Interactive Fiction Game
 ```
 
-**AI Services:**
-- Ollama (free, local) - Command translation
-- ElevenLabs - Voice narration
+**Key Components:**
+- **Browser-based ZVM**: Games run entirely in the browser using ifvms.js
+- **GlkOte**: Display and input handling library
+- **glkapi.js**: Bridge between VM and display layer
+- **AI Services**: Ollama/OpenAI/Claude for command translation
+- **Voice**: Web Speech API (recognition) + Browser TTS or ElevenLabs (narration)
 
 ## Free Voice Recognition Options
 
@@ -223,9 +228,10 @@ Make sure server is running: `npm start`
 3. Check browser console for errors
 
 ### "Games not loading"
-1. Make sure dfrotz.exe is in IFTalk directory
-2. Check game files exist
-3. See server console for errors
+1. Games load from IF Archive (internet required for first load)
+2. Check browser console (F12) for errors
+3. Ensure modern browser (Chrome, Edge, Safari, Firefox)
+4. See server console for AI translation errors
 
 ## Development
 
@@ -269,11 +275,26 @@ Edit files in `public/`:
 
 Built with:
 - **Express** - Web server
-- **Socket.IO** - Real-time communication
-- **ElevenLabs** - Natural voice synthesis
-- **Ollama** - Free local AI
-- **Frotz** - IF game interpreter
+- **Socket.IO** - Real-time AI translation communication
+- **ifvms.js (ZVM)** - Browser-based Z-machine interpreter
+- **GlkOte** - Display and input handling library
+- **glkapi.js** - Glk API implementation
+- **ElevenLabs** - Natural voice synthesis (optional)
+- **Ollama/OpenAI/Claude** - AI command translation
 - **Web Speech API** - Voice recognition
+
+## Current Status
+
+**🔄 In Development**: Browser-based ZVM integration
+
+- ✅ Game loading from IF Archive
+- ✅ Game intro text displays correctly
+- ✅ VM initialization fixed (vm.start() call)
+- ✅ Generation counter fixed (starts at 2 to avoid conflict with GlkOte init)
+- 🔄 **Testing needed**: Commands should now work with generation counter fix
+- ⚠️ Known issue: Minor "buffer access" error during vm.start() (non-breaking)
+
+See [TODO.md](TODO.md) for detailed technical status and debugging notes.
 
 ---
 
