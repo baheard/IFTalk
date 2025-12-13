@@ -1511,6 +1511,9 @@ async function startGame(gamePath) {
           console.log('[ZVM] Game initialized successfully');
           updateStatus('Ready - Click "Start Talk Mode" for voice');
 
+          // Reset generation counter for new game (GlkOte starts at 1 after init)
+          parchmentGeneration = 1;
+
           // Reset narration state
           pendingNarrationText = null;
           narrationChunks = [];
