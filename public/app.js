@@ -1480,11 +1480,14 @@ async function startGame(gamePath) {
     const vm = new window.ZVM();
     window.zvmInstance = vm;
 
-    // Prepare VM with story data and Glk reference (but don't start yet)
+    // Prepare VM with story data BEFORE GlkOte.init()
     console.log('[ZVM] Preparing VM...');
-    vm.prepare(storyData, {
-      Glk: window.Glk
-    });
+    const options = {
+      vm: vm,
+      Glk: window.Glk,
+      GlkOte: window.GlkOte
+    };
+    vm.prepare(storyData, options);
 
     // Create Game interface for GlkOte
     window.Game = {
@@ -1497,15 +1500,11 @@ async function startGame(gamePath) {
           // GlkOte has measured the gameport and provided metrics
           console.log('[Game] Init event received with metrics');
 
-          // Now initialize Glk with the VM
+          // Now initialize Glk - this will start the VM
           console.log('[ZVM] Initializing Glk...');
-          window.Glk.init({
-            vm: vm,
-            GlkOte: window.GlkOte
-          });
+          window.Glk.init(options);
 
-          // Glk.init() will automatically start the VM
-          console.log('[ZVM] Glk initialized - VM will start automatically');
+          console.log('[ZVM] Glk initialized - VM started');
 
           console.log('[ZVM] Game initialized successfully');
           updateStatus('Ready - Click "Start Talk Mode" for voice');
