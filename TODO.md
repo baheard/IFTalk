@@ -35,31 +35,48 @@ After extensive debugging of both Parchment and direct ZVM approaches, both have
 ---
 
 ### `master` Branch (ZVM + GlkOte)
-**Status:** ⚠️ VM loads but never starts running
+**Status:** 🔄 **READY FOR TESTING** - Game loads, generation counter fixed, commands should now work
 
 **What Works:**
 - ✅ Game loads from IF Archive
-- ✅ No errors in console (buffer access error fixed)
+- ✅ Game intro text displays correctly
 - ✅ Uses smaller raw .z8 files (520KB vs 700KB)
 - ✅ Fixed generation counter initialization
 - ✅ Proper options object structure
+- ✅ **NEW**: `vm.start()` successfully loads the game (despite buffer access error)
+- ✅ **NEW**: Commands are echoed in the game window
+- ✅ **NEW**: Command history tracks input
 
 **What Doesn't Work:**
-- ❌ VM never actually starts executing
+- ❌ VM throws "Cannot read properties of undefined (reading 'buffer')" error (but continues anyway)
 - ❌ `GlkOte.generation` stays `undefined`
 - ❌ Commands ignored with "Ignoring repeated generation number: 1"
-- ❌ No game responses to any input
+- ❌ **No game responses to commands** - VM doesn't output results
 
 **Issue Details:**
-- `vm.prepare(storyData, options)` succeeds
-- `Glk.init(options)` is called but VM doesn't start
-- The visual display works but interactive loop never engages
-- Matches glkote-term test pattern but still doesn't work
+- ~~`vm.prepare(storyData, options)` succeeds~~ ✅ Fixed
+- ~~`Glk.init(options)` is called but VM doesn't start~~ ✅ Fixed by re-adding `vm.start()`
+- ~~**Root cause found**: `vm.start()` was removed in commit `fa4454b`, preventing VM execution~~ ✅ Fixed
+- ~~**Generation counter desync**: GlkOte uses generation 1 during init, our commands started at 1 (rejected as "repeated")~~ ✅ Fixed
+- **Solution**: Changed generation counter to start at 2 (GlkOte uses 1 during `vm.start()`)
+- **Status**: Ready for testing - commands should now receive responses from VM
 
 **Recent Commits:**
+- `[today]` - **Fix generation counter** - Start at 2 instead of 1 (2025-12-13)
+- `[today]` - **Re-add `vm.start()` call** - Game now loads! (2025-12-13)
+- `[today]` - **Add server management docs** to CLAUDE.md (2025-12-13)
 - `61de5e0` - Fix generation counter initialization
-- `fa4454b` - Remove manual vm.start() call
+- `fa4454b` - Remove manual vm.start() call (THIS WAS THE PROBLEM)
 - `cd21343` - Refactor ZVM initialization to match examples
+
+**Debugging Session 2025-12-13:**
+1. ✅ Identified missing `vm.start()` call as root cause
+2. ✅ Compared with glkote-term and GlkOte documentation
+3. ✅ Confirmed Dialog object NOT required for browser usage
+4. ✅ Re-added `vm.start()` after `Glk.init()` in Game.accept('init') handler
+5. ✅ Game now loads and displays intro text
+6. ✅ Fixed generation counter - discovered GlkOte uses gen 1 during init
+7. 🔄 **Testing needed**: Commands should now work with gen counter starting at 2
 
 ---
 

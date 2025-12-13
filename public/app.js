@@ -87,9 +87,12 @@ function addToVoiceHistory(text, isNavCommand = false) {
 function updateVoiceHistoryUI() {
   voiceHistory.innerHTML = '';
 
+  // Check if mobile
+  const isMobile = window.innerWidth <= 600;
+
   // Check if expanded
   const isExpanded = voiceHistoryToggle.classList.contains('expanded');
-  const maxItems = isExpanded ? 20 : 3;
+  const maxItems = isMobile ? 2 : (isExpanded ? 20 : 3);
 
   // Show only the first N items
   const itemsToShow = voiceHistoryItems.slice(0, maxItems);
@@ -104,8 +107,8 @@ function updateVoiceHistoryUI() {
       div.classList.add('nav-command');
     }
 
-    // Add aging classes (only in compact mode)
-    if (!isExpanded) {
+    // Add aging classes (only in compact mode, not on mobile)
+    if (!isExpanded && !isMobile) {
       if (index === 1) {
         div.classList.add('old');
       } else if (index === 2) {
@@ -116,8 +119,10 @@ function updateVoiceHistoryUI() {
     voiceHistory.appendChild(div);
   });
 
-  // Update toggle button visibility
-  if (voiceHistoryItems.length > 3) {
+  // Update toggle button visibility (hide on mobile)
+  if (isMobile) {
+    voiceHistoryToggle.style.display = 'none';
+  } else if (voiceHistoryItems.length > 3) {
     voiceHistoryToggle.style.display = 'flex';
   } else {
     voiceHistoryToggle.style.display = 'none';
@@ -166,7 +171,12 @@ function addToCommandHistory(original, translated = null, confidence = null) {
 function updateCommandHistoryUI() {
   commandHistory.innerHTML = '';
 
-  commandHistoryItems.forEach(({ original, translated, confidence }) => {
+  // Limit to 2 items on mobile
+  const isMobile = window.innerWidth <= 600;
+  const maxItems = isMobile ? 2 : 10;
+  const itemsToShow = commandHistoryItems.slice(0, maxItems);
+
+  itemsToShow.forEach(({ original, translated, confidence }) => {
     const item = document.createElement('div');
     item.className = 'command-history-item';
 
@@ -1504,13 +1514,18 @@ async function startGame(gamePath) {
           console.log('[ZVM] Initializing Glk...');
           window.Glk.init(options);
 
-          console.log('[ZVM] Glk initialized - VM started');
+          // Start VM execution - this will create windows using the metrics
+          console.log('[ZVM] Starting VM...');
+          window.zvmInstance.start();
+
+          console.log('[ZVM] Glk initialized and VM started');
 
           console.log('[ZVM] Game initialized successfully');
           updateStatus('Ready - Click "Start Talk Mode" for voice');
 
-          // Reset generation counter for new game (GlkOte starts at 1 after init)
-          parchmentGeneration = 1;
+          // Reset generation counter for new game
+          // NOTE: GlkOte uses generation 1 during vm.start(), so we start at 2
+          parchmentGeneration = 2;
 
           // Reset narration state
           pendingNarrationText = null;
@@ -1843,6 +1858,11 @@ toggleTalkModeBtn.addEventListener('click', async () => {
     // Start idle checker
     startIdleChecker();
     lastVoiceInputTime = Date.now();  // Reset timer
+
+    // Auto-switch to voice tab on mobile when talk mode starts
+    if (window.innerWidth <= 600) {
+      switchToTab('voice');
+    }
 
     // Auto-unmute mic when starting talk mode
     if (isMuted) {
@@ -2240,6 +2260,75 @@ commandHistoryToggle.addEventListener('click', () => {
   commandHistoryToggle.querySelector('.expand-text').textContent = isExpanded ? 'Show Less' : 'Show More';
   localStorage.setItem('commandHistoryExpanded', isExpanded);
   console.log('[History] Command history', isExpanded ? 'expanded' : 'compact');
+});
+
+// ===== Phase 2: Mobile Tab Switching =====
+// Tab switching for mobile input panels
+const voiceTabBtn = document.getElementById('voiceTabBtn');
+const textTabBtn = document.getElementById('textTabBtn');
+const voicePanel = document.querySelector('.voice-panel');
+const textPanel = document.querySelector('.text-panel');
+
+function switchToTab(tabName) {
+  // Only switch tabs on mobile
+  if (window.innerWidth > 600) return;
+
+  if (tabName === 'voice') {
+    voiceTabBtn?.classList.add('active');
+    textTabBtn?.classList.remove('active');
+    voicePanel?.classList.add('active');
+    textPanel?.classList.remove('active');
+    console.log('[Mobile] Switched to voice tab');
+  } else {
+    textTabBtn?.classList.add('active');
+    voiceTabBtn?.classList.remove('active');
+    textPanel?.classList.add('active');
+    voicePanel?.classList.remove('active');
+    console.log('[Mobile] Switched to text tab');
+  }
+
+  localStorage.setItem('activeTab', tabName);
+}
+
+voiceTabBtn?.addEventListener('click', () => switchToTab('voice'));
+textTabBtn?.addEventListener('click', () => switchToTab('text'));
+
+// Initialize tab state on load
+if (window.innerWidth <= 600) {
+  const savedTab = localStorage.getItem('activeTab') || 'text';
+  switchToTab(savedTab);
+}
+
+// ===== Phase 4: Hamburger Menu Toggle =====
+// Hamburger menu for navigation controls (mobile only)
+const navMenuToggle = document.getElementById('navMenuToggle');
+const narrationControls = document.querySelector('.narration-controls');
+
+navMenuToggle?.addEventListener('click', () => {
+  const isExpanded = narrationControls.classList.toggle('expanded');
+  navMenuToggle.textContent = isExpanded ? '✕' : '☰';
+  console.log('[Mobile] Navigation menu', isExpanded ? 'expanded' : 'collapsed');
+});
+
+// ===== Phase 6: Full-Screen Help Modal =====
+// Help modal toggle (mobile only)
+const voiceHelpIcon = document.querySelector('.voice-help-icon');
+const voiceHelpModal = document.getElementById('voiceHelpModal');
+const helpCloseBtn = document.getElementById('helpCloseBtn');
+
+voiceHelpIcon?.addEventListener('click', () => {
+  // Only open modal on mobile
+  if (window.innerWidth <= 600) {
+    voiceHelpModal.classList.add('open');
+    document.body.style.overflow = 'hidden';
+    console.log('[Mobile] Help modal opened');
+  }
+});
+
+helpCloseBtn?.addEventListener('click', () => {
+  voiceHelpModal.classList.remove('open');
+  document.body.style.overflow = '';
+  console.log('[Mobile] Help modal closed');
 });
 
 // Initialize
