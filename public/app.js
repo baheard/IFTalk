@@ -1504,9 +1504,8 @@ async function startGame(gamePath) {
             GlkOte: window.GlkOte
           });
 
-          // Start VM execution - this will create windows using the metrics
-          console.log('[ZVM] Starting VM...');
-          vm.start();
+          // Glk.init() will automatically start the VM
+          console.log('[ZVM] Glk initialized - VM will start automatically');
 
           console.log('[ZVM] Game initialized successfully');
           updateStatus('Ready - Click "Start Talk Mode" for voice');
