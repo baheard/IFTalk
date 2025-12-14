@@ -2,7 +2,7 @@ import express from 'express';
 import { createServer } from 'http';
 import { Server } from 'socket.io';
 import { spawn } from 'child_process';
-import { readFileSync, existsSync } from 'fs';
+import { readFileSync, writeFileSync, existsSync, mkdirSync, unlinkSync } from 'fs';
 import OpenAI from 'openai';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -10,6 +10,13 @@ import Convert from 'ansi-to-html';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+
+// Ensure saves directory exists
+const savesDir = path.join(__dirname, 'saves');
+if (!existsSync(savesDir)) {
+  mkdirSync(savesDir);
+  console.log('[Server] Created saves directory');
+}
 
 // Load configuration
 const config = JSON.parse(readFileSync(path.join(__dirname, 'config.json'), 'utf-8'));
@@ -60,26 +67,47 @@ const gameSessions = new Map();
 
 // Process Frotz output - extract status line and clean up text
 function processFrotzOutput(output) {
+  // Debug: Log raw output with escape codes visible (only in debug mode)
+  if (process.env.DEBUG) {
+    console.log('[Frotz RAW]:', JSON.stringify(output.substring(0, 500)));
+  }
+
+  // Detect clear screen ANSI codes
+  const hasClearScreen = output.includes('\x1b[2J') || output.includes('\x1b[H\x1b[2J') || output.includes('\x1b[H\x1b[J');
+  if (hasClearScreen) {
+    console.log('[Frotz] Clear screen detected');
+  }
+
   let processedOutput = output
     .replace(/\r\n/g, '\n')            // Normalize Windows line endings
     .replace(/\r/g, '\n');             // Normalize Mac line endings
 
   // Split into lines and process each
   let lines = processedOutput.split('\n');
-  let cleanedLines = [];
+  let cleanedLines = [];  // Now stores {text, isCentered} objects
   let statusLine = null;
 
   for (let line of lines) {
-    // Check for status line (starts with ') ' after trimming leading whitespace)
-    // Status lines look like: ")   Outside the Real Estate Office                      day one"
+    // Check for status line - two patterns:
+    // 1. Old pattern: ")   Outside the Real Estate Office                      day one"
+    // 2. New pattern: "   Outside the Real Estate Office                      day one" (20+ spaces between location and time)
     if (line.match(/^\)\s+\S/)) {
-      // Extract status line content (remove leading ') ')
+      // Old pattern with leading )
       const statusContent = line.replace(/^\)\s*/, '').trim();
       if (statusContent.length > 5) {
         statusLine = statusContent;
       }
       continue;
+    } else if (line.match(/^\s{1,5}\S.{10,}\s{20,}\S/)) {
+      // New pattern: few leading spaces, text, 20+ spaces, more text
+      statusLine = line.trim();
+      console.log('[Status] Detected status line:', statusLine);
+      continue;
     }
+
+    // Detect centered text BEFORE trimming (lines with 10+ leading spaces)
+    const leadingSpaces = line.match(/^(\s*)/)[1].length;
+    const isCentered = leadingSpaces >= 10;
 
     // Trim the line (remove centering whitespace)
     let trimmed = line.trim();
@@ -89,12 +117,20 @@ function processFrotzOutput(output) {
       trimmed = trimmed.slice(2);
     }
 
-    // Skip dfrotz formatting artifacts
-    if (trimmed === '.' || trimmed === ')' || trimmed === '. )' || trimmed === '. ' || trimmed === '') {
+    // Skip dfrotz formatting artifacts (but NOT standalone ) which marks status line)
+    if (trimmed === '.' || trimmed === '. )' || trimmed === '. ' || trimmed === '') {
       // Add blank line for paragraph break (but avoid duplicates)
-      if (cleanedLines.length > 0 && cleanedLines[cleanedLines.length - 1] !== '') {
-        cleanedLines.push('');
+      if (cleanedLines.length > 0 && cleanedLines[cleanedLines.length - 1].text !== '') {
+        cleanedLines.push({text: '', isCentered: false});
       }
+      continue;
+    }
+
+    // Check if this is a status line marker )
+    if (trimmed === ')') {
+      // This marks the beginning of a status line - the actual status content follows
+      // Don't filter it out, let it be processed as a potential status line
+      statusLine = null;  // Will be set by next non-empty line
       continue;
     }
 
@@ -107,32 +143,41 @@ function processFrotzOutput(output) {
     trimmed = trimmed.replace(/\s*>+\s*$/, '');
 
     if (trimmed) {
-      cleanedLines.push(trimmed);
+      // For centered text, preserve the leading spaces for wide-screen display
+      const leadingWhitespace = isCentered ? line.match(/^(\s*)/)[1] : '';
+      cleanedLines.push({text: trimmed, isCentered, leadingWhitespace});
     }
   }
 
   // Join lines: paragraph breaks become double newlines, content breaks become soft-break spans
   let result = '';
   for (let i = 0; i < cleanedLines.length; i++) {
-    const line = cleanedLines[i];
+    const lineObj = cleanedLines[i];
+    const line = lineObj.text;
+    const isCentered = lineObj.isCentered;
+    const leadingWhitespace = lineObj.leadingWhitespace || '';
+
+    // Wrap centered text (include leading whitespace for wide-screen native formatting)
+    const wrappedLine = isCentered ? `<span class="centered">${leadingWhitespace}${line}</span>` : line;
+
     if (i === 0) {
-      result = line;
+      result = wrappedLine;
     } else if (line === '') {
       // Empty line = paragraph break
       result += '\n\n';
-    } else if (cleanedLines[i - 1] === '') {
+    } else if (cleanedLines[i - 1].text === '') {
       // After paragraph break, start new paragraph
-      result += line;
+      result += wrappedLine;
     } else {
       // Soft break: line break at 70ch+, just a space at narrower widths
-      result += ' <span class="soft-break"></span>' + line;
+      result += ' <span class="soft-break"></span>' + wrappedLine;
     }
   }
 
   // Convert ANSI codes to HTML
   let htmlOutput = convert.toHtml(result);
 
-  return { htmlOutput, statusLine };
+  return { htmlOutput, statusLine, hasClearScreen };
 }
 
 // Socket.IO connection handler
@@ -184,7 +229,8 @@ io.on('connection', (socket) => {
       gameSessions.set(socket.id, {
         process: gameProcess,
         path: fullPath,
-        lastOutput: ''  // Track last output for AI translation context
+        lastOutput: '',  // Track last output for AI translation context
+        lastStatusLine: null  // Track status line for scene change detection
       });
 
       // Wait for initial output
@@ -199,7 +245,22 @@ io.on('connection', (socket) => {
         }
 
         // Process Frotz output
-        const { htmlOutput, statusLine } = processFrotzOutput(output);
+        const { htmlOutput, statusLine, hasClearScreen } = processFrotzOutput(output);
+
+        // Check for clear screen ANSI code
+        if (hasClearScreen) {
+          socket.emit('clear-screen');
+          console.log('[Game] Clear screen from ANSI code');
+        }
+
+        // Check for scene change (status line changed)
+        if (session && statusLine && session.lastStatusLine && session.lastStatusLine !== statusLine) {
+          socket.emit('clear-screen');
+          console.log('[Game] Scene change detected:', session.lastStatusLine, '->', statusLine);
+        }
+        if (session && statusLine) {
+          session.lastStatusLine = statusLine;
+        }
 
         socket.emit('game-output', htmlOutput);
         if (statusLine) {
@@ -223,6 +284,10 @@ io.on('connection', (socket) => {
     }
 
     try {
+      const lowerCmd = command.toLowerCase().trim();
+      const isSaveCommand = lowerCmd === 'save';
+      const isRestoreCommand = lowerCmd === 'restore';
+
       let outputBuffer = '';
 
       const dataHandler = (data) => {
@@ -234,6 +299,22 @@ io.on('connection', (socket) => {
       // Send command
       session.process.stdin.write(command + '\n');
 
+      // For SAVE: generate filename and send it after Frotz prompts
+      if (isSaveCommand) {
+        const gameBasename = path.basename(session.path, path.extname(session.path));
+        const timestamp = Date.now();
+        // Use socket.id for session isolation to prevent cross-user save access
+        const sessionPrefix = socket.id.substring(0, 8);
+        const saveFilename = path.join(savesDir, `${sessionPrefix}_${gameBasename}_${timestamp}.sav`);
+        session.pendingSaveFile = saveFilename;
+
+        // Wait a bit for Frotz to prompt, then send filename
+        setTimeout(() => {
+          session.process.stdin.write(saveFilename + '\n');
+          console.log('[Save] Sending filename to Frotz:', saveFilename);
+        }, 200);
+      }
+
       // Wait for response
       setTimeout(() => {
         session.process.stdout.removeListener('data', dataHandler);
@@ -242,17 +323,118 @@ io.on('connection', (socket) => {
         session.lastOutput = outputBuffer;
 
         // Process Frotz output
-        const { htmlOutput, statusLine } = processFrotzOutput(outputBuffer);
+        const { htmlOutput, statusLine, hasClearScreen } = processFrotzOutput(outputBuffer);
+
+        // Check for clear screen ANSI code
+        if (hasClearScreen) {
+          socket.emit('clear-screen');
+          console.log('[Game] Clear screen from ANSI code');
+        }
+
+        // Check for scene change (status line changed)
+        if (session && statusLine && session.lastStatusLine && session.lastStatusLine !== statusLine) {
+          socket.emit('clear-screen');
+          console.log('[Game] Scene change detected:', session.lastStatusLine, '->', statusLine);
+        }
+        if (session && statusLine) {
+          session.lastStatusLine = statusLine;
+        }
 
         socket.emit('game-output', htmlOutput);
         if (statusLine) {
           socket.emit('status-line', statusLine);
+        }
+
+        // For SAVE: check if file was created and send to client
+        if (isSaveCommand && session.pendingSaveFile) {
+          setTimeout(() => {
+            const saveFile = session.pendingSaveFile;
+            if (existsSync(saveFile)) {
+              const saveData = readFileSync(saveFile);
+              const gameBasename = path.basename(session.path, path.extname(session.path));
+              socket.emit('save-data', {
+                game: gameBasename,
+                data: saveData.toString('base64'),
+                timestamp: Date.now()
+              });
+              console.log('[Save] Sent save data to client:', saveFile, '(' + saveData.length + ' bytes)');
+              // Clean up server-side file
+              try { unlinkSync(saveFile); } catch (e) {}
+            } else {
+              console.log('[Save] File not found:', saveFile);
+            }
+            session.pendingSaveFile = null;
+          }, 300);
         }
       }, 500);
 
     } catch (error) {
       console.error('[Game] Command error:', error);
       socket.emit('error', error.message);
+    }
+  });
+
+  // Restore game from client save data
+  socket.on('restore-data', async ({ data }) => {
+    const session = gameSessions.get(socket.id);
+
+    if (!session) {
+      socket.emit('error', 'No game running');
+      return;
+    }
+
+    let tempFile = null;
+    try {
+      // Write save data to temp file
+      tempFile = path.join(savesDir, `restore_${socket.id}_${Date.now()}.sav`);
+      writeFileSync(tempFile, Buffer.from(data, 'base64'));
+      console.log('[Restore] Wrote temp file:', tempFile);
+
+      let outputBuffer = '';
+
+      const dataHandler = (data) => {
+        outputBuffer += data.toString();
+      };
+
+      session.process.stdout.on('data', dataHandler);
+
+      // Send RESTORE command, then filename
+      session.process.stdin.write('restore\n');
+
+      setTimeout(() => {
+        session.process.stdin.write(tempFile + '\n');
+        console.log('[Restore] Sent filename to Frotz:', tempFile);
+      }, 200);
+
+      // Wait for response
+      setTimeout(() => {
+        session.process.stdout.removeListener('data', dataHandler);
+        session.lastOutput = outputBuffer;
+
+        const { htmlOutput, statusLine, hasClearScreen } = processFrotzOutput(outputBuffer);
+
+        // Clear screen on restore (new game state)
+        socket.emit('clear-screen');
+
+        socket.emit('game-output', htmlOutput);
+        if (statusLine) {
+          socket.emit('status-line', statusLine);
+          session.lastStatusLine = statusLine;
+        }
+
+        // Clean up temp file
+        setTimeout(() => {
+          try { unlinkSync(tempFile); } catch (e) {}
+        }, 1000);
+      }, 700);
+
+    } catch (error) {
+      console.error('[Restore] Error:', error);
+      socket.emit('error', error.message);
+      // Ensure temp file cleanup on error
+      if (tempFile && existsSync(tempFile)) {
+        try { unlinkSync(tempFile); } catch (e) {}
+      }
     }
   });
 

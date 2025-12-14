@@ -47,7 +47,6 @@ let voiceMeterInterval = null;
 let hasProcessedResult = false;  // Track if current recognition session was processed
 let hasManualTyping = false;  // Track if user has manually typed into input box
 let talkModeActive = false;  // Both listening and narration active
-let currentGameTextElement = null;  // Currently narrating text block for highlighting
 let isUserScrubbing = false;  // Track if user is dragging the slider
 let wasMutedBeforePTT = false;  // Track mute state before push-to-talk
 let isPushToTalkActive = false;  // Track if push-to-talk is active
@@ -59,9 +58,16 @@ let appVoicePromise = null;  // Promise that resolves when app voice finishes sp
 let soundDetected = false;  // Track if sound above threshold is detected
 let pausedForSound = false;  // Track if narration was paused due to sound detection
 let soundPauseTimeout = null;  // Timeout to resume after silence
+let currentGameTextElement = null;  // Track the current game-text element for highlighting
 let pendingCommandProcessed = false;  // Track if a command was processed during sound pause
 const SOUND_THRESHOLD = 30;  // Audio level threshold (0-100) to trigger pause
 const SILENCE_DELAY = 800;  // ms of silence before resuming narration
+
+// Echo detection - recently spoken TTS text for fingerprinting
+let recentlySpokenChunks = [];  // Array of {text, timestamp}
+const ECHO_CHUNK_RETENTION_MS = 5000;  // Keep chunks for 5 seconds
+const ECHO_SIMILARITY_THRESHOLD = 0.5;  // 50% similarity = echo (lowered for better detection)
+const VOICE_CONFIDENCE_THRESHOLD = 0.5;  // Reject voice input below 50% confidence
 
 // Voice/command history arrays (for history popup)
 let voiceHistoryItems = [];  // {text, isNavCommand}
@@ -112,9 +118,9 @@ function showConfirmedTranscript(text, isNavCommand = false) {
   // Also update lastHeard for history
   updateLastHeard(text, isNavCommand);
 
-  // Reset transcript to "Listening..." after 5 seconds
+  // Reset transcript after 5 seconds
   transcriptResetTimeout = setTimeout(() => {
-    voiceTranscript.textContent = 'Listening...';
+    voiceTranscript.textContent = isMuted ? 'Muted' : 'Listening...';
     voiceTranscript.classList.remove('confirmed', 'nav-command');
   }, 5000);
 }
@@ -166,14 +172,24 @@ function initVoiceRecognition() {
       }
     }
 
-    // Show live transcript
-    if (interimTranscript) {
+    // Show live transcript (but not when muted - keep "Muted" visible)
+    if (interimTranscript && !isMuted) {
       // Cancel any pending confirmed transition
       if (confirmedTranscriptTimeout) {
         clearTimeout(confirmedTranscriptTimeout);
         confirmedTranscriptTimeout = null;
       }
 
+      // During narration, filter echo from interim transcripts
+      try {
+        if (isNarrating && isEchoOfSpokenText(interimTranscript)) {
+          // Don't show - likely echo
+          return;
+        }
+      } catch (e) {
+        console.error('[Voice] Echo detection error (interim):', e);
+        // Continue processing even if echo detection fails
+      }
       voiceTranscript.textContent = interimTranscript;
       voiceTranscript.classList.remove('confirmed');
       voiceTranscript.classList.add('interim');
@@ -183,6 +199,19 @@ function initVoiceRecognition() {
     // Process final result
     if (finalTranscript && !hasProcessedResult) {
       console.log('[Voice] Final:', finalTranscript);
+
+      // Check for echo - discard if matches recent TTS output
+      try {
+        if (isEchoOfSpokenText(finalTranscript)) {
+          console.log('[Voice] Discarding echo:', finalTranscript);
+          voiceTranscript.textContent = isMuted ? 'Muted' : 'Listening...';
+          voiceTranscript.classList.remove('interim', 'confirmed');
+          return;
+        }
+      } catch (e) {
+        console.error('[Voice] Echo detection error (final):', e);
+        // Continue processing even if echo detection fails
+      }
 
       // Process voice keywords first to determine if it's a nav command
       const processed = processVoiceKeywords(finalTranscript);
@@ -253,7 +282,7 @@ function initVoiceRecognition() {
           try {
             // Clear transcript display only if not showing confirmed text
             if (!voiceTranscript.classList.contains('confirmed')) {
-              voiceTranscript.textContent = 'Listening...';
+              voiceTranscript.textContent = isMuted ? 'Muted' : 'Listening...';
               voiceTranscript.classList.remove('interim');
             }
 
@@ -325,6 +354,28 @@ function processVoiceKeywords(transcript) {
     pendingCommandProcessed = true;
     pausedForSound = false;
   };
+
+  // When muted, only respond to "unmute" command
+  if (isMuted) {
+    console.log('[Voice] Muted mode - checking for unmute. Heard:', lower);
+    if (lower === 'unmute' || lower === 'on mute' || lower === 'un mute') {
+      console.log('[Voice Command] UNMUTE (while muted)');
+      markCommandProcessed();
+      isMuted = false;
+      const icon = muteBtn.querySelector('.material-icons');
+      if (icon) icon.textContent = 'mic';
+      muteBtn.classList.remove('muted');
+      voiceIndicator.classList.remove('muted');
+      voiceFeedback.classList.remove('hidden');
+      voiceTranscript.textContent = 'Listening...';
+      startVoiceMeter();
+      updateStatus('Microphone unmuted');
+      return false;
+    }
+    // Ignore all other commands while muted
+    console.log('[Voice] Ignored while muted:', transcript);
+    return false;
+  }
 
   // Restart - Go to beginning
   if (lower === 'restart') {
@@ -402,6 +453,53 @@ function processVoiceKeywords(transcript) {
     console.log('[Voice Command] SKIP TO END');
     markCommandProcessed();
     skipToEnd();
+    return false;
+  }
+
+  // Unmute - Resume listening (works even while muted!)
+  if (lower === 'unmute' || lower === 'on mute' || lower === 'un mute') {
+    console.log('[Voice Command] UNMUTE');
+    markCommandProcessed();
+    if (isMuted) {
+      isMuted = false;
+      const icon = muteBtn.querySelector('.material-icons');
+      if (icon) icon.textContent = 'mic';
+      muteBtn.classList.remove('muted');
+      updateStatus('Microphone unmuted');
+    }
+    return false;
+  }
+
+  // Mute - Stop listening
+  if (lower === 'mute') {
+    console.log('[Voice Command] MUTE');
+    markCommandProcessed();
+    if (!isMuted) {
+      isMuted = true;
+      const icon = muteBtn.querySelector('.material-icons');
+      if (icon) icon.textContent = 'mic_off';
+      muteBtn.classList.add('muted');
+      updateStatus('Microphone muted');
+    }
+    return false;
+  }
+
+  // SAVE/RESTORE Commands (work anytime, bypass AI translation)
+  // "load game" / "restore game" - Restore from most recent save
+  if (lower === 'load game' || lower === 'restore game' || lower === 'load' || lower === 'restore') {
+    console.log('[Voice Command] RESTORE LATEST');
+    markCommandProcessed();
+    restoreLatest();
+    return false;
+  }
+
+  // "load slot N" / "restore slot N" - Restore from specific slot
+  const loadSlotMatch = lower.match(/^(?:load|restore)\s+slot\s+(\d+)$/);
+  if (loadSlotMatch) {
+    const slot = parseInt(loadSlotMatch[1]);
+    console.log('[Voice Command] RESTORE SLOT', slot);
+    markCommandProcessed();
+    restoreFromSlot(slot);
     return false;
   }
 
@@ -492,55 +590,12 @@ function addGameText(text, isCommand = false) {
       div.innerHTML = `<span class="command-label">&gt;</span> ${escapeHtml(text)}`;
     }
   } else {
-    // Text is now HTML from ANSI-to-HTML conversion
-    // Strip HTML tags to get plain text for sentence splitting
-    // Convert <br> tags to newlines BEFORE extracting plain text
-    const tempDiv = document.createElement('div');
-    const textWithNewlines = text.replace(/<br\s*\/?>/gi, '\n');
-    tempDiv.innerHTML = textWithNewlines;
-    const plainText = tempDiv.textContent || tempDiv.innerText || '';
-
-    // Clean up display text (remove stray formatting artifacts)
-    let displayText = plainText
-      .replace(/^\s*\.\s*$/gm, '')  // Remove lines with just dots
-      .replace(/^\s*\)\s*$/gm, '')  // Remove lines with just parentheses
-      .replace(/^\n+/g, '')  // Remove leading newlines
-      .replace(/\n{3,}/g, '\n\n');  // Max 2 newlines in a row
-
     div.className = 'game-text';
 
-    // Split into sentences and wrap each in a span for individual highlighting
-    // Use split with capturing groups to keep delimiters and handle trailing text
-    // Don't trim() here - preserve leading spaces for game formatting (centering, etc.)
-    const parts = displayText.split(/([.!?]+)/);
-    let sentences = [];
-
-    // Recombine sentence parts with their punctuation
-    for (let i = 0; i < parts.length; i += 2) {
-      if (parts[i]) {
-        const sentence = parts[i] + (parts[i + 1] || '');
-        // Don't trim - preserve leading/trailing spaces for IF formatting
-        sentences.push(sentence);
-      }
-    }
-
-    // Fallback if no sentences found
-    if (sentences.length === 0) {
-      // Don't trim - preserve spacing
-      sentences = [displayText];
-    }
-
-    let html = '';
-    sentences.forEach((sentence, index) => {
-      if (sentence) {  // Only add non-empty sentences
-        // Don't escape - text is already HTML from ANSI conversion
-        html += `<span class="sentence-chunk" data-chunk-index="${index}">${escapeHtml(sentence)}</span>`;
-      }
-    });
-
-    // Actually, let's just render the HTML directly without sentence wrapping for now
-    // to preserve ANSI styling properly
-    div.innerHTML = text;
+    // Insert sentence markers into HTML BEFORE rendering
+    // This preserves original text structure and enables highlighting
+    const markedHTML = insertSentenceMarkersInHTML(text);
+    div.innerHTML = markedHTML;
   }
 
   gameOutputInner.appendChild(div);
@@ -548,6 +603,11 @@ function addGameText(text, isCommand = false) {
   // Scroll to show the TOP of new text (not bottom)
   // This ensures long text blocks are visible from the start
   div.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+  // Track for highlighting (only for game text, not commands)
+  if (!isCommand) {
+    currentGameTextElement = div;
+  }
 
   return div;  // Return the element for highlighting later
 }
@@ -582,6 +642,185 @@ function stopNarration() {
   // Only update status if not showing something else
   if (status.textContent.includes('Speaking')) {
     updateStatus('Ready');
+  }
+
+  // Remove any highlighting
+  removeHighlight();
+}
+
+// CSS Custom Highlight API - find text range without modifying DOM
+function findTextRange(container, searchText) {
+  if (!container || !searchText) return null;
+
+  // Normalize text for matching (same processing as narration chunks)
+  function normalizeText(text) {
+    return text
+      .replace(/\s+/g, ' ')  // Collapse whitespace
+      .trim()
+      .toLowerCase();
+  }
+
+  // Walk through ALL nodes (not just text) to handle <br> elements
+  // Build NORMALIZED fullText (collapsed whitespace) while tracking original nodes
+  const walker = document.createTreeWalker(container, NodeFilter.SHOW_ALL);
+  let fullText = '';  // Normalized text (whitespace collapsed)
+  const charMap = []; // Maps each character in normalized text to {node, offset}
+  let lastWasSpace = true;  // Track if we just added a space (to collapse consecutive)
+
+  let node;
+  while (node = walker.nextNode()) {
+    if (node.nodeType === Node.TEXT_NODE) {
+      const text = node.textContent;
+
+      for (let i = 0; i < text.length; i++) {
+        const char = text[i];
+        const isSpace = char.match(/\s/);
+
+        if (isSpace) {
+          // Only add one space for consecutive whitespace
+          if (!lastWasSpace) {
+            charMap.push({ node, offset: i, normalized: ' ' });
+            fullText += ' ';
+            lastWasSpace = true;
+          }
+        } else {
+          charMap.push({ node, offset: i, normalized: char });
+          fullText += char;
+          lastWasSpace = false;
+        }
+      }
+    } else if (node.nodeName === 'BR' || (node.nodeType === Node.ELEMENT_NODE && node.classList?.contains('soft-break'))) {
+      // Treat <br> and soft-break spans as single spaces
+      if (!lastWasSpace) {
+        charMap.push({ node: node.parentNode, offset: 0, normalized: ' ' });
+        fullText += ' ';
+        lastWasSpace = true;
+      }
+    }
+  }
+
+  // Trim the normalized text
+  fullText = fullText.trim();
+
+  // Simple case-insensitive search on normalized text
+  const lowerFullText = fullText.toLowerCase();
+  const lowerSearchText = searchText.toLowerCase().trim();
+
+  const matchIndex = lowerFullText.indexOf(lowerSearchText);
+  if (matchIndex === -1) {
+    console.log('[Highlight] Text not found. Searching for:', lowerSearchText.substring(0, 50));
+    console.log('[Highlight] In text:', lowerFullText.substring(0, 200));
+    return null;
+  }
+
+  const rangeStart = matchIndex;
+  const rangeEnd = matchIndex + lowerSearchText.length;
+
+  // Use charMap to find the DOM nodes and offsets for the match
+  if (rangeStart >= charMap.length || rangeEnd > charMap.length) {
+    console.warn('[Highlight] Range out of bounds');
+    return null;
+  }
+
+  const startEntry = charMap[rangeStart];
+  const endEntry = charMap[rangeEnd - 1]; // End is exclusive, so use -1
+
+  if (!startEntry || !endEntry) {
+    console.warn('[Highlight] Could not find charMap entries');
+    return null;
+  }
+
+  const startNode = startEntry.node;
+  const startOffset = startEntry.offset;
+  const endNode = endEntry.node;
+  const endOffset = endEntry.offset + 1; // +1 because Range end is exclusive
+
+  try {
+    const range = new Range();
+    range.setStart(startNode, Math.max(0, Math.min(startOffset, startNode.textContent.length)));
+    range.setEnd(endNode, Math.max(0, Math.min(endOffset, endNode.textContent.length)));
+    return range;
+  } catch (e) {
+    console.warn('[Highlight] Range creation failed:', e);
+    return null;
+  }
+}
+
+// Highlight text being spoken using CSS Custom Highlight API
+function highlightSpokenText(text) {
+  if (!CSS.highlights) {
+    console.log('[Highlight] CSS Custom Highlight API not supported');
+    return;
+  }
+
+  try {
+    const container = document.querySelector('#gameOutputInner .game-text:last-child');
+    if (!container) return;
+
+    const range = findTextRange(container, text);
+    if (!range) {
+      console.log('[Highlight] Could not find text range');
+      return;
+    }
+
+    const highlight = new Highlight(range);
+    CSS.highlights.set('speaking', highlight);
+
+    // Scroll highlighted text into view
+    try {
+      const rect = range.getBoundingClientRect();
+      if (rect.top < 100 || rect.bottom > window.innerHeight - 100) {
+        range.startContainer.parentElement?.scrollIntoView({
+          behavior: 'smooth',
+          block: 'center'
+        });
+      }
+    } catch (e) {
+      // Ignore scroll errors
+    }
+
+    console.log('[Highlight] Applied to:', text.substring(0, 30) + '...');
+  } catch (error) {
+    console.error('[Highlight] Error:', error);
+  }
+}
+
+// Remove highlight when done
+function removeHighlight() {
+  if (CSS.highlights) {
+    CSS.highlights.delete('speaking');
+  }
+}
+
+// Highlight using marker elements
+function highlightUsingMarkers(chunkIndex) {
+  // Remove previous highlight
+  removeHighlight();
+
+  // Find markers for this chunk
+  const startMarker = document.querySelector(`.chunk-marker-start[data-chunk="${chunkIndex}"]`);
+  const endMarker = document.querySelector(`.chunk-marker-end[data-chunk="${chunkIndex}"]`);
+
+  if (!startMarker || !endMarker) {
+    console.warn(`[Highlight] No markers found for chunk ${chunkIndex}`);
+    return false;
+  }
+
+  try {
+    // Create range between markers
+    const range = new Range();
+    range.setStartAfter(startMarker);
+    range.setEndBefore(endMarker);
+
+    // Apply CSS Highlight API
+    const highlight = new Highlight(range);
+    CSS.highlights.set('speaking', highlight);
+
+    console.log(`[Highlight] Applied highlight for chunk ${chunkIndex}`);
+    return true;
+  } catch (e) {
+    console.warn(`[Highlight] Failed to highlight chunk ${chunkIndex}:`, e);
+    return false;
   }
 }
 
@@ -850,6 +1089,119 @@ function fixPronunciation(text) {
   return fixed;
 }
 
+// Calculate Levenshtein distance between two strings
+function levenshteinDistance(str1, str2) {
+  const m = str1.length;
+  const n = str2.length;
+  const dp = Array(m + 1).fill(null).map(() => Array(n + 1).fill(0));
+  for (let i = 0; i <= m; i++) dp[i][0] = i;
+  for (let j = 0; j <= n; j++) dp[0][j] = j;
+  for (let i = 1; i <= m; i++) {
+    for (let j = 1; j <= n; j++) {
+      const cost = str1[i - 1].toLowerCase() === str2[j - 1].toLowerCase() ? 0 : 1;
+      dp[i][j] = Math.min(dp[i - 1][j] + 1, dp[i][j - 1] + 1, dp[i - 1][j - 1] + cost);
+    }
+  }
+  return dp[m][n];
+}
+
+// Calculate similarity ratio (0 = different, 1 = identical)
+function textSimilarity(str1, str2) {
+  if (!str1 || !str2) return 0;
+  if (str1 === str2) return 1;
+  const maxLen = Math.max(str1.length, str2.length);
+  if (maxLen === 0) return 1;
+  return 1 - (levenshteinDistance(str1, str2) / maxLen);
+}
+
+// Check if text is echo of recently spoken TTS
+function isEchoOfSpokenText(transcript) {
+  if (!transcript || transcript.length < 3) return false;
+
+  const now = Date.now();
+  const normalizedTranscript = transcript.toLowerCase().trim();
+
+  // Clean up old entries
+  recentlySpokenChunks = recentlySpokenChunks.filter(
+    chunk => (now - chunk.timestamp) < ECHO_CHUNK_RETENTION_MS
+  );
+
+  for (const chunk of recentlySpokenChunks) {
+    const normalizedChunk = chunk.text.toLowerCase().trim();
+
+    // Check for substring match (even partial)
+    if (normalizedChunk.includes(normalizedTranscript) ||
+        normalizedTranscript.includes(normalizedChunk)) {
+      console.log('[Echo] Substring match:', transcript);
+      return true;
+    }
+
+    // Check similarity ratio
+    const similarity = textSimilarity(normalizedTranscript, normalizedChunk);
+    if (similarity >= ECHO_SIMILARITY_THRESHOLD) {
+      console.log('[Echo] Similarity ' + (similarity * 100).toFixed(0) + '%:', transcript);
+      return true;
+    }
+
+    // Check word overlap for phrases (3+ words)
+    const transcriptWords = normalizedTranscript.split(/\s+/).filter(w => w.length > 2);
+    const chunkWords = normalizedChunk.split(/\s+/).filter(w => w.length > 2);
+
+    if (transcriptWords.length >= 2 && chunkWords.length >= 3) {
+      const commonWords = transcriptWords.filter(w => chunkWords.includes(w));
+      const wordOverlap = commonWords.length / transcriptWords.length;
+      if (wordOverlap >= 0.5) {
+        console.log('[Echo] Word overlap ' + (wordOverlap * 100).toFixed(0) + '%:', transcript);
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
+// Record a chunk as spoken for echo detection
+function recordSpokenChunk(text) {
+  if (!text || text.length < 3) return;
+  recentlySpokenChunks.push({ text: text, timestamp: Date.now() });
+  if (recentlySpokenChunks.length > 30) recentlySpokenChunks.shift();
+  console.log('[Echo] Recorded:', text.substring(0, 40) + '...');
+}
+
+// Shared function: Process text the same way for TTS and highlighting
+function processTextForTTS(text) {
+  let processed = text
+    // Collapse spaced capitals: "A N C H O R H E A D" → "ANCHORHEAD"
+    .replace(/\b([A-Z])\s+(?=[A-Z](?:\s+[A-Z]|\s*\b))/g, '$1')
+    // Normalize initials: "H.P." → "H P"
+    .replace(/\b([A-Z])\.\s*/g, '$1 ')
+    .replace(/\b([A-Z])\s+([A-Z])\s+/g, '$1$2 ')
+    // Collapse whitespace
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  // Title case for all-caps words (4+ letters): "ANCHORHEAD" → "Anchorhead"
+  processed = processed.replace(/\b([A-Z]{4,})\b/g, (match) => {
+    return match.charAt(0) + match.slice(1).toLowerCase();
+  });
+
+  return processed;
+}
+
+// Shared function: Split processed text into sentences
+// Used by both createNarrationChunks() and insertSentenceMarkersInHTML()
+// to ensure they split the same way
+function splitIntoSentences(processedText) {
+  if (!processedText) return [];
+
+  const chunks = processedText
+    .split(/(?<=[.!?])\s+/)  // Split after sentence-ending punctuation
+    .map(chunk => chunk.trim())
+    .filter(chunk => chunk.length > 0);
+
+  // If no chunks found, use whole text
+  return chunks.length > 0 ? chunks : [processedText];
+}
+
 // Play using browser's built-in TTS (100% FREE!)
 async function playWithBrowserTTS(text) {
   if (!('speechSynthesis' in window)) {
@@ -935,6 +1287,7 @@ async function playWithBrowserTTS(text) {
     }
 
     // Speak
+    recordSpokenChunk(text);  // Record for echo detection BEFORE speaking
     speechSynthesis.speak(utterance);
     console.log('[Browser TTS] Speaking:', text.substring(0, 50) + '...');
   });
@@ -958,40 +1311,136 @@ function createNarrationChunks(text) {
   const plainText = tempDiv.textContent || tempDiv.innerText || '';
 
   // Pre-process text to normalize before chunking (for TTS)
-  let processedText = plainText
-    // Detect and collapse spaced-out capital letters (e.g., "A N C H O R H E A D" -> "ANCHORHEAD")
-    .replace(/\b([A-Z])\s+(?=[A-Z](?:\s+[A-Z]|\s*\b))/g, '$1')
-    // Then normalize initials to prevent "H.P. Lovecraft" from being split
-    .replace(/\b([A-Z])\.\s*/g, '$1 ')  // H.P. -> H P
-    .replace(/\b([A-Z])\s+([A-Z])\s+/g, '$1$2 ')  // H P -> HP
-    // Clean up multiple spaces
-    .replace(/\s+/g, ' ')
-    .trim();
+  // Use shared function to ensure consistency with highlighting
+  let processedText = processTextForTTS(plainText);
 
-  // Convert collapsed all-caps words (4+ letters) to title case for better pronunciation
-  // (e.g., "ANCHORHEAD" -> "Anchorhead")
-  processedText = processedText.replace(/\b([A-Z]{4,})\b/g, (match) => {
-    return match.charAt(0) + match.slice(1).toLowerCase();
-  });
+  // Split using shared function (ensures consistency with marker insertion)
+  narrationChunks = splitIntoSentences(processedText);
 
-  // Split by sentence boundaries for TTS chunks
-  narrationChunks = processedText
-    .split(/(?<=[.!?])\s+/)
-    .map(chunk => chunk.trim())
-    .filter(chunk => chunk.length > 0);
-
-  // If no chunks found, use whole text
-  if (narrationChunks.length === 0) {
-    narrationChunks = [processedText];
-  }
-
-  // For display: use original server HTML (preserves formatting)
-  if (currentGameTextElement) {
-    currentGameTextElement.innerHTML = text;
-  }
+  // Note: Display HTML is already rendered by addGameText()
+  // Markers are inserted before rendering, so they're already in the DOM
 
   console.log('[TTS] Created', narrationChunks.length, 'chunks');
   console.log('[TTS] Chunks:', narrationChunks.map((c, i) => `[${i}]: ${c.substring(0, 30)}...`));
+}
+
+// Insert sentence markers into HTML BEFORE rendering
+// Uses shared splitting logic to ensure markers match narration chunks exactly
+function insertSentenceMarkersInHTML(html) {
+  if (!html) return html;
+
+  const container = document.createElement('div');
+  container.innerHTML = html;
+
+  // Extract and process text THE SAME WAY as createNarrationChunks()
+  const tempDiv = document.createElement('div');
+  let htmlForProcessing = html
+    .replace(/<br\s*\/?>\s*<br\s*\/?>/gi, '. ')
+    .replace(/<br\s*\/?>/gi, ' ')
+    .replace(/<span class="soft-break"><\/span>/gi, ' ');
+  tempDiv.innerHTML = htmlForProcessing;
+  const plainText = tempDiv.textContent || '';
+
+  // Process and split using shared functions (guarantees same results as createNarrationChunks)
+  const processedText = processTextForTTS(plainText);
+  const sentences = splitIntoSentences(processedText);
+
+  console.log('[Markers] Will insert', sentences.length, 'markers for sentences');
+
+  // For each sentence, find it in the DOM and insert markers around it
+  for (let i = 0; i < sentences.length; i++) {
+    const sentence = sentences[i];
+
+    // Use existing findTextRange() to locate this sentence in the DOM
+    const range = findTextRange(container, sentence);
+
+    if (!range) {
+      console.warn(`[Markers] Sentence ${i} not found:`, sentence.substring(0, 40));
+      continue;
+    }
+
+    try {
+      // Create markers
+      const endMarker = document.createElement('span');
+      endMarker.className = 'chunk-marker-end';
+      endMarker.dataset.chunk = i;
+      endMarker.style.cssText = 'display: none; position: absolute;';
+
+      const startMarker = document.createElement('span');
+      startMarker.className = 'chunk-marker-start';
+      startMarker.dataset.chunk = i;
+      startMarker.style.cssText = 'display: none; position: absolute;';
+
+      // Insert end marker first (so start position doesn't shift)
+      range.collapse(false);  // Collapse to end
+      range.insertNode(endMarker);
+
+      // Find the sentence again to insert start marker (DOM was modified)
+      const rangeForStart = findTextRange(container, sentence);
+      if (rangeForStart) {
+        rangeForStart.collapse(true);  // Collapse to start
+        rangeForStart.insertNode(startMarker);
+        console.log(`[Markers] Inserted markers for sentence ${i}`);
+      } else {
+        console.warn(`[Markers] Could not re-find sentence ${i} for start marker`);
+      }
+    } catch (e) {
+      console.warn(`[Markers] Failed to insert markers for sentence ${i}:`, e);
+    }
+  }
+
+  console.log('[Markers] Pre-inserted', sentences.length, 'sentence markers in HTML');
+  return container.innerHTML;
+}
+
+// DEPRECATED: Insert invisible marker spans at sentence boundaries
+// This function is no longer used - markers are inserted before rendering
+function insertChunkMarkers(containerElement) {
+  if (!containerElement || narrationChunks.length === 0) {
+    console.log('[Markers] No container or chunks to mark');
+    return;
+  }
+
+  console.log('[Markers] Inserting markers for', narrationChunks.length, 'chunks');
+
+  // For each chunk, use existing findTextRange() to locate it in DOM
+  for (let i = 0; i < narrationChunks.length; i++) {
+    const chunk = narrationChunks[i];
+
+    // Reuse existing findTextRange() - it already handles text transformations
+    const range = findTextRange(containerElement, chunk);
+
+    if (!range) {
+      console.warn(`[Markers] Chunk ${i} not found:`, chunk.substring(0, 40));
+      continue;
+    }
+
+    // Insert markers at range boundaries
+    try {
+      const endMarker = document.createElement('span');
+      endMarker.className = 'chunk-marker-end';
+      endMarker.dataset.chunk = i;
+      endMarker.style.cssText = 'display: none; position: absolute;';
+
+      const startMarker = document.createElement('span');
+      startMarker.className = 'chunk-marker-start';
+      startMarker.dataset.chunk = i;
+      startMarker.style.cssText = 'display: none; position: absolute;';
+
+      // Insert end marker first (so start position doesn't shift)
+      range.collapse(false);  // Collapse to end
+      range.insertNode(endMarker);
+
+      // Reset range and insert start marker
+      range.setStart(range.startContainer, range.startOffset);
+      range.collapse(true);  // Collapse to start
+      range.insertNode(startMarker);
+
+      console.log(`[Markers] Inserted markers for chunk ${i}`);
+    } catch (e) {
+      console.warn(`[Markers] Failed to insert markers for chunk ${i}:`, e);
+    }
+  }
 }
 
 // Speak text in chunks (with resume and navigation support)
@@ -1025,22 +1474,19 @@ async function speakTextChunked(text, startFromIndex = 0) {
 
   // Start from current index
   for (let i = currentChunkIndex; i < narrationChunks.length; i++) {
+    // Update position at START of iteration
+    currentChunkIndex = i;
+
     // Check narration state at start of EVERY iteration
     if (!narrationEnabled || isPaused) {
       console.log('[TTS] Loop stopped at chunk', i, '- narrationEnabled:', narrationEnabled, 'isPaused:', isPaused);
-      currentChunkIndex = i;  // Save position
+      // currentChunkIndex already set above
 
-      // Remove highlighting from current sentence
-      if (currentGameTextElement) {
-        const currentSentence = currentGameTextElement.querySelector(`[data-chunk-index="${i}"]`);
-        if (currentSentence) {
-          currentSentence.classList.remove('speaking');
-        }
-      }
+      // Remove highlighting
+      removeHighlight();
       break;
     }
 
-    currentChunkIndex = i;
     updateNavButtons();
 
     // Highlight current sentence
@@ -1066,10 +1512,7 @@ async function speakTextChunked(text, startFromIndex = 0) {
       console.log('[TTS] Cancelled - navigation changed while waiting for audio');
 
       // Remove highlighting when cancelled
-      if (currentGameTextElement) {
-        const allSentences = currentGameTextElement.querySelectorAll('.sentence-chunk');
-        allSentences.forEach(s => s.classList.remove('speaking'));
-      }
+      removeHighlight();
       break;
     }
 
@@ -1091,10 +1534,7 @@ async function speakTextChunked(text, startFromIndex = 0) {
     isNarrating = false;
 
     // Remove highlighting when narration completes
-    if (currentGameTextElement) {
-      const allSentences = currentGameTextElement.querySelectorAll('.sentence-chunk');
-      allSentences.forEach(s => s.classList.remove('speaking'));
-    }
+    removeHighlight();
 
     // Scroll to bottom when narration finishes
     if (gameOutput) {
@@ -1235,10 +1675,7 @@ function skipToEnd() {
   updateStatus('⏩ Skipped to end');
 
   // Remove all highlighting
-  if (currentGameTextElement) {
-    const allSentences = currentGameTextElement.querySelectorAll('.sentence-chunk');
-    allSentences.forEach(s => s.classList.remove('speaking'));
-  }
+  removeHighlight();
 
   // Scroll to bottom of game output
   if (gameOutput) {
@@ -1250,19 +1687,21 @@ function skipToEnd() {
 
 // Update text highlighting for a specific chunk
 function updateTextHighlight(chunkIndex) {
-  if (!currentGameTextElement || narrationChunks.length === 0) return;
+  if (narrationChunks.length === 0 || chunkIndex < 0 || chunkIndex >= narrationChunks.length) {
+    removeHighlight();
+    return;
+  }
 
-  // Remove highlight from all sentences
-  const allSentences = currentGameTextElement.querySelectorAll('.sentence-chunk');
-  allSentences.forEach(s => s.classList.remove('speaking'));
+  // Try marker-based highlighting first
+  const success = highlightUsingMarkers(chunkIndex);
 
-  // Highlight the specified sentence
-  const targetSentence = currentGameTextElement.querySelector(`[data-chunk-index="${chunkIndex}"]`);
-  if (targetSentence) {
-    targetSentence.classList.add('speaking');
-
-    // Scroll to show the highlighted sentence
-    targetSentence.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  // Fallback: If markers failed, try old text-search method
+  if (!success) {
+    console.log('[Highlight] Markers failed, trying text search fallback');
+    const chunkText = narrationChunks[chunkIndex];
+    if (chunkText) {
+      highlightSpokenText(chunkText);
+    }
   }
 }
 
@@ -1313,6 +1752,9 @@ function updateNavButtons() {
 async function startGame(gamePath) {
   try {
     currentGamePath = gamePath;
+    // Set game name for save/restore (strip path and extension)
+    currentGameName = gamePath.split('/').pop().replace(/\.[^.]+$/, '').toLowerCase();
+    console.log('[Game] Starting:', currentGameName);
 
     updateStatus('Starting game...', 'processing');
 
@@ -1330,8 +1772,8 @@ async function startGame(gamePath) {
       // Stop any existing narration (in case restarting game)
       stopNarration();
 
-      // Store the game text element reference
-      currentGameTextElement = addGameText(output);
+      // Display the game output
+      addGameText(output);
 
       // Reset narration state for new game
       pendingNarrationText = output;
@@ -1384,8 +1826,8 @@ async function sendCommandDirect(cmd) {
       // Stop any currently running narration cleanly before processing new output
       stopNarration();
 
-      // Store the game text element reference
-      currentGameTextElement = addGameText(output);
+      // Display the game output
+      addGameText(output);
 
       // Reset narration for new text
       pendingNarrationText = output;
@@ -1485,10 +1927,13 @@ async function startVoiceMeter() {
       const percentage = Math.min(100, (average / 128) * 100);
 
       // Update dot indicator (green if > 20%, maroon otherwise)
-      if (percentage > 20) {
-        voiceIndicator.classList.add('active');
-      } else {
-        voiceIndicator.classList.remove('active');
+      // But NOT when muted - keep muted state
+      if (!isMuted) {
+        if (percentage > 20) {
+          voiceIndicator.classList.add('active');
+        } else {
+          voiceIndicator.classList.remove('active');
+        }
       }
 
       // Sound detection for auto-pause narration
@@ -1522,16 +1967,14 @@ async function startVoiceMeter() {
             soundPauseTimeout = setTimeout(() => {
               soundPauseTimeout = null;
 
-              // Only resume if no command was processed and still paused for sound
-              if (pausedForSound && !pendingCommandProcessed) {
-                pausedForSound = false;
-                if (narrationEnabled && !isPaused) {
-                  speechSynthesis.resume();
-                  console.log('[Sound] Resumed narration after silence (no command)');
-                }
-              } else if (pendingCommandProcessed) {
-                console.log('[Sound] Not resuming - command was processed');
-                pausedForSound = false;
+              // Always resume after silence, unless explicitly paused
+              pausedForSound = false;
+              pendingCommandProcessed = false;
+              if (narrationEnabled && !isPaused) {
+                speechSynthesis.resume();
+                console.log('[Sound] Resumed narration after silence');
+              } else if (isPaused) {
+                console.log('[Sound] Not resuming - explicitly paused');
               }
             }, SILENCE_DELAY);
           }
@@ -1628,32 +2071,30 @@ async function startTalkMode() {
   }
 }
 
-// Mute button (mutes microphone input, stops listening, keeps audio narration)
+// Mute button (mutes microphone input, but keeps recognition running for "unmute" command)
 muteBtn.addEventListener('click', () => {
   isMuted = !isMuted;
   const icon = muteBtn.querySelector('.material-icons');
 
   if (isMuted) {
-    // Stop listening (mute mic)
-    listeningEnabled = false;
-
-    if (recognition) {
-      try {
-        recognition.stop();
-        isRecognitionActive = false;  // Force reset in case onend doesn't fire immediately
-      } catch (err) {}
-    }
+    // Muted: keep recognition running but ignore all commands except "unmute"
+    // Don't set listeningEnabled = false, so recognition continues
 
     stopVoiceMeter();
 
-    // Update voice indicator to muted state
+    // Hide voice feedback panel (hides "Say something..." etc)
+    voiceFeedback.classList.add('hidden');
+
+    // Update voice indicator to muted state (red dot, "Muted" text)
     voiceIndicator.classList.remove('active');
     voiceIndicator.classList.add('muted');
     voiceTranscript.textContent = 'Muted';
 
     if (icon) icon.textContent = 'mic_off';
     muteBtn.classList.add('muted');
-    updateStatus('Microphone muted');
+    updateStatus('Muted - say "unmute" to resume');
+
+    console.log('[Mute] Muted, recognition still running:', isRecognitionActive);
   } else {
     // Resume listening (unmute mic)
     listeningEnabled = true;
@@ -1831,6 +2272,153 @@ socket.on('game-ended', (code) => {
   updateStatus('Game ended');
   addGameText('\n--- Game Ended ---\n');
 });
+
+// Clear screen on scene change (status line changed)
+socket.on('clear-screen', () => {
+  console.log('[Game] Clear screen - scene change');
+  gameOutputInner.innerHTML = '';
+  // Reset narration state for new scene
+  stopNarration();
+  narrationChunks = [];
+  currentChunkIndex = 0;
+  narrationSessionId++;
+  updateNavButtons();
+});
+
+// ============== SAVE/RESTORE SYSTEM (localStorage) ==============
+
+// Current game name (set when game starts)
+let currentGameName = null;
+
+// Handle save data from server
+socket.on('save-data', ({ game, data, timestamp }) => {
+  currentGameName = game;
+
+  // Get existing saves for this game
+  const savesKey = `iftalk_saves_${game}`;
+  const saves = JSON.parse(localStorage.getItem(savesKey) || '{"slots":{}}');
+
+  // Auto-assign to next available slot (1-10) or slot 1 if all full
+  let slot = 1;
+  for (let i = 1; i <= 10; i++) {
+    if (!saves.slots[i]) {
+      slot = i;
+      break;
+    }
+  }
+
+  // Store save data with quota checking
+  const dataKey = `iftalk_save_${game}_${slot}`;
+  try {
+    localStorage.setItem(dataKey, data);
+
+    // Update saves metadata
+    saves.slots[slot] = {
+      timestamp,
+      date: new Date(timestamp).toLocaleString()
+    };
+    localStorage.setItem(savesKey, JSON.stringify(saves));
+
+    console.log(`[Save] Stored in localStorage: ${dataKey} (slot ${slot})`);
+    updateStatus(`Game saved to slot ${slot}`);
+    speakAppMessage(`Saved to slot ${slot}`);
+  } catch (e) {
+    if (e.name === 'QuotaExceededError') {
+      console.error('[Save] Storage quota exceeded');
+      updateStatus('Storage full - delete old saves');
+      speakAppMessage('Storage full. Please delete old saves to make room.');
+    } else {
+      console.error('[Save] Error storing save:', e);
+      updateStatus('Save failed');
+      speakAppMessage('Save failed');
+    }
+  }
+});
+
+// List all saves for current game
+function listSaves() {
+  if (!currentGameName) {
+    console.log('[Save] No game loaded');
+    return {};
+  }
+
+  const savesKey = `iftalk_saves_${currentGameName}`;
+  const saves = JSON.parse(localStorage.getItem(savesKey) || '{"slots":{}}');
+  console.log('[Save] Available saves:', saves.slots);
+  return saves.slots;
+}
+
+// Restore from a specific slot
+function restoreFromSlot(slot) {
+  if (!currentGameName) {
+    console.log('[Restore] No game loaded');
+    return false;
+  }
+
+  const dataKey = `iftalk_save_${currentGameName}_${slot}`;
+  const data = localStorage.getItem(dataKey);
+
+  if (!data) {
+    console.log(`[Restore] No save in slot ${slot}`);
+    updateStatus(`No save in slot ${slot}`);
+    speakAppMessage(`No save found in slot ${slot}`);
+    return false;
+  }
+
+  // Send to server for restore
+  socket.emit('restore-data', { data });
+  console.log(`[Restore] Sent slot ${slot} to server`);
+  updateStatus(`Restoring from slot ${slot}...`);
+  speakAppMessage(`Restoring from slot ${slot}`);
+  return true;
+}
+
+// Quick restore from most recent save
+function restoreLatest() {
+  const saves = listSaves();
+  let latestSlot = null;
+  let latestTime = 0;
+
+  for (const [slot, info] of Object.entries(saves)) {
+    if (info.timestamp > latestTime) {
+      latestTime = info.timestamp;
+      latestSlot = slot;
+    }
+  }
+
+  if (latestSlot) {
+    return restoreFromSlot(latestSlot);
+  } else {
+    updateStatus('No saves found');
+    speakAppMessage('No saves found');
+    return false;
+  }
+}
+
+// Delete a save slot
+function deleteSave(slot) {
+  if (!currentGameName) return false;
+
+  const dataKey = `iftalk_save_${currentGameName}_${slot}`;
+  const savesKey = `iftalk_saves_${currentGameName}`;
+
+  localStorage.removeItem(dataKey);
+
+  try {
+    const saves = JSON.parse(localStorage.getItem(savesKey) || '{"slots":{}}');
+    delete saves.slots[slot];
+    localStorage.setItem(savesKey, JSON.stringify(saves));
+
+    console.log(`[Save] Deleted slot ${slot}`);
+    return true;
+  } catch (e) {
+    console.error('[Save] Error updating saves metadata:', e);
+    // Still return true since the actual save data was deleted
+    return true;
+  }
+}
+
+// ============== END SAVE/RESTORE SYSTEM ==============
 
 // Settings Panel Management
 const settingsBtn = document.getElementById('settingsBtn');

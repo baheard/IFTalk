@@ -261,19 +261,30 @@ If you need ANSI formatting support (bold text, colors), you would need dfrotz 2
 
 ## Development Server Management
 
+### Branch Information
+
+**Current Branch:** `frotz`
+
+**Purpose:** Server-side Frotz interpreter implementation via Socket.IO. This branch uses a reliable server-based architecture (dfrotz + Node.js) as opposed to browser-based ZVM/GlkOte approaches which had generation counter and lifecycle issues.
+
+**Why Frotz wins:**
+- Proven reliability with full text interception
+- Easy styling (just HTML/CSS, not constrained by GlkOte structure)
+- Complete control over game state and output
+
 ### Starting the Development Server
 
 ```bash
-cd /c/source/IFTalk && npm start
+cd /e/Project/IFTalk && npm start
 ```
 
-The server runs on port 3000 by default.
+The server runs on **port 3003**.
 
 ### Checking for Running Servers
 
 ```bash
-# Check if port 3000 is in use
-netstat -ano | findstr :3000
+# Check if port 3003 is in use
+netstat -ano | findstr :3003
 
 # List all running Node.js processes
 tasklist | findstr node

@@ -489,12 +489,26 @@ body {
   display: none;
 }
 
+/* Centered text - center on narrow screens where text reflows */
+.game-text .centered {
+  display: inline-block;
+  width: 100%;
+  text-align: center;
+}
+
 @container (min-width: 70ch) {
   .soft-break {
     display: inline;
   }
   .soft-break::before {
     content: '\A';
+    white-space: pre;
+  }
+  /* Wide screens: preserve original Frotz formatting with leading spaces */
+  .game-text .centered {
+    display: inline;
+    width: auto;
+    text-align: left;
     white-space: pre;
   }
 }
@@ -534,15 +548,8 @@ body {
 
 /* CSS Custom Highlight API for TTS text highlighting (no DOM modification) */
 ::highlight(speaking) {
-  background-color: rgba(196, 163, 90, 0.3);  /* Warm gold highlight */
+  background-color: rgba(196, 163, 90, 0.35);  /* Warm gold highlight */
   color: inherit;
-}
-
-.sentence-chunk.speaking {
-  background: var(--highlight-speaking);
-  padding: 2px 4px;
-  border-radius: 3px;
-  box-shadow: 0 0 12px var(--highlight-speaking);
 }
 
 @keyframes glow-pulse {
@@ -1283,6 +1290,22 @@ body {
 .voice-transcript.translating {
   color: var(--accent-primary);
   font-weight: 600;
+}
+
+.voice-transcript.low-confidence {
+  color: #cc4444;
+  font-weight: 600;
+  background: rgba(180, 60, 60, 0.2);
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+/* Low confidence items in voice history */
+.voice-history-item.low-confidence {
+  color: #cc4444;
+  background: rgba(180, 60, 60, 0.15);
+  border-left: 3px solid #cc4444;
+  padding-left: 8px;
 }
 
 /* Narration Progress */
