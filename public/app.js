@@ -3,43 +3,38 @@ const socket = io();
 
 // DOM Elements
 const welcome = document.getElementById('welcome');
-const gameContainer = document.getElementById('gameport');
-const gameOutput = gameContainer;
+const gameOutput = document.getElementById('gameOutput');
+const gameOutputInner = document.getElementById('gameOutputInner');
 const inputArea = document.getElementById('inputArea');
 const userInput = document.getElementById('userInput');
 const sendBtn = document.getElementById('sendBtn');
 const selectGameBtn = document.getElementById('selectGameBtn');
-const modeToggle = document.getElementById('modeToggle');
-const modeLabel = document.getElementById('modeLabel');
 const status = document.getElementById('status');
-const toggleTalkModeBtn = document.getElementById('toggleTalkModeBtn');
 const muteBtn = document.getElementById('muteBtn');
 const voiceSelect = document.getElementById('voiceSelect');
 const appVoiceSelect = document.getElementById('appVoiceSelect');
 const testAppVoiceBtn = document.getElementById('testAppVoiceBtn');
 const voiceFeedback = document.getElementById('voiceFeedback');
-const voiceMeterFill = document.getElementById('voiceMeterFill');
+const voiceIndicator = document.getElementById('voiceIndicator');
 const voiceTranscript = document.getElementById('voiceTranscript');
-const voiceHistory = document.getElementById('voiceHistory');
-const voiceHistoryPanel = document.querySelector('.voice-panel');
-const voiceHistoryToggle = document.getElementById('voiceHistoryToggle');
-const voiceHistoryEl = document.getElementById('voiceHistory');
-const commandHistory = document.getElementById('commandHistory');
-const stopBtn = document.getElementById('stopBtn');
+const voicePanel = document.querySelector('.voice-panel');
+const lastHeard = document.getElementById('lastHeard');
+const lastResponse = document.getElementById('lastResponse');
+const voiceHistoryBtn = document.getElementById('voiceHistoryBtn');
+const commandHistoryBtn = document.getElementById('commandHistoryBtn');
 const pausePlayBtn = document.getElementById('pausePlayBtn');
-const narrationProgress = document.getElementById('narrationProgress');
-const narrationSlider = document.getElementById('narrationSlider');
-const currentChunkLabel = document.getElementById('currentChunkLabel');
-const narrationStatus = document.getElementById('narrationStatus');
+const autoplayBtn = document.getElementById('autoplayBtn');
 
 // State
 let currentGamePath = null;
 let isListening = false;
 let listeningEnabled = false;  // Continuous listening mode
 let recognition = null;
+let isRecognitionActive = false;  // Track if recognition is actually running
 let currentAudio = null;
 let narrationEnabled = false;
-let isMuted = false;  // Mute audio output (but keep listening)
+let isMuted = false;  // Mute MICROPHONE input (audio output still plays)
+let autoplayEnabled = true;  // Auto-play new game text (can be toggled)
 let isNarrating = false;  // Currently speaking
 let pendingNarrationText = null;
 let narrationChunks = [];  // All sentences to narrate
@@ -59,154 +54,75 @@ let isPushToTalkActive = false;  // Track if push-to-talk is active
 let isNavigating = false;  // Prevent concurrent navigation operations
 let currentChunkStartTime = 0;  // When current chunk started playing
 let confirmedTranscriptTimeout = null;  // Timeout for moving confirmed text to history
-let voiceHistoryItems = [];  // Track last 3 voice commands: {text, isNavCommand}
-let lastVoiceInputTime = Date.now();  // Track last voice input for idle detection
-let idleCheckInterval = null;  // Interval for checking idle state
+let ttsIsSpeaking = false;  // Track when TTS is actively speaking (to pause recognition)
+let appVoicePromise = null;  // Promise that resolves when app voice finishes speaking
+let soundDetected = false;  // Track if sound above threshold is detected
+let pausedForSound = false;  // Track if narration was paused due to sound detection
+let soundPauseTimeout = null;  // Timeout to resume after silence
+let pendingCommandProcessed = false;  // Track if a command was processed during sound pause
+const SOUND_THRESHOLD = 30;  // Audio level threshold (0-100) to trigger pause
+const SILENCE_DELAY = 800;  // ms of silence before resuming narration
 
-// Add voice command to history
-function addToVoiceHistory(text, isNavCommand = false) {
-  // Cancel any pending move-to-history
-  if (confirmedTranscriptTimeout) {
-    clearTimeout(confirmedTranscriptTimeout);
-    confirmedTranscriptTimeout = null;
+// Voice/command history arrays (for history popup)
+let voiceHistoryItems = [];  // {text, isNavCommand}
+let commandHistoryItems = [];  // {original, translated, confidence}
+let lastHeardClearTimeout = null;  // Timeout to clear lastHeard after 5 seconds
+let transcriptResetTimeout = null;  // Timeout to reset voice transcript to "Listening..."
+
+// Update the last heard text in voice panel
+function updateLastHeard(text, isNavCommand = false) {
+  if (lastHeard) {
+    lastHeard.textContent = text;
+    lastHeard.className = 'last-heard' + (isNavCommand ? ' nav-command' : '');
+
+    // Clear after 5 seconds
+    if (lastHeardClearTimeout) clearTimeout(lastHeardClearTimeout);
+    lastHeardClearTimeout = setTimeout(() => {
+      lastHeard.textContent = '';
+    }, 5000);
   }
-
-  // Add to history array with metadata
+  // Add to history array
   voiceHistoryItems.unshift({ text, isNavCommand });
-
-  // Keep only last 20
-  if (voiceHistoryItems.length > 20) {
-    voiceHistoryItems.pop();
-  }
-
-  // Update UI
-  updateVoiceHistoryUI();
+  if (voiceHistoryItems.length > 20) voiceHistoryItems.pop();
 }
 
-// Update the voice history display
-function updateVoiceHistoryUI() {
-  voiceHistory.innerHTML = '';
-
-  // Check if mobile
-  const isMobile = window.innerWidth <= 600;
-
-  // Check if expanded
-  const isExpanded = voiceHistoryToggle.classList.contains('expanded');
-  const maxItems = isMobile ? 2 : (isExpanded ? 20 : 3);
-
-  // Show only the first N items
-  const itemsToShow = voiceHistoryItems.slice(0, maxItems);
-
-  itemsToShow.forEach((item, index) => {
-    const div = document.createElement('div');
-    div.className = 'voice-history-item';
-    div.textContent = item.text;
-
-    // Add navigation command class
-    if (item.isNavCommand) {
-      div.classList.add('nav-command');
-    }
-
-    // Add aging classes (only in compact mode, not on mobile)
-    if (!isExpanded && !isMobile) {
-      if (index === 1) {
-        div.classList.add('old');
-      } else if (index === 2) {
-        div.classList.add('older');
-      }
-    }
-
-    voiceHistory.appendChild(div);
-  });
-
-  // Update toggle button visibility (hide on mobile)
-  if (isMobile) {
-    voiceHistoryToggle.style.display = 'none';
-  } else if (voiceHistoryItems.length > 3) {
-    voiceHistoryToggle.style.display = 'flex';
-  } else {
-    voiceHistoryToggle.style.display = 'none';
+// Update the last app response in voice panel
+function updateLastResponse(text) {
+  if (lastResponse) {
+    lastResponse.textContent = text;
   }
 }
 
-// Show confirmed transcript for a moment before moving to history
+// Show confirmed transcript then reset to Listening after 5 seconds
 function showConfirmedTranscript(text, isNavCommand = false) {
-  // Show as confirmed
+  // Clear any pending reset
+  if (transcriptResetTimeout) {
+    clearTimeout(transcriptResetTimeout);
+  }
+
   voiceTranscript.textContent = text;
   voiceTranscript.classList.remove('interim');
   voiceTranscript.classList.add('confirmed');
-
-  // Add nav command styling to current transcript if applicable
   if (isNavCommand) {
     voiceTranscript.classList.add('nav-command');
   } else {
     voiceTranscript.classList.remove('nav-command');
   }
 
-  // Move to history after 2 seconds
-  confirmedTranscriptTimeout = setTimeout(() => {
-    addToVoiceHistory(text, isNavCommand);
+  // Also update lastHeard for history
+  updateLastHeard(text, isNavCommand);
 
-    // Reset to listening
+  // Reset transcript to "Listening..." after 5 seconds
+  transcriptResetTimeout = setTimeout(() => {
     voiceTranscript.textContent = 'Listening...';
     voiceTranscript.classList.remove('confirmed', 'nav-command');
-  }, 2000);
+  }, 5000);
 }
 
-// Command history management
-let commandHistoryItems = [];  // {original, translated, confidence}
-
+// Add to command history (for history popup)
 function addToCommandHistory(original, translated = null, confidence = null) {
-  // Add to beginning of array
   commandHistoryItems.unshift({ original, translated, confidence });
-
-  // Keep only last 10
-  if (commandHistoryItems.length > 10) {
-    commandHistoryItems = commandHistoryItems.slice(0, 10);
-  }
-
-  updateCommandHistoryUI();
-}
-
-function updateCommandHistoryUI() {
-  commandHistory.innerHTML = '';
-
-  // Limit to 2 items on mobile
-  const isMobile = window.innerWidth <= 600;
-  const maxItems = isMobile ? 2 : 10;
-  const itemsToShow = commandHistoryItems.slice(0, maxItems);
-
-  itemsToShow.forEach(({ original, translated, confidence }) => {
-    const item = document.createElement('div');
-    item.className = 'command-history-item';
-
-    if (translated && translated.toLowerCase() !== original.toLowerCase()) {
-      // Voice command with translation
-      // Show voice input in blue, translated command in white
-      const confidenceText = confidence ? `<span class="confidence">(${confidence}%)</span>` : '';
-      item.innerHTML = `
-        <div class="voice-input">
-          <span class="voice-label">🎤</span>
-          <span>${escapeHtml(original)}</span>
-          ${confidenceText}
-        </div>
-        <div class="game-command">
-          <span class="arrow">→</span>
-          <span>${escapeHtml(translated)}</span>
-        </div>
-      `;
-    } else {
-      // Direct command (typed or no translation needed)
-      // Style [ENTER] commands in gray
-      if (original === '[ENTER]') {
-        item.innerHTML = `<div class="game-command" style="color: #999;">${escapeHtml(original)}</div>`;
-      } else {
-        item.innerHTML = `<div class="game-command">${escapeHtml(original)}</div>`;
-      }
-    }
-
-    commandHistory.appendChild(item);
-  });
+  if (commandHistoryItems.length > 20) commandHistoryItems.pop();
 }
 
 // Initialize voice recognition
@@ -228,6 +144,7 @@ function initVoiceRecognition() {
 
   recognition.onstart = () => {
     isListening = true;
+    isRecognitionActive = true;
     hasProcessedResult = false;  // Reset for new recognition session
 
     if (!isNarrating) {
@@ -267,9 +184,6 @@ function initVoiceRecognition() {
     if (finalTranscript && !hasProcessedResult) {
       console.log('[Voice] Final:', finalTranscript);
 
-      // Update last input time for idle detection
-      lastVoiceInputTime = Date.now();
-
       // Process voice keywords first to determine if it's a nav command
       const processed = processVoiceKeywords(finalTranscript);
       const isNavCommand = (processed === false);  // Navigation commands return false
@@ -305,15 +219,19 @@ function initVoiceRecognition() {
     }
 
     isListening = false;
+    isRecognitionActive = false;
   };
 
   recognition.onend = () => {
     isListening = false;
+    isRecognitionActive = false;
 
     // Only auto-send if we haven't already processed this session AND user hasn't manually typed
     const hasInput = userInput.value && userInput.value.trim();
+    // Allow sending if narration is paused for sound (user spoke to give a command)
+    const canSendDuringNarration = pausedForSound;
 
-    if (hasInput && !isNarrating && !hasProcessedResult && !hasManualTyping) {
+    if (hasInput && (!isNarrating || canSendDuringNarration) && !hasProcessedResult && !hasManualTyping) {
       console.log('[Voice] OnEnd: Auto-sending:', userInput.value);
       hasProcessedResult = true;  // Mark as processed
       sendCommand();
@@ -321,17 +239,17 @@ function initVoiceRecognition() {
       console.log('[Voice] OnEnd: Already processed, skipping auto-send');
     } else if (hasManualTyping) {
       console.log('[Voice] OnEnd: Manual typing detected, waiting for Enter key');
-    } else if (isNarrating) {
+    } else if (isNarrating && !canSendDuringNarration) {
       console.log('[Voice] OnEnd: Narrating, keeping input buffered');
     } else {
       console.log('[Voice] OnEnd: No input to send');
     }
 
-    // ALWAYS restart listening if continuous mode enabled
-    if (listeningEnabled) {
+    // ALWAYS restart listening if continuous mode enabled (but not during TTS)
+    if (listeningEnabled && !ttsIsSpeaking) {
       console.log('[Voice] Restarting in 300ms...');
       setTimeout(() => {
-        if (listeningEnabled) {
+        if (listeningEnabled && !ttsIsSpeaking && !isRecognitionActive) {
           try {
             // Clear transcript display only if not showing confirmed text
             if (!voiceTranscript.classList.contains('confirmed')) {
@@ -346,44 +264,14 @@ function initVoiceRecognition() {
               console.error('[Voice] Restart error:', err);
             }
           }
+        } else if (ttsIsSpeaking) {
+          console.log('[Voice] Not restarting - TTS is speaking');
         }
       }, 300);
+    } else if (ttsIsSpeaking) {
+      console.log('[Voice] Not restarting - TTS is speaking');
     }
   };
-}
-
-// Idle detection - stop talk mode if no input for 2 minutes
-function startIdleChecker() {
-  // Clear any existing interval
-  if (idleCheckInterval) {
-    clearInterval(idleCheckInterval);
-  }
-
-  console.log('[Idle] Starting idle checker');
-
-  // Check every 30 seconds
-  idleCheckInterval = setInterval(() => {
-    if (!talkModeActive || isNarrating) {
-      return;  // Don't check if not in talk mode or currently narrating
-    }
-
-    const idleTime = Date.now() - lastVoiceInputTime;
-    const twoMinutes = 2 * 60 * 1000;
-
-    if (idleTime >= twoMinutes) {
-      console.log('[Idle] User idle for 2 minutes, stopping talk mode...');
-      // Automatically stop talk mode
-      toggleTalkModeBtn.click();
-    }
-  }, 30000);  // Check every 30 seconds
-}
-
-function stopIdleChecker() {
-  if (idleCheckInterval) {
-    console.log('[Idle] Stopping idle checker');
-    clearInterval(idleCheckInterval);
-    idleCheckInterval = null;
-  }
 }
 
 // Process voice keywords
@@ -432,10 +320,16 @@ function processVoiceKeywords(transcript) {
   }
 
   // NAVIGATION COMMANDS (work anytime, never sent to IF parser)
+  // Helper to mark command as processed (prevents sound-pause auto-resume)
+  const markCommandProcessed = () => {
+    pendingCommandProcessed = true;
+    pausedForSound = false;
+  };
 
   // Restart - Go to beginning
   if (lower === 'restart') {
     console.log('[Voice Command] RESTART - go to beginning');
+    markCommandProcessed();
     skipToStart();
     return false;
   }
@@ -443,23 +337,28 @@ function processVoiceKeywords(transcript) {
   // Back - Previous sentence
   if (lower === 'back') {
     console.log('[Voice Command] BACK - previous sentence');
+    markCommandProcessed();
     skipToChunk(-1);
     return false;
   }
 
-  // Stop - Stop narration completely
+  // Stop - Pause narration (same as pause)
   if (lower === 'stop') {
-    console.log('[Voice Command] STOP - stop narration');
-    narrationEnabled = false;
-    isPaused = false;
-    stopNarration();
-    updateStatus('Narration stopped');
+    console.log('[Voice Command] STOP - pausing narration');
+    markCommandProcessed();
+    if (isNarrating) {
+      narrationEnabled = false;
+      isPaused = true;
+      stopNarration();
+      updateStatus('Narration paused');
+    }
     return false;
   }
 
   // Pause - Pause narration
   if (lower === 'pause') {
     console.log('[Voice Command] PAUSE');
+    markCommandProcessed();
     if (isNarrating) {
       narrationEnabled = false;
       isPaused = true;
@@ -472,6 +371,7 @@ function processVoiceKeywords(transcript) {
   // Play - Resume/Start narration
   if (lower === 'play') {
     console.log('[Voice Command] PLAY - resume/start');
+    markCommandProcessed();
     if (!narrationEnabled && (isPaused || pendingNarrationText || narrationChunks.length > 0)) {
       narrationEnabled = true;
       isPaused = false;
@@ -492,6 +392,7 @@ function processVoiceKeywords(transcript) {
   // Skip - Next sentence
   if (lower === 'skip') {
     console.log('[Voice Command] SKIP - next sentence');
+    markCommandProcessed();
     skipToChunk(1);
     return false;
   }
@@ -499,24 +400,22 @@ function processVoiceKeywords(transcript) {
   // Skip All - Skip to end (various phrasings)
   if (lower === 'skip all' || lower === 'skip to end' || lower === 'skip to the end' || lower === 'end') {
     console.log('[Voice Command] SKIP TO END');
+    markCommandProcessed();
     skipToEnd();
     return false;
   }
 
-  // During narration, ignore all non-navigation commands
-  if (isNarrating) {
+  // During narration, ignore all non-navigation commands (unless paused for sound input)
+  if (isNarrating && !pausedForSound) {
     console.log('[Voice] Ignored during narration:', transcript);
     updateStatus('🔊 Narrating... Use navigation commands');
     return false;
   }
 
-  // GAME COMMANDS (sent to IF parser)
+  // GAME COMMANDS (sent to IF parser via AI translation)
 
-  // GAME COMMANDS - check mode (same toggle for both voice and text)
-  const isAIMode = modeToggle.checked;
-
-  // "Next" or "Enter" or "More" - Send empty command (press Enter)
-  if (lower === 'next' || lower === 'enter' || lower === 'more') {
+  // "Next" or "Enter" or "More" or "Continue" - Send empty command (press Enter)
+  if (lower === 'next' || lower === 'enter' || lower === 'more' || lower === 'continue') {
     console.log(`[Voice Command] ${lower.toUpperCase()} - pressing Enter`);
     sendCommandDirect('');
     return false;
@@ -531,38 +430,46 @@ function processVoiceKeywords(transcript) {
     return false;
   }
 
-  // Regular command - use voice mode setting
-  if (isAIMode) {
-    // AI Mode: read back and return for translation
-    console.log('[Voice] AI Mode - will translate:', transcript);
-    speakAppMessage(transcript);  // Read back what we heard
-    return transcript;
-  } else {
-    // Direct Mode: read back and send directly
-    console.log('[Voice] Direct Mode - sending:', transcript);
-    speakAppMessage(transcript);  // Read back what we heard
-    sendCommandDirect(transcript);
-    return false;
-  }
+  // Regular command - read back and return for AI translation
+  console.log('[Voice] Will translate:', transcript);
+  speakAppMessage(transcript);  // Read back what we heard
+  return transcript;
 }
 
 // Speak feedback using app voice (for confirmations, not narration)
+// Returns a promise that resolves when speech is done
 function speakAppMessage(text) {
-  if (!('speechSynthesis' in window) || !text) return;
+  if (!('speechSynthesis' in window) || !text) return Promise.resolve();
 
-  const utterance = new SpeechSynthesisUtterance(text);
-  const voices = speechSynthesis.getVoices();
-  const appVoice = voices.find(v => v.name === browserVoiceConfig.appVoice);
+  appVoicePromise = new Promise((resolve) => {
+    const utterance = new SpeechSynthesisUtterance(text);
+    const voices = speechSynthesis.getVoices();
+    const appVoice = voices.find(v => v.name === browserVoiceConfig.appVoice);
 
-  if (appVoice) {
-    utterance.voice = appVoice;
-  }
+    if (appVoice) {
+      utterance.voice = appVoice;
+    }
 
-  utterance.rate = 1.3;  // Faster for quick confirmations
-  utterance.pitch = 1.0;
-  utterance.volume = 0.8;  // Slightly quieter than narration
+    utterance.rate = 1.3;  // Faster for quick confirmations
+    utterance.pitch = 1.0;
+    utterance.volume = 0.8;  // Slightly quieter than narration
 
-  speechSynthesis.speak(utterance);
+    utterance.onend = () => {
+      console.log('[App Voice] Finished speaking');
+      appVoicePromise = null;
+      resolve();
+    };
+
+    utterance.onerror = () => {
+      appVoicePromise = null;
+      resolve();
+    };
+
+    speechSynthesis.speak(utterance);
+    console.log('[App Voice] Speaking:', text.substring(0, 50) + (text.length > 50 ? '...' : ''));
+  });
+
+  return appVoicePromise;
 }
 
 // Update status
@@ -587,8 +494,10 @@ function addGameText(text, isCommand = false) {
   } else {
     // Text is now HTML from ANSI-to-HTML conversion
     // Strip HTML tags to get plain text for sentence splitting
+    // Convert <br> tags to newlines BEFORE extracting plain text
     const tempDiv = document.createElement('div');
-    tempDiv.innerHTML = text;
+    const textWithNewlines = text.replace(/<br\s*\/?>/gi, '\n');
+    tempDiv.innerHTML = textWithNewlines;
     const plainText = tempDiv.textContent || tempDiv.innerText || '';
 
     // Clean up display text (remove stray formatting artifacts)
@@ -634,7 +543,7 @@ function addGameText(text, isCommand = false) {
     div.innerHTML = text;
   }
 
-  gameOutput.appendChild(div);
+  gameOutputInner.appendChild(div);
 
   // Scroll to show the TOP of new text (not bottom)
   // This ensures long text blocks are visible from the start
@@ -677,11 +586,9 @@ function stopNarration() {
 }
 
 // Play audio (supports both base64 audio from ElevenLabs and browser TTS)
+// Note: isMuted is for MICROPHONE only, not audio output
 async function playAudio(audioDataOrText) {
-  if (!audioDataOrText || !narrationEnabled || isMuted) {
-    if (isMuted) {
-      console.log('[Audio] Skipped - muted');
-    }
+  if (!audioDataOrText || !narrationEnabled) {
     return;
   }
 
@@ -903,8 +810,8 @@ async function speakWithAppVoice(text) {
     utterance.voice = voice;
   }
 
-  utterance.rate = browserVoiceConfig.rate || 1.1;
-  utterance.pitch = browserVoiceConfig.pitch || 1.0;
+  utterance.rate = 1.0;  // Use default rate for app voice
+  utterance.pitch = 1.0;
 
   // Cancel any current speech and speak
   speechSynthesis.cancel();
@@ -923,10 +830,6 @@ function getPronunciationMap() {
   return {
     'Anchorhead': 'Anchor-head',
     'ANCHORHEAD': 'ANCHOR-HEAD',
-    'Photopia': 'Foto-pia',
-    'PHOTOPIA': 'FOTO-PIA',
-    'Violet': 'Vy-o-let',
-    'VIOLET': 'VY-O-LET'
   };
 }
 
@@ -979,8 +882,18 @@ async function playWithBrowserTTS(text) {
 
     utterance.onend = () => {
       isNarrating = false;
+      ttsIsSpeaking = false;
       updateStatus('Ready');
       updateNavButtons();  // Update pause/play button icon
+      // Resume recognition if listening was enabled
+      if (listeningEnabled && recognition && !isMuted && !isRecognitionActive) {
+        try {
+          recognition.start();
+          console.log('[Voice] Resumed recognition after TTS');
+        } catch (err) {
+          // Ignore if already started
+        }
+      }
       resolve();
     };
 
@@ -993,12 +906,33 @@ async function playWithBrowserTTS(text) {
         updateStatus('TTS error');
       }
       isNarrating = false;
+      ttsIsSpeaking = false;
       updateNavButtons();  // Update pause/play button icon
+      // Resume recognition if listening was enabled
+      if (listeningEnabled && recognition && !isMuted && !isRecognitionActive) {
+        try {
+          recognition.start();
+          console.log('[Voice] Resumed recognition after TTS error');
+        } catch (err) {
+          // Ignore if already started
+        }
+      }
       resolve();
     };
 
     // Stop any current speech
     speechSynthesis.cancel();
+
+    // Pause recognition while TTS is speaking to avoid picking up our own audio
+    ttsIsSpeaking = true;
+    if (recognition && listeningEnabled) {
+      try {
+        recognition.stop();
+        console.log('[Voice] Paused recognition during TTS');
+      } catch (err) {
+        // Ignore if not started
+      }
+    }
 
     // Speak
     speechSynthesis.speak(utterance);
@@ -1013,25 +947,18 @@ function createNarrationChunks(text) {
   console.log('[TTS] Creating narration chunks');
 
   // Split into chunks for new text
-  // Strip any existing HTML tags from server (ANSI conversion produces <br/> tags)
-  // Convert to plain text first
+  // Server sends <br><br> for paragraphs, single newlines converted to spaces
   const tempDiv = document.createElement('div');
-  tempDiv.innerHTML = text;
+  // Add pause markers for TTS before stripping HTML
+  let htmlForTTS = text
+    .replace(/<br\s*\/?>\s*<br\s*\/?>/gi, '. ')  // Paragraph breaks -> sentence break
+    .replace(/<br\s*\/?>/gi, ' ')                 // Single line breaks -> space
+    .replace(/<span class="soft-break"><\/span>/gi, ' ');  // Soft breaks -> space
+  tempDiv.innerHTML = htmlForTTS;
   const plainText = tempDiv.textContent || tempDiv.innerText || '';
 
-  // Use unique markers that won't appear in game text
-  const SINGLE_NEWLINE_MARKER = '\x00LINEBREAK\x00';
-  const PARAGRAPH_MARKER = '\x00PARAGRAPH\x00';
-
-  let textWithMarkers = plainText
-    .replace(/\n\n+/g, PARAGRAPH_MARKER)  // Double newlines -> paragraph marker
-    .replace(/\n/g, SINGLE_NEWLINE_MARKER);  // Single newlines -> line break marker
-
   // Pre-process text to normalize before chunking (for TTS)
-  let processedText = textWithMarkers
-    // Replace newline markers with spaces for smooth TTS
-    .replace(new RegExp(SINGLE_NEWLINE_MARKER, 'g'), ' ')
-    .replace(new RegExp(PARAGRAPH_MARKER, 'g'), ' ')
+  let processedText = plainText
     // Detect and collapse spaced-out capital letters (e.g., "A N C H O R H E A D" -> "ANCHORHEAD")
     .replace(/\b([A-Z])\s+(?=[A-Z](?:\s+[A-Z]|\s*\b))/g, '$1')
     // Then normalize initials to prevent "H.P. Lovecraft" from being split
@@ -1058,53 +985,9 @@ function createNarrationChunks(text) {
     narrationChunks = [processedText];
   }
 
-  // Now process for display - keep markers to preserve formatting
-  let displayText = textWithMarkers
-    // Collapse spaced capital letters for display too
-    .replace(/\b([A-Z])\s+(?=[A-Z](?:\s+[A-Z]|\s*\b))/g, '$1')
-    // Normalize initials
-    .replace(/\b([A-Z])\.\s*/g, '$1 ')
-    .replace(/\b([A-Z])\s+([A-Z])\s+/g, '$1$2 ')
-    // Clean up spaces but keep markers
-    .replace(/  +/g, ' ');
-
-  // Convert to title case for display
-  displayText = displayText.replace(/\b([A-Z]{4,})\b/g, (match) => {
-    return match.charAt(0) + match.slice(1).toLowerCase();
-  });
-
-  // Split display text by sentences while preserving markers
-  // Don't trim() - preserve leading spaces for IF centering
-  const displaySentences = displayText
-    .split(/(?<=[.!?])\s+/)
-    .filter(s => s.length > 0);
-
-  // Build display HTML with preserved formatting
+  // For display: use original server HTML (preserves formatting)
   if (currentGameTextElement) {
-    let html = '';
-
-    displaySentences.forEach((sentence, index) => {
-      // Convert markers to HTML tags BEFORE escaping
-      let displayHTML = sentence
-        .replace(new RegExp(PARAGRAPH_MARKER, 'g'), '<br><br>')
-        .replace(new RegExp(SINGLE_NEWLINE_MARKER, 'g'), '<br>');
-
-      // Now escape any HTML in the actual text content
-      // Split by our HTML tags, escape text parts, rejoin
-      const parts = displayHTML.split(/(<br>|<br><br>)/);
-      displayHTML = parts.map(part => {
-        if (part === '<br>' || part === '<br><br>') {
-          return part;  // Keep HTML tags as-is
-        }
-        return escapeHtml(part);  // Escape text content
-      }).join('');
-
-      // Use index for highlighting (may not perfectly align with narration chunks, but close)
-      const chunkIndex = Math.min(index, narrationChunks.length - 1);
-      html += `<span class="sentence-chunk" data-chunk-index="${chunkIndex}">${displayHTML}</span> `;
-    });
-
-    currentGameTextElement.innerHTML = html.trim();
+    currentGameTextElement.innerHTML = text;
   }
 
   console.log('[TTS] Created', narrationChunks.length, 'chunks');
@@ -1117,6 +1000,13 @@ async function speakTextChunked(text, startFromIndex = 0) {
   if (!narrationEnabled) {
     console.log('[TTS] Narration disabled, not starting');
     return;
+  }
+
+  // Wait for app voice to finish before starting narration
+  if (appVoicePromise) {
+    console.log('[TTS] Waiting for app voice to finish...');
+    await appVoicePromise;
+    console.log('[TTS] App voice finished, starting narration');
   }
 
   // Stop any currently playing narration to prevent double voices
@@ -1186,23 +1076,19 @@ async function speakTextChunked(text, startFromIndex = 0) {
     if (audioData) {
       // Mark when this chunk started playing (for smart back button)
       currentChunkStartTime = Date.now();
-
-      // Highlight text in Parchment output
-      highlightSpokenText(chunkText);
-
       await playAudio(audioData);
-
-      // Remove highlight after audio finishes
-      removeHighlight();
     }
   }
 
   // Finished all chunks
   if (currentChunkIndex >= narrationChunks.length - 1 && narrationEnabled && !isPaused) {
-    console.log('[TTS] Narration complete');
+    console.log('[TTS] Narration complete - resetting to start');
 
-    // Keep position at last chunk (don't jump)
-    currentChunkIndex = narrationChunks.length - 1;
+    // Reset to beginning so play restarts from start
+    currentChunkIndex = 0;
+    narrationEnabled = false;
+    isPaused = true;
+    isNarrating = false;
 
     // Remove highlighting when narration completes
     if (currentGameTextElement) {
@@ -1216,6 +1102,7 @@ async function speakTextChunked(text, startFromIndex = 0) {
     }
 
     updateNavButtons();
+    updateStatus('Ready');
   }
 }
 
@@ -1416,30 +1303,9 @@ function updateNavButtons() {
     }
   }
 
-  // Update slider and progress display
+  // Log position for debugging
   if (narrationChunks.length > 0) {
-    narrationProgress.classList.remove('hidden');
-    narrationSlider.max = narrationChunks.length - 1;
-
-    if (!isUserScrubbing) {
-      narrationSlider.value = currentChunkIndex;
-    }
-
-    currentChunkLabel.textContent = `${currentChunkIndex + 1} / ${narrationChunks.length}`;
-
-    // Update status
-    if (isNarrating) {
-      narrationStatus.textContent = '🔊 Playing';
-    } else if (isPaused) {
-      narrationStatus.textContent = '⏸️ Paused';
-    } else {
-      narrationStatus.textContent = 'Ready';
-    }
-
-    const position = `(${currentChunkIndex + 1}/${narrationChunks.length})`;
-    console.log('[Nav] Position:', position);
-  } else {
-    narrationProgress.classList.add('hidden');
+    console.log('[Nav] Position:', `(${currentChunkIndex + 1}/${narrationChunks.length})`);
   }
 }
 
@@ -1447,123 +1313,40 @@ function updateNavButtons() {
 async function startGame(gamePath) {
   try {
     currentGamePath = gamePath;
+
     updateStatus('Starting game...', 'processing');
 
-    // Hide welcome, show game container and input
+    // Hide welcome, show input
     welcome.classList.add('hidden');
-    gameContainer.classList.remove('hidden');
     inputArea.classList.remove('hidden');
 
-    // Stop any existing narration
-    stopNarration();
+    // Request game start
+    socket.emit('start-game', gamePath);
 
-    console.log('[ZVM] Loading game:', gamePath);
+    // Wait for initial output
+    socket.once('game-output', (output) => {
+      gameOutputInner.innerHTML = '';
 
-    // Verify libraries are loaded
-    if (typeof window.ZVM === 'undefined') {
-      console.error('[ZVM] ZVM library not loaded');
-      updateStatus('Error: Game engine not loaded');
-      return;
-    }
-    if (typeof window.Glk === 'undefined') {
-      console.error('[ZVM] Glk library not loaded');
-      updateStatus('Error: Glk library not loaded');
-      return;
-    }
-    if (typeof window.GlkOte === 'undefined') {
-      console.error('[ZVM] GlkOte library not loaded');
-      updateStatus('Error: GlkOte library not loaded');
-      return;
-    }
+      // Stop any existing narration (in case restarting game)
+      stopNarration();
 
-    // Fetch the story file as binary data
-    updateStatus('Downloading game file...', 'processing');
-    const response = await fetch(gamePath);
-    if (!response.ok) {
-      throw new Error(`Failed to load game file: ${response.statusText}`);
-    }
-    const arrayBuffer = await response.arrayBuffer();
-    const storyData = new Uint8Array(arrayBuffer);
-    console.log('[ZVM] Story file loaded:', storyData.length, 'bytes');
+      // Store the game text element reference
+      currentGameTextElement = addGameText(output);
 
-    // Create ZVM instance
-    const vm = new window.ZVM();
-    window.zvmInstance = vm;
+      // Reset narration state for new game
+      pendingNarrationText = output;
+      narrationChunks = [];
+      currentChunkIndex = 0;
+      isPaused = false;
 
-    // Prepare VM with story data BEFORE GlkOte.init()
-    console.log('[ZVM] Preparing VM...');
-    const options = {
-      vm: vm,
-      Glk: window.Glk,
-      GlkOte: window.GlkOte
-    };
-    vm.prepare(storyData, options);
+      // Create narration chunks so play button works
+      createNarrationChunks(output);
+      updateNavButtons();
 
-    // Create Game interface for GlkOte
-    window.Game = {
-      gameport: 'gameport',  // ID of the container element
-      spacing: 4,
-      accept: function(event) {
-        console.log('[Game] Received event:', event.type);
-
-        if (event.type === 'init') {
-          // GlkOte has measured the gameport and provided metrics
-          console.log('[Game] Init event received with metrics');
-
-          // Now initialize Glk - this will start the VM
-          console.log('[ZVM] Initializing Glk...');
-          window.Glk.init(options);
-
-          // Start VM execution - this will create windows using the metrics
-          console.log('[ZVM] Starting VM...');
-          window.zvmInstance.start();
-
-          console.log('[ZVM] Glk initialized and VM started');
-
-          console.log('[ZVM] Game initialized successfully');
-          updateStatus('Ready - Click "Start Talk Mode" for voice');
-
-          // Reset generation counter for new game
-          // NOTE: GlkOte uses generation 1 during vm.start(), so we start at 2
-          parchmentGeneration = 2;
-
-          // Reset narration state
-          pendingNarrationText = null;
-          narrationChunks = [];
-          currentChunkIndex = 0;
-          isPaused = false;
-
-          updateNavButtons();
-          userInput.focus();
-        } else if (event.type === 'line' || event.type === 'char') {
-          // Handle user input events
-          console.log('[Game] Input event:', event);
-          vm.resume(event);
-        } else if (event.type === 'specialresponse') {
-          // Handle file operations
-          console.log('[Game] Special response:', event);
-          vm.resume(event);
-        }
-      }
-    };
-
-    // Verify gameport element exists
-    const gameportEl = document.getElementById('gameport');
-    if (!gameportEl) {
-      throw new Error('Gameport element not found');
-    }
-    console.log('[ZVM] Gameport element found:', gameportEl);
-
-    // Initialize GlkOte - it will use the global window.Game object
-    // GlkOte will measure the gameport and call Game.accept() with init event
-    console.log('[ZVM] Initializing GlkOte...');
-    try {
-      window.GlkOte.init();
-      console.log('[ZVM] GlkOte.init() called successfully');
-    } catch (error) {
-      console.error('[ZVM] GlkOte.init() error:', error);
-      throw error;
-    }
+      // Auto-start talk mode
+      startTalkMode();
+      userInput.focus();
+    });
 
   } catch (error) {
     console.error('[Game] Start error:', error);
@@ -1571,12 +1354,13 @@ async function startGame(gamePath) {
   }
 }
 
-// Parchment command generation counter
-let parchmentGeneration = 0;
-
-// Send command directly to Parchment
+// Send command directly
 async function sendCommandDirect(cmd) {
   const input = cmd !== undefined ? cmd : userInput.value;
+
+  // Mark that a command is being processed (prevents sound-pause resume)
+  pendingCommandProcessed = true;
+  pausedForSound = false;
 
   // Clear input immediately
   userInput.value = '';
@@ -1584,121 +1368,63 @@ async function sendCommandDirect(cmd) {
 
   updateStatus('Sending...', 'processing');
 
+  // Show command (empty shows as gray [ENTER])
+  addGameText(input, true);
+
   // Add to command history (no translation for direct send)
   // Show "[ENTER]" for empty commands
   addToCommandHistory(input || '[ENTER]');
 
-  // Send command to Parchment via Game.accept()
-  try {
-    if (typeof Game !== 'undefined' && Game.accept) {
-      // Send line input event to Parchment
-      Game.accept({
-        type: 'line',
-        window: 1,  // Main window
-        value: input,
-        gen: parchmentGeneration++
-      });
+  // Send to server
+  socket.emit('send-command', input);
 
-      console.log('[Parchment] Sent command:', input || '[ENTER]');
-      updateStatus('Ready');
-    } else {
-      console.error('[Parchment] Game object not available');
-      updateStatus('Error: Game not loaded');
+  // Wait for response
+  socket.once('game-output', async (output) => {
+    if (output && output.trim()) {
+      // Stop any currently running narration cleanly before processing new output
+      stopNarration();
+
+      // Store the game text element reference
+      currentGameTextElement = addGameText(output);
+
+      // Reset narration for new text
+      pendingNarrationText = output;
+      narrationChunks = [];  // Clear old chunks
+      currentChunkIndex = 0;
+      isPaused = false;
+
+      // ALWAYS create narration chunks (even if not auto-playing)
+      // This ensures navigation buttons work properly
+      createNarrationChunks(output);
+
+      // Auto-narrate if autoplay is enabled and we're in talk mode
+      if (autoplayEnabled && talkModeActive) {
+        narrationEnabled = true;  // Re-enable for new text
+        await speakTextChunked(null, 0);  // Play from chunks
+      }
+
+      updateNavButtons();
     }
-  } catch (error) {
-    console.error('[Parchment] Error sending command:', error);
-    updateStatus('Error: ' + error.message);
-  }
 
-  userInput.focus();
+    updateStatus('Ready');
+    userInput.focus();
+  });
 }
 
-// Send command with AI translation
+// Send command (direct mode - no AI translation)
 async function sendCommand() {
   const input = userInput.value;
+
+  // Mark that a command is being processed (prevents sound-pause resume)
+  pendingCommandProcessed = true;
+  pausedForSound = false;
 
   // Clear input immediately to prevent double-send
   userInput.value = '';
   hasManualTyping = false;  // Reset flag after sending
 
-  // If empty, send directly as Enter command (no AI translation needed)
-  if (!input || !input.trim()) {
-    console.log('[Send] Empty input - sending Enter command');
-    sendCommandDirect('');
-    return;
-  }
-
-  updateStatus('Processing...', 'processing');
-
-  // Show translating indicator in voice transcript
-  voiceTranscript.textContent = '🤖 Translating...';
-  voiceTranscript.classList.remove('confirmed', 'interim');
-  voiceTranscript.classList.add('translating');
-
-  // Request translation
-  socket.emit('translate-command', input);
-
-  // Wait for translation
-  socket.once('command-translated', async (result) => {
-    // Handle both old string format and new JSON format
-    const command = typeof result === 'string' ? result : result.command;
-    const confidence = typeof result === 'object' ? result.confidence : 100;
-    const reasoning = typeof result === 'object' ? result.reasoning : '';
-
-    // Clear translating indicator
-    voiceTranscript.classList.remove('translating');
-    voiceTranscript.textContent = 'Listening...';
-
-    // Show translation with confidence indicator
-    let displayText = '';
-    if (command.toLowerCase() !== input.toLowerCase()) {
-      displayText = `${input} → [${command}]`;
-    } else {
-      displayText = command;
-    }
-
-    // Add confidence warning if low
-    if (confidence < 70) {
-      displayText += ` ⚠️ (${confidence}% confident: ${reasoning})`;
-      updateStatus(`⚠️ Low confidence translation - "${reasoning}"`);
-    } else if (confidence < 90) {
-      displayText += ` (${confidence}%)`;
-    }
-
-    addGameText(displayText, true);
-
-    // Add to command history with translation and confidence
-    addToCommandHistory(input, command, confidence);
-
-    // Read back the translated command if it came from voice (not manual typing)
-    if (!hasManualTyping) {
-      speakAppMessage(command);
-    }
-
-    // Send translated command to Parchment
-    try {
-      if (typeof Game !== 'undefined' && Game.accept) {
-        Game.accept({
-          type: 'line',
-          window: 1,
-          value: command,
-          gen: parchmentGeneration++
-        });
-
-        console.log('[Parchment] Sent translated command:', command);
-        updateStatus('Ready');
-      } else {
-        console.error('[Parchment] Game object not available');
-        updateStatus('Error: Game not loaded');
-      }
-    } catch (error) {
-      console.error('[Parchment] Error sending translated command:', error);
-      updateStatus('Error: ' + error.message);
-    }
-
-    // Note: Game output will be captured by GlkOte.update() hook
-    userInput.focus();
-  });
+  // Send directly without AI translation
+  sendCommandDirect(input || '');
 }
 
 // Event Listeners
@@ -1714,37 +1440,25 @@ selectGameBtn.addEventListener('click', () => {
   location.reload();
 });
 
-// Mode toggle handler (controls both text and voice)
-modeToggle.addEventListener('change', () => {
-  const isAIMode = modeToggle.checked;
-  modeLabel.textContent = isAIMode ? 'AI Mode' : 'Direct';
-  console.log('[Input Mode] Switched to:', isAIMode ? 'AI' : 'Direct');
-});
-
-// Send button - uses current mode
+// Send button
 sendBtn.addEventListener('click', () => {
-  const isAIMode = modeToggle.checked;
-  if (isAIMode) {
-    sendCommand();
-  } else {
-    sendCommandDirect();
-  }
+  sendCommand();
 });
 
-// Enter key - uses current mode
+// Enter key
 userInput.addEventListener('keydown', (e) => {
   if (e.key === 'Enter') {
     e.preventDefault();
-    const isAIMode = modeToggle.checked;
-    if (isAIMode) {
-      sendCommand();
-    } else {
-      sendCommandDirect();
-    }
+    sendCommand();
   } else {
     // Any other key = manual typing, don't auto-send on voice recognition end
     hasManualTyping = true;
   }
+});
+
+// Click on game output focuses text input (but not when selecting text)
+gameOutput.addEventListener('click', () => {
+  userInput.focus();
 });
 
 // Start voice meter
@@ -1762,7 +1476,7 @@ async function startVoiceMeter() {
     const bufferLength = analyser.frequencyBinCount;
     const dataArray = new Uint8Array(bufferLength);
 
-    // Update meter
+    // Update meter and detect sound for pause/resume
     voiceMeterInterval = setInterval(() => {
       analyser.getByteFrequencyData(dataArray);
 
@@ -1770,7 +1484,59 @@ async function startVoiceMeter() {
       const average = dataArray.reduce((a, b) => a + b) / bufferLength;
       const percentage = Math.min(100, (average / 128) * 100);
 
-      voiceMeterFill.style.width = percentage + '%';
+      // Update dot indicator (green if > 20%, maroon otherwise)
+      if (percentage > 20) {
+        voiceIndicator.classList.add('active');
+      } else {
+        voiceIndicator.classList.remove('active');
+      }
+
+      // Sound detection for auto-pause narration
+      if (percentage > SOUND_THRESHOLD) {
+        // Sound detected above threshold
+        if (!soundDetected) {
+          soundDetected = true;
+          console.log('[Sound] Detected above threshold:', percentage.toFixed(1) + '%');
+
+          // Pause narration if it's playing
+          if (isNarrating && !pausedForSound && !isMuted) {
+            pausedForSound = true;
+            pendingCommandProcessed = false;
+            speechSynthesis.pause();
+            console.log('[Sound] Paused narration for voice input');
+          }
+        }
+
+        // Clear any pending resume timeout
+        if (soundPauseTimeout) {
+          clearTimeout(soundPauseTimeout);
+          soundPauseTimeout = null;
+        }
+      } else {
+        // Sound below threshold (silence)
+        if (soundDetected) {
+          soundDetected = false;
+
+          // Start timeout to resume narration after silence
+          if (pausedForSound && !soundPauseTimeout) {
+            soundPauseTimeout = setTimeout(() => {
+              soundPauseTimeout = null;
+
+              // Only resume if no command was processed and still paused for sound
+              if (pausedForSound && !pendingCommandProcessed) {
+                pausedForSound = false;
+                if (narrationEnabled && !isPaused) {
+                  speechSynthesis.resume();
+                  console.log('[Sound] Resumed narration after silence (no command)');
+                }
+              } else if (pendingCommandProcessed) {
+                console.log('[Sound] Not resuming - command was processed');
+                pausedForSound = false;
+              }
+            }, SILENCE_DELAY);
+          }
+        }
+      }
     }, 50);
 
     console.log('[Voice Meter] Started');
@@ -1786,6 +1552,15 @@ function stopVoiceMeter() {
     voiceMeterInterval = null;
   }
 
+  if (soundPauseTimeout) {
+    clearTimeout(soundPauseTimeout);
+    soundPauseTimeout = null;
+  }
+
+  // Reset sound detection state
+  soundDetected = false;
+  pausedForSound = false;
+
   if (microphone) {
     microphone.disconnect();
     microphone = null;
@@ -1796,125 +1571,67 @@ function stopVoiceMeter() {
     audioContext = null;
   }
 
-  voiceMeterFill.style.width = '0%';
+  voiceIndicator.classList.remove('active');
   console.log('[Voice Meter] Stopped');
 }
 
-// Toggle continuous voice listening
-// Toggle Talk Mode (both listening AND narration)
-toggleTalkModeBtn.addEventListener('click', async () => {
+// Start Talk Mode (both listening AND narration) - auto-started when game begins
+async function startTalkMode() {
   if (!recognition) {
     updateStatus('Voice recognition not available');
     return;
   }
 
-  if (talkModeActive) {
-    // Stop talk mode (both listening and narration)
-    talkModeActive = false;
-    listeningEnabled = false;
-    narrationEnabled = false;
-    isListening = false;
+  talkModeActive = true;
+  listeningEnabled = true;
+  narrationEnabled = true;
 
-    // Stop listening
-    if (recognition) {
-      try {
-        recognition.stop();
-      } catch (err) {}
-    }
+  // Unmute mic
+  isMuted = false;
+  const icon = muteBtn.querySelector('.material-icons');
+  if (icon) icon.textContent = 'mic';
+  muteBtn.classList.remove('muted');
 
-    stopVoiceMeter();
-    voiceFeedback.classList.add('hidden');
-    stopNarration();
+  // Show voice panel and feedback
+  voicePanel.classList.add('active');
+  voiceFeedback.classList.remove('hidden');
+  voiceTranscript.textContent = 'Listening...';
 
-    // Stop idle checker
-    stopIdleChecker();
+  updateStatus('🎤 Listening...');
 
-    // Clear voice history
-    if (confirmedTranscriptTimeout) {
-      clearTimeout(confirmedTranscriptTimeout);
-      confirmedTranscriptTimeout = null;
-    }
-    voiceHistoryItems = [];
-    voiceHistory.innerHTML = '';
-    voiceTranscript.textContent = 'Listening...';
-    voiceTranscript.classList.remove('interim', 'confirmed');
+  // Start voice meter
+  await startVoiceMeter();
 
-    // Hide voice panel
-    voiceHistoryPanel.classList.add('hidden');
-
-    // Hide mute button and navigation controls
-    muteBtn.classList.add('hidden');
-    document.querySelector('.narration-controls').classList.add('hidden');
-
-    toggleTalkModeBtn.innerHTML = '🎤 Start Talk Mode';
-    toggleTalkModeBtn.style.background = 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
-    updateStatus('Talk mode stopped');
-  } else {
-    // Start talk mode (both listening and narration)
-    talkModeActive = true;
-    listeningEnabled = true;
-    narrationEnabled = true;
-
-    // Start idle checker
-    startIdleChecker();
-    lastVoiceInputTime = Date.now();  // Reset timer
-
-    // Auto-switch to voice tab on mobile when talk mode starts
-    if (window.innerWidth <= 600) {
-      switchToTab('voice');
-    }
-
-    // Auto-unmute mic when starting talk mode
-    if (isMuted) {
-      isMuted = false;
-      muteBtn.innerHTML = '🔇 Mute Mic';
-      muteBtn.style.background = 'rgba(255, 255, 255, 0.1)';
-    }
-
-    // Show mute button and navigation controls
-    muteBtn.classList.remove('hidden');
-    document.querySelector('.narration-controls').classList.remove('hidden');
-
-    // Show voice panel
-    voiceHistoryPanel.classList.remove('hidden');
-
-    toggleTalkModeBtn.innerHTML = '⏹️ Stop Talk Mode';
-    toggleTalkModeBtn.style.background = 'rgba(245, 87, 108, 0.8)';
-
-    updateStatus('🎤 Talk mode active - speak freely!');
-
-    // Show voice feedback
-    voiceFeedback.classList.remove('hidden');
-    voiceTranscript.textContent = 'Listening...';
-
-    // Start voice meter
-    await startVoiceMeter();
-
-    // Start recognition
+  // Start recognition (only if not already running)
+  if (!isRecognitionActive) {
     try {
       recognition.start();
     } catch (err) {
       console.error('[Voice] Start error:', err);
       updateStatus('Voice recognition failed');
       talkModeActive = false;
-      toggleTalkModeBtn.innerHTML = '🎤 Start Talk Mode';
       voiceFeedback.classList.add('hidden');
+      voicePanel.classList.remove('active');
       stopVoiceMeter();
       return;
     }
-
-    // Start narration if there's pending text
-    if (pendingNarrationText) {
-      createNarrationChunks(pendingNarrationText);
-      pendingNarrationText = null;
-      await speakTextChunked(null, 0);
-    }
   }
-});
+
+  // Start narration if there's pending text or existing chunks
+  if (pendingNarrationText) {
+    createNarrationChunks(pendingNarrationText);
+    pendingNarrationText = null;
+    await speakTextChunked(null, 0);
+  } else if (narrationChunks.length > 0) {
+    console.log('[TTS] Starting narration from existing chunks:', narrationChunks.length);
+    await speakTextChunked(null, 0);
+  }
+}
 
 // Mute button (mutes microphone input, stops listening, keeps audio narration)
 muteBtn.addEventListener('click', () => {
   isMuted = !isMuted;
+  const icon = muteBtn.querySelector('.material-icons');
 
   if (isMuted) {
     // Stop listening (mute mic)
@@ -1923,25 +1640,33 @@ muteBtn.addEventListener('click', () => {
     if (recognition) {
       try {
         recognition.stop();
+        isRecognitionActive = false;  // Force reset in case onend doesn't fire immediately
       } catch (err) {}
     }
 
     stopVoiceMeter();
-    voiceFeedback.classList.add('hidden');
 
-    muteBtn.innerHTML = '🎤 Unmute Mic';
-    muteBtn.style.background = 'rgba(245, 87, 108, 0.8)';
-    updateStatus('Microphone muted (narration continues)');
+    // Update voice indicator to muted state
+    voiceIndicator.classList.remove('active');
+    voiceIndicator.classList.add('muted');
+    voiceTranscript.textContent = 'Muted';
+
+    if (icon) icon.textContent = 'mic_off';
+    muteBtn.classList.add('muted');
+    updateStatus('Microphone muted');
   } else {
     // Resume listening (unmute mic)
     listeningEnabled = true;
 
     voiceFeedback.classList.remove('hidden');
+
+    // Update voice indicator to listening state
+    voiceIndicator.classList.remove('muted');
     voiceTranscript.textContent = 'Listening...';
 
     startVoiceMeter();
 
-    if (recognition) {
+    if (recognition && !isRecognitionActive) {
       try {
         recognition.start();
       } catch (err) {
@@ -1949,9 +1674,25 @@ muteBtn.addEventListener('click', () => {
       }
     }
 
-    muteBtn.innerHTML = '🔇 Mute Mic';
-    muteBtn.style.background = 'rgba(255, 255, 255, 0.1)';
+    if (icon) icon.textContent = 'mic';
+    muteBtn.classList.remove('muted');
     updateStatus('Microphone active');
+  }
+});
+
+// Autoplay toggle button
+autoplayBtn.addEventListener('click', () => {
+  autoplayEnabled = !autoplayEnabled;
+  const icon = autoplayBtn.querySelector('.material-icons');
+
+  if (autoplayEnabled) {
+    autoplayBtn.classList.add('active');
+    if (icon) icon.textContent = 'play_circle';
+    updateStatus('Auto-play enabled');
+  } else {
+    autoplayBtn.classList.remove('active');
+    if (icon) icon.textContent = 'play_disabled';
+    updateStatus('Auto-play disabled');
   }
 });
 
@@ -1970,26 +1711,6 @@ document.getElementById('nextChunkBtn').addEventListener('click', () => {
 
 document.getElementById('skipToEndBtn').addEventListener('click', () => {
   skipToEnd();
-});
-
-// Stop button
-stopBtn.addEventListener('click', () => {
-  console.log('[Control] Stop button clicked');
-  stopNarration();
-  narrationEnabled = false;
-  isPaused = true;  // Set to paused (not playing)
-  // DON'T clear narrationChunks - keep them so navigation still works
-  currentChunkIndex = 0;  // Reset to beginning
-  currentChunkStartTime = 0;  // Reset timestamp
-  isNavigating = false;  // Reset navigation flag
-  updateNavButtons();
-  updateStatus('Narration stopped');
-
-  // Remove highlighting from text
-  if (currentGameTextElement) {
-    const allSentences = currentGameTextElement.querySelectorAll('.sentence-chunk');
-    allSentences.forEach(s => s.classList.remove('speaking'));
-  }
 });
 
 // Pause/Play button
@@ -2016,43 +1737,6 @@ pausePlayBtn.addEventListener('click', () => {
   }
 });
 
-// Slider event handlers
-narrationSlider.addEventListener('mousedown', () => {
-  isUserScrubbing = true;
-});
-
-narrationSlider.addEventListener('mouseup', () => {
-  isUserScrubbing = false;
-  const newIndex = parseInt(narrationSlider.value);
-
-  if (newIndex !== currentChunkIndex && !isNavigating) {
-    console.log(`[Slider] Scrubbed to chunk ${newIndex}`);
-
-    stopNarration();
-    isPaused = false;  // Set to false so it will play
-    narrationEnabled = true;  // Enable narration
-    currentChunkIndex = newIndex;
-    currentChunkStartTime = 0;  // Reset timestamp for smart back button
-    updateNavButtons();
-
-    // Always auto-play after scrubbing
-    setTimeout(() => {
-      speakTextChunked(null, newIndex);
-    }, 100);
-  }
-});
-
-narrationSlider.addEventListener('input', () => {
-  // Update display while dragging
-  if (isUserScrubbing) {
-    const value = parseInt(narrationSlider.value);
-    currentChunkLabel.textContent = `${value + 1} / ${narrationChunks.length}`;
-
-    // Update text highlighting to show where we're scrubbing to
-    updateTextHighlight(value);
-  }
-});
-
 document.addEventListener('keydown', (e) => {
   // Alt = Push-to-talk (unmute mic while held)
   if (e.key === 'Alt' && !isPushToTalkActive && talkModeActive && document.activeElement !== userInput) {
@@ -2070,7 +1754,7 @@ document.addEventListener('keydown', (e) => {
 
       startVoiceMeter();
 
-      if (recognition) {
+      if (recognition && !isRecognitionActive) {
         try {
           recognition.start();
         } catch (err) {
@@ -2084,8 +1768,11 @@ document.addEventListener('keydown', (e) => {
     }
   }
 
-  if (e.key === 'Escape' && talkModeActive) {
-    toggleTalkModeBtn.click();  // Stop talk mode
+  // Escape stops current narration
+  if (e.key === 'Escape' && isNarrating) {
+    stopNarration();
+    isPaused = true;
+    updateNavButtons();
   }
 
   // Arrow keys for navigation (when narration chunks exist)
@@ -2118,6 +1805,7 @@ document.addEventListener('keyup', (e) => {
       if (recognition) {
         try {
           recognition.stop();
+          isRecognitionActive = false;  // Force reset in case onend doesn't fire immediately
         } catch (err) {}
       }
 
@@ -2219,238 +1907,23 @@ newPronunciationInput.addEventListener('keydown', (e) => {
   }
 });
 
-// History Collapse/Expand Functionality
-const commandHistoryToggle = document.getElementById('commandHistoryToggle');
-const commandHistoryEl = document.getElementById('commandHistory');
-
-// Load saved state from localStorage
-function loadHistoryState() {
-  const voiceExpanded = localStorage.getItem('voiceHistoryExpanded') === 'true';
-  const commandExpanded = localStorage.getItem('commandHistoryExpanded') === 'true';
-
-  if (voiceExpanded) {
-    voiceHistoryToggle.classList.add('expanded');
-    voiceHistoryEl.classList.add('expanded');
-    voiceHistoryToggle.querySelector('.expand-text').textContent = 'Show Less';
-  }
-
-  if (commandExpanded) {
-    commandHistoryToggle.classList.add('expanded');
-    commandHistoryEl.classList.add('expanded');
-    commandHistoryToggle.querySelector('.expand-text').textContent = 'Show Less';
-  }
-}
-
-// Toggle voice history
-voiceHistoryToggle.addEventListener('click', () => {
-  const isExpanded = voiceHistoryToggle.classList.toggle('expanded');
-  voiceHistoryEl.classList.toggle('expanded');
-  voiceHistoryToggle.querySelector('.expand-text').textContent = isExpanded ? 'Show Less' : 'Show More';
-  localStorage.setItem('voiceHistoryExpanded', isExpanded);
-  console.log('[History] Voice history', isExpanded ? 'expanded' : 'compact');
-
-  // Update UI to show correct number of items
-  updateVoiceHistoryUI();
-});
-
-// Toggle command history
-commandHistoryToggle.addEventListener('click', () => {
-  const isExpanded = commandHistoryToggle.classList.toggle('expanded');
-  commandHistoryEl.classList.toggle('expanded');
-  commandHistoryToggle.querySelector('.expand-text').textContent = isExpanded ? 'Show Less' : 'Show More';
-  localStorage.setItem('commandHistoryExpanded', isExpanded);
-  console.log('[History] Command history', isExpanded ? 'expanded' : 'compact');
-});
-
-// ===== Phase 2: Mobile Tab Switching =====
-// Tab switching for mobile input panels
-const voiceTabBtn = document.getElementById('voiceTabBtn');
-const textTabBtn = document.getElementById('textTabBtn');
-const voicePanel = document.querySelector('.voice-panel');
-const textPanel = document.querySelector('.text-panel');
-
-function switchToTab(tabName) {
-  // Only switch tabs on mobile
-  if (window.innerWidth > 600) return;
-
-  if (tabName === 'voice') {
-    voiceTabBtn?.classList.add('active');
-    textTabBtn?.classList.remove('active');
-    voicePanel?.classList.add('active');
-    textPanel?.classList.remove('active');
-    console.log('[Mobile] Switched to voice tab');
-  } else {
-    textTabBtn?.classList.add('active');
-    voiceTabBtn?.classList.remove('active');
-    textPanel?.classList.add('active');
-    voicePanel?.classList.remove('active');
-    console.log('[Mobile] Switched to text tab');
-  }
-
-  localStorage.setItem('activeTab', tabName);
-}
-
-voiceTabBtn?.addEventListener('click', () => switchToTab('voice'));
-textTabBtn?.addEventListener('click', () => switchToTab('text'));
-
-// Initialize tab state on load
-if (window.innerWidth <= 600) {
-  const savedTab = localStorage.getItem('activeTab') || 'text';
-  switchToTab(savedTab);
-}
-
-// ===== Phase 4: Hamburger Menu Toggle =====
-// Hamburger menu for navigation controls (mobile only)
-const navMenuToggle = document.getElementById('navMenuToggle');
-const narrationControls = document.querySelector('.narration-controls');
-
-navMenuToggle?.addEventListener('click', () => {
-  const isExpanded = narrationControls.classList.toggle('expanded');
-  navMenuToggle.textContent = isExpanded ? '✕' : '☰';
-  console.log('[Mobile] Navigation menu', isExpanded ? 'expanded' : 'collapsed');
-});
-
-// ===== Phase 6: Full-Screen Help Modal =====
-// Help modal toggle (mobile only)
-const voiceHelpIcon = document.querySelector('.voice-help-icon');
-const voiceHelpModal = document.getElementById('voiceHelpModal');
-const helpCloseBtn = document.getElementById('helpCloseBtn');
-
-voiceHelpIcon?.addEventListener('click', () => {
-  // Only open modal on mobile
-  if (window.innerWidth <= 600) {
-    voiceHelpModal.classList.add('open');
-    document.body.style.overflow = 'hidden';
-    console.log('[Mobile] Help modal opened');
-  }
-});
-
-helpCloseBtn?.addEventListener('click', () => {
-  voiceHelpModal.classList.remove('open');
-  document.body.style.overflow = '';
-  console.log('[Mobile] Help modal closed');
-});
-
-// Initialize
-// Load voice configuration
-loadBrowserVoiceConfig();
-
-initVoiceRecognition();
-
-// Load history collapse state
-loadHistoryState();
-
-console.log('[App] Initialized');
-
-// Hook into ZVM's output for TTS capture
-// Wait for ZVM to load
-window.addEventListener('load', () => {
-  // Give Parchment time to initialize
-  setTimeout(() => {
-    if (typeof GlkOte !== 'undefined' && GlkOte.update) {
-      console.log('[Parchment] Hooking GlkOte.update for TTS capture');
-
-      // Save original update function
-      const originalUpdate = GlkOte.update;
-
-      // Wrap update to capture text output
-      GlkOte.update = function(updateObj) {
-        try {
-          // Extract text from content structure
-          if (updateObj && updateObj.content) {
-            let capturedText = '';
-
-            updateObj.content.forEach(windowContent => {
-              if (windowContent.text) {
-                windowContent.text.forEach(textBlock => {
-                  if (textBlock.content) {
-                    textBlock.content.forEach(run => {
-                      // Check different possible text formats
-                      if (typeof run === 'string') {
-                        capturedText += run;
-                      } else if (Array.isArray(run) && run.length >= 2) {
-                        // Format: ['style', 'text']
-                        capturedText += run[1] || '';
-                      } else if (run.text) {
-                        capturedText += run.text;
-                      }
-                    });
-                  }
-                });
-              }
-            });
-
-            // If we captured text, handle it for TTS
-            if (capturedText.trim()) {
-              console.log('[Parchment] Captured output:', capturedText.substring(0, 100) + '...');
-              handleParchmentOutput(capturedText);
-            }
-          }
-        } catch (error) {
-          console.error('[Parchment] Error capturing output:', error);
-        }
-
-        // Call original update to render
-        return originalUpdate.call(this, updateObj);
-      };
-
-      console.log('[Parchment] Output capture hook installed');
-    } else {
-      console.warn('[Parchment] GlkOte not found - output capture disabled');
-    }
-  }, 1000);
-});
-
-// Handle captured output from Parchment
-function handleParchmentOutput(text) {
-  // Store for potential narration
-  pendingNarrationText = text;
-
-  // If talk mode is active, auto-narrate
-  if (narrationEnabled && !isNarrating) {
-    speakTextChunked(text);
-  }
-}
-
-// Highlight text being spoken for visual feedback
-function highlightSpokenText(text) {
-  try {
-    // GlkOte outputs to #gameport with various content divs
-    const gameOutput = document.querySelector('#gameport .TextBuffer, #gameport #window0, #gameport');
-    if (!gameOutput) return;
-
-    // Find and wrap spoken text with highlight class
-    const walker = document.createTreeWalker(
-      gameOutput,
-      NodeFilter.SHOW_TEXT,
-      null,
-      false
-    );
-
-    const textNodes = [];
-    while (walker.nextNode()) {
-      textNodes.push(walker.currentNode);
-    }
-
-    // Search for matching text and add highlight
-    textNodes.forEach(node => {
-      if (node.textContent.includes(text.substring(0, 50))) {
-        const span = document.createElement('span');
-        span.className = 'tts-highlight';
-        span.textContent = node.textContent;
-        node.parentNode.replaceChild(span, node);
-      }
-    });
-
-  } catch (error) {
-    console.error('[TTS] Highlight error:', error);
-  }
-}
-
-// Remove highlight when done
-function removeHighlight() {
-  const highlights = document.querySelectorAll('.tts-highlight');
-  highlights.forEach(span => {
-    span.classList.remove('tts-highlight');
+// History buttons (open popup - TODO: implement popup)
+if (voiceHistoryBtn) {
+  voiceHistoryBtn.addEventListener('click', () => {
+    console.log('[History] Voice history button clicked');
+    alert('Voice history:\n' + voiceHistoryItems.map(i => i.text).join('\n'));
   });
 }
+
+if (commandHistoryBtn) {
+  commandHistoryBtn.addEventListener('click', () => {
+    console.log('[History] Command history button clicked');
+    alert('Command history:\n' + commandHistoryItems.map(i => i.original + (i.translated ? ' → ' + i.translated : '')).join('\n'));
+  });
+}
+
+// Initialize
+loadBrowserVoiceConfig();
+initVoiceRecognition();
+
+console.log('[App] Initialized');

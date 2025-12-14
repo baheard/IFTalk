@@ -58,18 +58,217 @@ const model = config.model || providerConfig.model;
 // Game sessions (one per socket connection)
 const gameSessions = new Map();
 
+// Process Frotz output - extract status line and clean up text
+function processFrotzOutput(output) {
+  let processedOutput = output
+    .replace(/\r\n/g, '\n')            // Normalize Windows line endings
+    .replace(/\r/g, '\n');             // Normalize Mac line endings
+
+  // Split into lines and process each
+  let lines = processedOutput.split('\n');
+  let cleanedLines = [];
+  let statusLine = null;
+
+  for (let line of lines) {
+    // Check for status line (starts with ') ' after trimming leading whitespace)
+    // Status lines look like: ")   Outside the Real Estate Office                      day one"
+    if (line.match(/^\)\s+\S/)) {
+      // Extract status line content (remove leading ') ')
+      const statusContent = line.replace(/^\)\s*/, '').trim();
+      if (statusContent.length > 5) {
+        statusLine = statusContent;
+      }
+      continue;
+    }
+
+    // Trim the line (remove centering whitespace)
+    let trimmed = line.trim();
+
+    // Strip leading ) artifact that sometimes gets attached to text
+    if (trimmed.startsWith(') ')) {
+      trimmed = trimmed.slice(2);
+    }
+
+    // Skip dfrotz formatting artifacts
+    if (trimmed === '.' || trimmed === ')' || trimmed === '. )' || trimmed === '. ' || trimmed === '') {
+      // Add blank line for paragraph break (but avoid duplicates)
+      if (cleanedLines.length > 0 && cleanedLines[cleanedLines.length - 1] !== '') {
+        cleanedLines.push('');
+      }
+      continue;
+    }
+
+    // Skip input prompts (single or multiple >)
+    if (trimmed.match(/^[>\s]+$/)) {
+      continue;
+    }
+
+    // Strip trailing prompts from end of line
+    trimmed = trimmed.replace(/\s*>+\s*$/, '');
+
+    if (trimmed) {
+      cleanedLines.push(trimmed);
+    }
+  }
+
+  // Join lines: paragraph breaks become double newlines, content breaks become soft-break spans
+  let result = '';
+  for (let i = 0; i < cleanedLines.length; i++) {
+    const line = cleanedLines[i];
+    if (i === 0) {
+      result = line;
+    } else if (line === '') {
+      // Empty line = paragraph break
+      result += '\n\n';
+    } else if (cleanedLines[i - 1] === '') {
+      // After paragraph break, start new paragraph
+      result += line;
+    } else {
+      // Soft break: line break at 70ch+, just a space at narrower widths
+      result += ' <span class="soft-break"></span>' + line;
+    }
+  }
+
+  // Convert ANSI codes to HTML
+  let htmlOutput = convert.toHtml(result);
+
+  return { htmlOutput, statusLine };
+}
+
 // Socket.IO connection handler
 io.on('connection', (socket) => {
   console.log('[Server] Client connected:', socket.id);
 
-  // Note: Game now runs client-side with Parchment Z-machine interpreter
-  // Server only handles AI translation and TTS
+  // Start game
+  socket.on('start-game', async (gamePath) => {
+    try {
+      console.log('[Game] Starting:', gamePath);
+
+      // Kill existing game if any
+      if (gameSessions.has(socket.id)) {
+        const oldGame = gameSessions.get(socket.id);
+        oldGame.process.kill();
+      }
+
+      // Resolve game path
+      const fullPath = path.isAbsolute(gamePath) ? gamePath : path.join(__dirname, gamePath);
+
+      if (!existsSync(fullPath)) {
+        socket.emit('error', `Game file not found: ${gamePath}`);
+        return;
+      }
+
+      // Spawn game interpreter
+      const args = [...(config.interpreterArgs || []), fullPath];
+      const gameProcess = spawn(config.interpreter, args, {
+        stdio: ['pipe', 'pipe', 'pipe']
+      });
+
+      let outputBuffer = '';
+
+      gameProcess.stdout.on('data', (data) => {
+        outputBuffer += data.toString();
+      });
+
+      gameProcess.stderr.on('data', (data) => {
+        console.error('[Game] Error:', data.toString());
+      });
+
+      gameProcess.on('close', (code) => {
+        console.log('[Game] Ended:', code);
+        socket.emit('game-ended', code);
+        gameSessions.delete(socket.id);
+      });
+
+      // Store session with context tracking
+      gameSessions.set(socket.id, {
+        process: gameProcess,
+        path: fullPath,
+        lastOutput: ''  // Track last output for AI translation context
+      });
+
+      // Wait for initial output
+      setTimeout(() => {
+        const output = outputBuffer;
+        outputBuffer = '';
+
+        // Store for context
+        const session = gameSessions.get(socket.id);
+        if (session) {
+          session.lastOutput = output;
+        }
+
+        // Process Frotz output
+        const { htmlOutput, statusLine } = processFrotzOutput(output);
+
+        socket.emit('game-output', htmlOutput);
+        if (statusLine) {
+          socket.emit('status-line', statusLine);
+        }
+      }, 1000);
+
+    } catch (error) {
+      console.error('[Game] Start error:', error);
+      socket.emit('error', error.message);
+    }
+  });
+
+  // Send command to game
+  socket.on('send-command', async (command) => {
+    const session = gameSessions.get(socket.id);
+
+    if (!session) {
+      socket.emit('error', 'No game running');
+      return;
+    }
+
+    try {
+      let outputBuffer = '';
+
+      const dataHandler = (data) => {
+        outputBuffer += data.toString();
+      };
+
+      session.process.stdout.on('data', dataHandler);
+
+      // Send command
+      session.process.stdin.write(command + '\n');
+
+      // Wait for response
+      setTimeout(() => {
+        session.process.stdout.removeListener('data', dataHandler);
+
+        // Store for context
+        session.lastOutput = outputBuffer;
+
+        // Process Frotz output
+        const { htmlOutput, statusLine } = processFrotzOutput(outputBuffer);
+
+        socket.emit('game-output', htmlOutput);
+        if (statusLine) {
+          socket.emit('status-line', statusLine);
+        }
+      }, 500);
+
+    } catch (error) {
+      console.error('[Game] Command error:', error);
+      socket.emit('error', error.message);
+    }
+  });
 
   // Translate natural language to IF command
   socket.on('translate-command', async (userInput) => {
     try {
-      // Note: Game runs client-side with Parchment, so no room context available
-      // AI translates based on user input and general IF command knowledge only
+      const session = gameSessions.get(socket.id);
+      const context = session?.lastOutput || '';
+
+      // Build context hint from last room description
+      let contextHint = '';
+      if (context) {
+        // Extract first 600 chars (usually contains room description and exits)
+        const roomContext = context.substring(0, 600);
+        contextHint = `\n\nCurrent room description:\n${roomContext}\n\nIMPORTANT: Read the room description carefully to find correct directions and object names!`;
+      }
 
       const messages = [
         {
@@ -78,15 +277,18 @@ io.on('connection', (socket) => {
 
 Rules:
 - Return a JSON object with: {"command": "THE_COMMAND", "confidence": 0-100, "reasoning": "brief explanation"}
+- CAREFULLY read the room description to understand available exits and objects
+- ONLY use objects and directions that are explicitly mentioned in the room description
 - Common directions: N, S, E, W, NE, NW, SE, SW, U (up), D (down), IN, OUT
 - Common actions: LOOK, EXAMINE [object], TAKE [object], DROP [object], INVENTORY (or I), OPEN [object], CLOSE [object]
 - IMPORTANT: "press enter", "next", "continue" -> empty string "" (just pressing Enter)
+- IMPORTANT: Don't invent objects or locations that aren't visible in the room
 - IMPORTANT: If user says "look at [object]" or "examine [object]", preserve the object in the command (e.g., "EXAMINE ALLEY" or "LOOK AT ALLEY", NOT just "LOOK")
 - Only use "LOOK" alone when user doesn't specify an object (e.g., "look around")
 
 Confidence levels:
 - 90-100: Clear, unambiguous command OR standard action
-- 70-89: Reasonable interpretation
+- 70-89: Reasonable interpretation with explicit room context
 - 50-69: Uncertain, guessing at meaning
 - Below 50: Unclear input, probably wrong
 
@@ -98,11 +300,14 @@ Input: "examine sword" -> {"command": "EXAMINE SWORD", "confidence": 100, "reaso
 Input: "press enter" -> {"command": "", "confidence": 100, "reasoning": "User wants to press Enter"}
 Input: "next" -> {"command": "", "confidence": 100, "reasoning": "Continue/next means press Enter"}
 Input: "go north" -> {"command": "N", "confidence": 100, "reasoning": "Clear direction"}
-Input: "check inventory" -> {"command": "INVENTORY", "confidence": 100, "reasoning": "Standard inventory command"}`
+Input: "check inventory" -> {"command": "INVENTORY", "confidence": 100, "reasoning": "Standard inventory command"}
+Input: "go to the alley" (room says "alley to the southeast") -> {"command": "SE", "confidence": 95, "reasoning": "Room shows alley is southeast"}
+Input: "go to the store" (no store mentioned) -> {"command": "LOOK", "confidence": 30, "reasoning": "No store visible, suggesting look around"}
+Input: "examine the blue orb" (orb not in room) -> {"command": "LOOK", "confidence": 25, "reasoning": "Object not visible, suggesting look"}`
         },
         {
           role: 'user',
-          content: `User input: "${userInput}"\n\nTranslate to IF command (return JSON):`
+          content: `User input: "${userInput}"${contextHint}\n\nTranslate to IF command (return JSON):`
         }
       ];
 

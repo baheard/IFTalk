@@ -41,3 +41,10 @@ pids/
 # Coverage & Testing
 coverage/
 .nyc_output/
+
+# MCP / Tools
+.mcp.json
+eng.traineddata
+
+# Windows artifacts
+nul

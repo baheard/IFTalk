@@ -3,205 +3,131 @@
 ## Current Status (2025-12-13)
 
 ### Summary
-After extensive debugging of both Parchment and direct ZVM approaches, both have fundamental issues with VM lifecycle and generation counter management. The games load and display correctly, but the interactive command loop never fully engages.
+Server-side Frotz approach is working reliably. Major styling improvements completed for typography and color scheme. Next focus is mobile responsiveness.
 
 ---
 
-## Branch Status
+## Active Branch: `frotz`
 
-### `parchment-prototype` Branch
-**Status:** ⚠️ Commands fail due to generation counter desync
+**Status:** ✅ Working - styling in progress
 
 **What Works:**
-- ✅ Game loads from IF Archive (raw .z8 files)
-- ✅ Authentic iplayif.com styling
-- ✅ Clean visual presentation
-- ✅ Fixed generation counter initialization (set to 1)
-
-**What Doesn't Work:**
-- ❌ Commands fail - Parchment's internal GlkOte counter desyncs with our counter
-- ❌ Voice commands cause WrongGeneration errors
-- ❌ No game responses to input
-
-**Issue Details:**
-- We maintain `parchmentGeneration` counter
-- Parchment has internal `GlkOte.generation` that we can't access/sync
-- Our counter says 1, game expects something different
-- Need to read from `window.parchment.options.GlkOte.generation` instead
-
-**Commits:**
-- `b0a4aee` - Parchment prototype with generation counter issues documented
+- ✅ Server-side Frotz interpreter via Socket.IO
+- ✅ Game loads and responds to commands
+- ✅ Voice recognition and TTS narration
+- ✅ AI command translation (Ollama)
+- ✅ All navigation controls (back, forward, pause, play, skip)
+- ✅ Pronunciation dictionary
+- ✅ Two-panel input layout (voice + text)
 
 ---
 
-### `master` Branch (ZVM + GlkOte)
-**Status:** 🔄 **READY FOR TESTING** - Game loads, generation counter fixed, commands should now work
+## Styling Progress
 
-**What Works:**
-- ✅ Game loads from IF Archive
-- ✅ Game intro text displays correctly
-- ✅ Uses smaller raw .z8 files (520KB vs 700KB)
-- ✅ Fixed generation counter initialization
-- ✅ Proper options object structure
-- ✅ **NEW**: `vm.start()` successfully loads the game (despite buffer access error)
-- ✅ **NEW**: Commands are echoed in the game window
-- ✅ **NEW**: Command history tracks input
+### ✅ Typography (COMPLETED)
+- [x] Added Google Fonts: Crimson Pro (serif) + IBM Plex Mono
+- [x] Game text now uses elegant serif font (18px, line-height 1.9)
+- [x] Commands use clean monospace (IBM Plex Mono)
+- [x] Welcome screen with literary styling
+- [x] Consistent font family across all UI elements
 
-**What Doesn't Work:**
-- ❌ VM throws "Cannot read properties of undefined (reading 'buffer')" error (but continues anyway)
-- ❌ `GlkOte.generation` stays `undefined`
-- ❌ Commands ignored with "Ignoring repeated generation number: 1"
-- ❌ **No game responses to commands** - VM doesn't output results
+### ✅ Color Scheme (COMPLETED)
+Implemented refined dark theme - elegant, neutral, literary feel:
 
-**Issue Details:**
-- ~~`vm.prepare(storyData, options)` succeeds~~ ✅ Fixed
-- ~~`Glk.init(options)` is called but VM doesn't start~~ ✅ Fixed by re-adding `vm.start()`
-- ~~**Root cause found**: `vm.start()` was removed in commit `fa4454b`, preventing VM execution~~ ✅ Fixed
-- ~~**Generation counter desync**: GlkOte uses generation 1 during init, our commands started at 1 (rejected as "repeated")~~ ✅ Fixed
-- **Solution**: Changed generation counter to start at 2 (GlkOte uses 1 during `vm.start()`)
-- **Status**: Ready for testing - commands should now receive responses from VM
+| Variable | Color | Purpose |
+|----------|-------|---------|
+| `--bg-primary` | `#0d0f12` | Deep charcoal background |
+| `--bg-secondary` | `#14171c` | Slightly lighter surfaces |
+| `--bg-surface` | `#1a1e24` | Cards and panels |
+| `--bg-elevated` | `#22272e` | Elevated elements |
+| `--accent-primary` | `#8b9dc3` | Muted blue-gray (buttons, links) |
+| `--accent-warm` | `#c4a35a` | Warm gold (highlights, headers) |
+| `--text-primary` | `#e6e4e0` | Cream white text |
+| `--text-secondary` | `#a8a5a0` | Muted secondary text |
 
-**Recent Commits:**
-- `[today]` - **Fix generation counter** - Start at 2 instead of 1 (2025-12-13)
-- `[today]` - **Re-add `vm.start()` call** - Game now loads! (2025-12-13)
-- `[today]` - **Add server management docs** to CLAUDE.md (2025-12-13)
-- `61de5e0` - Fix generation counter initialization
-- `fa4454b` - Remove manual vm.start() call (THIS WAS THE PROBLEM)
-- `cd21343` - Refactor ZVM initialization to match examples
+- [x] Removed saturated purple/pink gradients
+- [x] Neutral charcoal backgrounds
+- [x] Muted accent colors
+- [x] Warm gold for speaking highlights
+- [x] CSS variables for easy theming
 
-**Debugging Session 2025-12-13:**
-1. ✅ Identified missing `vm.start()` call as root cause
-2. ✅ Compared with glkote-term and GlkOte documentation
-3. ✅ Confirmed Dialog object NOT required for browser usage
-4. ✅ Re-added `vm.start()` after `Glk.init()` in Game.accept('init') handler
-5. ✅ Game now loads and displays intro text
-6. ✅ Fixed generation counter - discovered GlkOte uses gen 1 during init
-7. 🔄 **Testing needed**: Commands should now work with gen counter starting at 2
+### ✅ Layout (COMPLETED)
+- [x] Game output area sizing and padding improved
+- [x] Mobile responsiveness - comprehensive breakpoints added:
+  - Tablet (900px): Condensed header, smaller dropdowns
+  - Mobile (768px): Stacked layout, touch-friendly buttons, full-width panels
+  - Small mobile (480px): Compact typography and controls
+  - Landscape phone: Optimized for horizontal viewing
+- [x] Touch-friendly button sizes (min 44-48px)
+- [x] Voice panel hidden when not in talk mode (mobile)
 
----
-
-## Technical Investigation
-
-### What We Learned
-
-**From Examples ([glkote-term](https://github.com/curiousdannii/glkote-term/blob/master/tests/zvm.js), [ifvms.js](https://github.com/curiousdannii/ifvms.js/issues/10)):**
-1. Create VM: `const vm = new ZVM()`
-2. Build options: `{ vm, Glk, GlkOte, Dialog }`
-3. Prepare VM: `vm.prepare(storyData, options)`
-4. Initialize Glk: `Glk.init(options)` - *should* start VM
-
-We're doing all these steps, but step 4 doesn't actually start the VM.
-
-**Generation Counter Problem:**
-- GlkOte tracks generation internally
-- We shouldn't maintain our own counter
-- Should read from `GlkOte.generation` or let GlkOte handle it entirely
-- But when VM doesn't start, `GlkOte.generation` stays `undefined`
-
-**Key Insight:**
-The generation counter issue is a *symptom*, not the root cause. The real problem is the VM execution loop never starts.
-
----
-
-## Comparison: Parchment vs Direct ZVM
-
-| Aspect | Parchment | Direct ZVM |
-|--------|-----------|------------|
-| **Setup Complexity** | Simple | Complex |
-| **File Size** | Larger (.z8.js: 700KB) | Smaller (.z8: 520KB) |
-| **Control** | Abstracted/Limited | Full control |
-| **Issues** | Generation desync | VM won't start |
-| **Debugging** | Through wrapper | Direct access |
-| **Status** | Commands fail | VM never runs |
+### ⬚ Polish (TODO)
+- [ ] Loading states
+- [ ] Error message styling
+- [ ] Transitions and animations refinement
+- [ ] Focus states and accessibility
+- [ ] Status bar styling (location, score, moves)
 
 ---
 
 ## Next Steps
 
-### Option 1: Deep Dive into Parchment Source
-- Study actual Parchment production code (not just examples)
-- Understand how runner.js handles initialization
-- Figure out how to access/sync with internal GlkOte.generation
-- **Difficulty:** High - requires understanding complex codebase
-
-### Option 2: Debug Glk.init() Lifecycle
-- Add extensive logging to understand why VM doesn't start
-- Check if there's a missing event or callback
-- Try different initialization sequences
-- **Difficulty:** High - debugging library internals
-
-### Option 3: Try Simpler IF Interpreter
-- Look for alternatives to ZVM + GlkOte
-- Maybe Glulx with Quixe is better documented?
-- Consider different IF format entirely
-- **Difficulty:** Medium - start fresh but with unknowns
-
-### Option 4: Study Working Implementation
-- Clone and run Parchment locally
-- Step through their actual initialization code
-- Copy their exact pattern
-- **Difficulty:** Medium - learn from working code
-
-### Option 5: Different Approach Entirely
-- Use server-side IF interpreter
-- Browser connects via WebSocket
-- Simpler client-side code
-- **Difficulty:** Medium - different architecture
+### Polish Priority
+1. Loading spinner/states for game commands
+2. Error message styling
+3. Accessibility improvements (focus states, ARIA labels)
+4. Status bar with game info
 
 ---
 
-## Files Modified (This Session)
+## Architecture: Frotz vs Browser-based
 
-### `parchment-prototype` branch:
-- `public/index.html` - Parchment CDN scripts
-- `public/app.js` - Simplified startGame(), fixed gen counter
-- `public/styles.css` - Removed overrides for authentic styling
-- `CLAUDE.md` - Updated with findings
+| Aspect | Frotz (Server) | ZVM/GlkOte (Browser) |
+|--------|----------------|----------------------|
+| **Reliability** | ✅ Proven | ❌ Generation counter issues |
+| **Setup** | Requires dfrotz binary | Pure JavaScript |
+| **Control** | Full text interception | Complex lifecycle |
+| **Styling** | Easy - just HTML/CSS | GlkOte dictates structure |
+| **Latency** | Network round-trip | Instant |
+| **Offline** | ❌ Needs server | ✅ Could work offline |
 
-### `master` branch:
-- `public/app.js` - Multiple refactorings of ZVM init sequence
-
----
-
-## Open Questions
-
-1. **Why doesn't `Glk.init(options)` start the VM?**
-   - Are we missing a required option property?
-   - Is there an async callback we're not handling?
-   - Does the Game.accept() pattern need something different?
-
-2. **How does production Parchment avoid generation issues?**
-   - Do they track it differently?
-   - Is there a sync mechanism we're missing?
-
-3. **Is the glkapi.js version incompatible with ifvms ZVM?**
-   - Versions we're using: glkote@latest, ifvms@1.1.6
-   - Are these known to work together?
-
-4. **Should we be using a Dialog object?**
-   - Examples include Dialog in options
-   - We don't have one - could this be critical?
+**Decision:** Frotz wins on reliability. We can always revisit browser-based later.
 
 ---
 
-## Resources
+## Files Modified This Session
 
-- [glkote-term ZVM test](https://github.com/curiousdannii/glkote-term/blob/master/tests/zvm.js) - Working example
-- [ifvms.js usage discussion](https://github.com/curiousdannii/ifvms.js/issues/10) - API patterns
-- [ZVM implementation gist](https://gist.github.com/curiousdannii/237b91a12f136ed617c2e778509575ef) - Core logic
-- [Parchment repository](https://github.com/curiousdannii/parchment) - Production code
-- [GlkOte documentation](https://eblong.com/zarf/glk/glkote/docs.html) - API reference
+- `public/index.html`
+  - Added Google Fonts link (Crimson Pro, IBM Plex Mono)
+  - Changed default input mode to Direct (unchecked toggle)
+- `public/styles.css` - Complete styling overhaul
+  - CSS custom properties (variables) for theming
+  - Crimson Pro serif font for game text
+  - IBM Plex Mono for commands
+  - Refined dark color palette (charcoal + muted accents)
+  - Comprehensive mobile responsive breakpoints (900px, 768px, 480px, landscape)
+  - Touch-friendly button sizing
+  - Active state for talk mode button
 
 ---
 
-## Previous Working State
+## Server Running
 
-**Note:** Neither branch currently has fully working command input.
+```bash
+cd /e/Project/IFTalk && npm start
+# Access at http://localhost:3000
+```
 
-The closest we got:
-- Visual display works in both branches
-- Game intro text appears correctly
-- TTS capture hooks are in place
-- But no branch has working interactive commands
+---
 
-Last fully working version would need to be found in earlier commits before this refactoring effort.
+## Git History
+
+```
+f8b5d5d WIP: ifvms-glkote flow with Parchment-compatible versions
+41eff5b Update README with browser-based ZVM architecture
+17f1d9e Replace Parchment with ifvms/ZVM + GlkOte
+5d1850f Change default voices (THIS IS OUR FROTZ BASE)
+12aa9d7 Initial commit: IFTalk voice-controlled IF player
+```
+
+Current branch: `frotz` (based on master, files from 5d1850f)

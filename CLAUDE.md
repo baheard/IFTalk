@@ -22,14 +22,22 @@
 1. **Chunk Creation Always Happens**: `createNarrationChunks()` (lines 873-976) is called for ALL new game text, regardless of whether narration auto-starts
    - This ensures navigation buttons always work, even when narration is disabled
    - Previously, chunks were only created inside `speakTextChunked()`, causing UI bugs when skipping to end
-2. **Display vs Narration Split**: Text processed TWO ways:
+2. **Server-side Line Break Processing** (server.js lines 124-165, 199-232):
+   - Frotz outputs fixed-width terminal text with `\r\n` line endings and centering whitespace
+   - Server normalizes `\r\n` and `\r` to `\n`, then processes line by line:
+     - Each line is trimmed (removes centering whitespace)
+     - Artifact lines (standalone `.`, `)`, empty) become paragraph breaks
+     - Real content lines are preserved with single `<br>` between them
+   - Result: Clean text with proper paragraph breaks, no terminal formatting artifacts
+   - Game output wrapper (`.game-output-inner`) constrains max-width to 800px for readability
+3. **Display vs Narration Split**: Text processed TWO ways:
+   - **Display HTML**: Server-processed HTML with `<br><br>` for paragraphs
    - **Narration chunks**: All newlines → spaces, split on `.!?` for smooth TTS
-   - **Display HTML**: Uses null-byte markers (`\x00LINEBREAK\x00`, `\x00PARAGRAPH\x00`) to preserve formatting, then converts to `<br>` tags
    - **Critical**: Display regenerated to match narration chunks for accurate highlighting
-3. **Server sends HTML**: ANSI codes converted to HTML by server (via `ansi-to-html`), client strips tags before TTS
-4. **Sentence splitting**: Split on `.!?` only (not newlines)
-5. **Pronunciation fixes**: Applied before TTS via localStorage dictionary
-6. **Spaced capitals**: "A N C H O R H E A D" → "Anchorhead" (collapsed + title case)
+4. **Server sends HTML**: ANSI codes converted to HTML by server (via `ansi-to-html`), client strips tags before TTS
+5. **Sentence splitting**: Split on `.!?` only (not newlines)
+6. **Pronunciation fixes**: Applied before TTS via localStorage dictionary
+7. **Spaced capitals**: "A N C H O R H E A D" → "Anchorhead" (collapsed + title case)
 
 ### Smart Back Button (lines 634-646)
 - Within 500ms: Go to previous chunk
@@ -218,3 +226,17 @@ Claude Code may start multiple background npm processes. To clean them all up:
 - Use the KillShell tool for Claude Code background processes
 - Use PowerShell commands for killing Windows processes by PID
 - Restart the server after code changes to public/app.js to see updates
+
+## Web Agent Screenshots
+
+Screenshots taken by the web-agent-mcp tool are saved to:
+```
+E:\Project\web-agent-mcp\screenshots\
+```
+
+To view a screenshot, use the Read tool with the full path:
+```
+E:\Project\web-agent-mcp\screenshots\<filename>.png
+```
+
+List available screenshots with `mcp__web-agent-mcp__list_screenshots`.
