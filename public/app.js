@@ -241,6 +241,9 @@ function initVoiceRecognition() {
     } else if (event.error === 'no-speech') {
       // No speech detected - ignore silently, will restart automatically
       console.log('[Voice] No speech detected (will restart)');
+    } else if (event.error === 'aborted') {
+      // Aborted during TTS or restart - expected behavior, ignore silently
+      return;
     } else {
       // Unexpected error - log and show to user
       console.error('[Voice] Error:', event.error);
