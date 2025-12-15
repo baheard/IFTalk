@@ -110,6 +110,56 @@ I'll then:
 
 ---
 
+## Upcoming: Architecture Refactoring
+
+**Status:** 📋 Planned - Detailed implementation plan ready
+
+### Goal
+Transform monolithic codebase into modular ES6 architecture:
+- Split `app.js` (3,079 lines) into ~21 focused modules
+- Split `server.js` (740 lines) into ~6 focused modules
+- Use native ES6 modules (no bundler required)
+- Centralized state management
+- Clear separation of concerns
+
+### Plan Document
+**See:** `C:\Users\bahea\.claude\plans\calm-shimmying-crane.md`
+
+### Module Structure Preview
+```
+public/js/
+├── core/ (state, socket, dom)
+├── voice/ (recognition, commands, meter, echo)
+├── narration/ (tts-player, chunking, navigation, highlighting)
+├── ui/ (game-output, nav-buttons, settings, history)
+├── game/ (commands, saves, loader)
+└── utils/ (text-processing, pronunciation, status)
+
+server/
+├── core/ (app, config)
+├── game/ (frotz-manager, text-processor)
+└── ai/ (translator, tts)
+```
+
+### Benefits
+- 📦 **Maintainability:** 100-300 line files vs. 3,000+ line monolith
+- 🧪 **Testability:** Can unit test individual modules
+- 📖 **Readability:** File names indicate purpose
+- 🔄 **Reusability:** Modules can be shared/reused
+- 👥 **Collaboration:** Easier for multiple developers
+
+### Implementation Phases
+1. **Phase 1:** Foundation (5 modules - state, dom, utils)
+2. **Phase 2:** Core Infrastructure (3 modules - socket, echo, meter)
+3. **Phase 3:** Narration System (4 modules - chunking, highlighting, tts, navigation)
+4. **Phase 4:** Voice System (2 modules - commands, recognition)
+5. **Phase 5:** UI & Game (7 modules - output, buttons, saves, loader)
+6. **Phase 6:** Main Entry (wire everything together)
+
+**Next Action:** Fix high-risk items from latest commit, then begin refactoring
+
+---
+
 ## Quick Commands
 
 ```bash
