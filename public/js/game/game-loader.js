@@ -11,10 +11,10 @@ import { updateNavButtons } from '../ui/nav-buttons.js';
 import { stopNarration } from '../narration/tts-player.js';
 
 /**
- * Generation counter for Parchment commands
- * NOTE: GlkOte uses generation 1 during vm.start(), so we start at 2
+ * Track the last generation number received from GlkOte
+ * We'll use this to send the correct generation in responses
  */
-let parchmentGeneration = 0;
+let lastReceivedGeneration = 0;
 
 /**
  * Start a game using browser-based ZVM
@@ -96,22 +96,26 @@ export async function startGame(gamePath, onOutput) {
           window.Glk.init(options);
           console.log('[ZVM] Glk initialized');
 
-          // Start VM after a brief delay to let Glk settle
-          setTimeout(() => {
-            try {
-              console.log('[ZVM] Starting VM...');
-              window.zvmInstance.start();
-              console.log('[ZVM] VM started successfully');
-            } catch (e) {
-              console.warn('[ZVM] VM start error (may be non-fatal):', e.message);
-            }
-          }, 50);
+          // Start VM after GlkOte UI is fully ready
+          // Wait for next animation frame to ensure DOM is settled
+          requestAnimationFrame(() => {
+            requestAnimationFrame(() => {
+              try {
+                console.log('[ZVM] Starting VM...');
+                window.zvmInstance.start();
+                console.log('[ZVM] VM started successfully');
+              } catch (e) {
+                console.warn('[ZVM] VM start error (may be non-fatal):', e.message);
+                console.error('[ZVM] Full error:', e);
+              }
+            });
+          });
 
           console.log('[ZVM] Game initialized successfully');
           updateStatus('Ready - Game loaded');
 
-          // Reset generation counter for new game
-          parchmentGeneration = 2;
+          // Reset generation tracking for new game
+          lastReceivedGeneration = 0;
 
           // Reset narration state
           resetNarrationState();
@@ -121,10 +125,17 @@ export async function startGame(gamePath, onOutput) {
         } else if (event.type === 'line' || event.type === 'char') {
           // Handle user input events
           console.log('[Game] Input event:', event);
+          // Track the generation from GlkOte's event
+          if (event.gen !== undefined) {
+            lastReceivedGeneration = event.gen;
+          }
           vm.resume(event);
         } else if (event.type === 'specialresponse') {
           // Handle file operations
           console.log('[Game] Special response:', event);
+          if (event.gen !== undefined) {
+            lastReceivedGeneration = event.gen;
+          }
           vm.resume(event);
         }
       }
@@ -231,14 +242,16 @@ export function sendCommandToGame(cmd) {
   // Send line input event to ZVM via Game.accept()
   try {
     if (typeof Game !== 'undefined' && Game.accept && window.zvmInstance) {
-      parchmentGeneration++;
+      // Use the generation number from the last event we received
+      // GlkOte expects us to respond with the same generation it sent
+      const genToSend = lastReceivedGeneration;
       Game.accept({
         type: 'line',
-        gen: parchmentGeneration,
+        gen: genToSend,
         value: input,
         terminator: 'enter'
       });
-      console.log('[Game] Command sent (gen ' + parchmentGeneration + ')');
+      console.log('[Game] Command sent (gen ' + genToSend + ')');
     } else {
       console.error('[Game] Game not initialized');
     }

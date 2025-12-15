@@ -1,4 +1,21 @@
-# Frotz Z-Machine Interpreter Documentation
+# ⚠️ DEPRECATED: Frotz Z-Machine Interpreter Documentation
+
+**This document is preserved for historical reference only.**
+
+**Status:** Frotz server-side architecture was abandoned on 2025-12-15
+
+**Reason:** Unix-style line-oriented I/O (stdin/stdout) is fundamentally incompatible with modern web-based interactive fiction. The dfrotz "dumb interface" was designed for terminal environments, not web applications, leading to:
+- Fragile status line parsing with regex patterns
+- Artificial delays to "guess" when output finished
+- No direct access to game state
+- Complex infrastructure (WSL, process management, Socket.IO)
+- Deployment challenges (requires VPS hosting)
+
+**Current Architecture:** Browser-based ifvms.js + GlkOte - See [reference/zvm-integration.md](reference/zvm-integration.md)
+
+---
+
+# Frotz Z-Machine Interpreter Documentation (Historical)
 
 ## Overview
 

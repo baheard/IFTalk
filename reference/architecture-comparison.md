@@ -1,5 +1,88 @@
 # Architecture Comparison
 
+## Why Frotz Was Abandoned (2025-12-15)
+
+**Primary Reason:** Unix-style line-oriented I/O is fundamentally incompatible with modern web-based interactive fiction.
+
+### The Fundamental Problem
+
+Frotz's dfrotz ("dumb interface") was designed for **terminal environments**, not web applications. It uses a simple stdin/stdout model:
+
+```
+stdin  →  [dfrotz process]  →  stdout
+"look"                         "You see a door.\n"
+```
+
+This terminal-centric design creates insurmountable problems for web integration:
+
+#### 1. **No API, Just Text Streams**
+- Game state is locked inside the Frotz process
+- Only interface is raw text input/output
+- No way to query current room, inventory, or game state
+- Must parse text output to infer what happened
+
+#### 2. **Fragile Status Line Detection**
+```javascript
+// Had to guess status lines with regex patterns like this:
+if (line.match(/^\s{1,5}\S.{10,}\s{20,}\S/)) {
+  statusLine = line.trim(); // Hope this is right!
+}
+```
+
+#### 3. **Artificial Delays for Output**
+```javascript
+// Had to guess when Frotz finished writing:
+gameProcess.stdin.write(command + '\n');
+setTimeout(() => {
+  const output = buffer.toString(); // Hope it's done!
+}, 500); // Magic number!
+```
+
+#### 4. **Complex Infrastructure Stack**
+```
+User → Browser → WebSocket → Node.js → dfrotz process (WSL) → Z-machine
+                  ↑                          ↑
+            Network latency            Process spawn overhead
+```
+
+#### 5. **Deployment Nightmares**
+- Requires VPS ($4-6/month minimum)
+- Need WSL on Windows or Linux server
+- Process management (spawn, kill, restart)
+- Socket.IO session handling
+- Binary dependencies (dfrotz)
+
+### Browser-Based Solution
+
+ifvms.js + GlkOte provides a **proper API**:
+
+```javascript
+// Direct API access to game state:
+vm.start();  // Start game
+GlkOte.update(data);  // Process game output
+vm.sendLine(command);  // Send command
+
+// No parsing needed - structured data:
+{
+  type: "line",
+  content: "You see a door.",
+  window: 1
+}
+```
+
+**Benefits:**
+- Instant response (no network/process overhead)
+- Direct access to game state
+- Free static hosting (no VPS needed)
+- No binary dependencies
+- Unlimited concurrent users
+
+### The Bottom Line
+
+**Frotz is a terminal app, not a web app.** Trying to force stdin/stdout into a modern web interface is like using a screwdriver as a hammer - technically possible, but the wrong tool for the job.
+
+---
+
 ## Current Architecture: Browser-Based ZVM + GlkOte ✅
 
 | Aspect | ZVM/GlkOte (Browser) ⭐ CURRENT | Frotz (Server-Side) |

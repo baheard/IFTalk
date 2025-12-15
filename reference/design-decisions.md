@@ -2,25 +2,24 @@
 
 ## Text Processing Pipeline
 
-1. **Chunk Creation Always Happens**: `createNarrationChunks()` (lines 873-976) is called for ALL new game text, regardless of whether narration auto-starts
+1. **Chunk Creation Always Happens**: `createNarrationChunks()` is called for ALL new game text, regardless of whether narration auto-starts
    - This ensures navigation buttons always work, even when narration is disabled
    - Previously, chunks were only created inside `speakTextChunked()`, causing UI bugs when skipping to end
 
-2. **Server-side Line Break Processing** (server.js lines 124-165, 199-232):
-   - Frotz outputs fixed-width terminal text with `\r\n` line endings and centering whitespace
-   - Server normalizes `\r\n` and `\r` to `\n`, then processes line by line:
-     - Each line is trimmed (removes centering whitespace)
-     - Artifact lines (standalone `.`, `)`, empty) become paragraph breaks
-     - Real content lines are preserved with single `<br>` between them
-   - Result: Clean text with proper paragraph breaks, no terminal formatting artifacts
+2. **GlkOte Output Processing**:
+   - GlkOte provides structured game output (not raw text streams)
+   - Text comes pre-formatted from the Z-machine via proper API
+   - No parsing needed - game state accessible directly
    - Game output wrapper (`.game-output-inner`) constrains max-width to 800px for readability
 
 3. **Display vs Narration Split**: Text processed TWO ways:
-   - **Display HTML**: Server-processed HTML with `<br><br>` for paragraphs
+   - **Display HTML**: Structured HTML from GlkOte with proper formatting
    - **Narration chunks**: All newlines → spaces, split on `.!?` for smooth TTS
    - **Critical**: Display regenerated to match narration chunks for accurate highlighting
 
-4. **Server sends HTML**: ANSI codes converted to HTML by server (via `ansi-to-html`), client strips tags before TTS
+4. **Client-side Processing**: All text processing happens in browser
+   - No server-side text manipulation needed
+   - Direct access to game output via GlkOte API
 
 5. **Sentence splitting**: Split on `.!?` only (not newlines)
 

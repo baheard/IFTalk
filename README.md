@@ -65,13 +65,13 @@ The server will show you the exact URL when it starts!
 ### 🎤 Voice Input
 - Click microphone button
 - Speak naturally: "I want to look around"
-- AI translates to game command
+- AI translates to game command (optional)
 - **Works perfectly in Chrome/Edge/Safari**
 
 ### 🔊 Voice Output
-- ElevenLabs natural voice narration
+- Browser TTS (free) or ElevenLabs (premium)
 - Manual control - start/stop when you want
-- Fast (~400ms response time)
+- Fast response time
 
 ### ⌨️ Keyboard Input (Also Works Great!)
 - **Enter** → Send directly ("N", "LOOK", etc.)
@@ -158,24 +158,42 @@ You'll get a public URL like `https://abc-123.trycloudflare.com`
 
 ## Architecture
 
+**🎮 Fully Browser-Based - No Server-Side Game Logic**
+
 ```
-Browser (Frontend)
-  ↓ WebSocket (for AI translation only)
-Node.js Server (Backend - AI provider)
-  ↑
-Browser
-  ↓ Direct execution
-ZVM Interpreter (ifvms.js in browser)
-  ↓ GlkOte display layer
-Interactive Fiction Game
+┌─────────────────────────────────────────┐
+│          Browser (Client)               │
+│  ┌───────────────────────────────────┐  │
+│  │   ifvms.js (Z-machine VM)         │  │ ← Games run HERE
+│  │   ↓                                │  │
+│  │   GlkOte (Display Layer)          │  │
+│  │   ↓                                │  │
+│  │   Your Web UI (Voice + TTS)       │  │
+│  └───────────────────────────────────┘  │
+│           ↓ (Optional AI translation)   │
+└───────────┼─────────────────────────────┘
+            │
+            ↓ WebSocket (only for AI)
+    ┌───────────────────┐
+    │  Node.js Server   │ ← Static files + optional AI
+    │  (Express)        │
+    └───────────────────┘
 ```
 
 **Key Components:**
-- **Browser-based ZVM**: Games run entirely in the browser using ifvms.js
-- **GlkOte**: Display and input handling library
+- **ifvms.js (ZVM)**: Z-machine interpreter runs in browser - no server needed
+- **GlkOte**: Display and windowing library for interactive fiction
 - **glkapi.js**: Bridge between VM and display layer
-- **AI Services**: Ollama/OpenAI/Claude for command translation
+- **Express Server**: Static file serving ONLY (no game logic)
+- **AI Services** (Optional): Ollama/OpenAI/Claude for natural language translation
 - **Voice**: Web Speech API (recognition) + Browser TTS or ElevenLabs (narration)
+
+**Why Browser-Based?**
+- ✅ Free static hosting (GitHub Pages, Netlify, Vercel)
+- ✅ Instant response (no network latency for game commands)
+- ✅ Unlimited concurrent users (no server bottleneck)
+- ✅ Simple deployment (just HTML/JS/CSS files)
+- ✅ No backend dependencies (Frotz/WSL/process management eliminated)
 
 ## Free Voice Recognition Options
 
@@ -274,27 +292,28 @@ Edit files in `public/`:
 ## Credits
 
 Built with:
-- **Express** - Web server
-- **Socket.IO** - Real-time AI translation communication
 - **ifvms.js (ZVM)** - Browser-based Z-machine interpreter
 - **GlkOte** - Display and input handling library
 - **glkapi.js** - Glk API implementation
-- **ElevenLabs** - Natural voice synthesis (optional)
-- **Ollama/OpenAI/Claude** - AI command translation
-- **Web Speech API** - Voice recognition
+- **Express** - Static file web server
+- **Socket.IO** - Real-time AI translation communication
+- **Web Speech API** - Voice recognition (built into browsers)
+- **Browser TTS** - Text-to-speech (built into browsers)
+- **Ollama/OpenAI/Claude** - AI command translation (optional)
+- **ElevenLabs** - Premium voice synthesis (optional)
 
 ## Current Status
 
-**🔄 In Development**: Browser-based ZVM integration
+**✅ Browser-Based Architecture Complete**
 
-- ✅ Game loading from IF Archive
-- ✅ Game intro text displays correctly
-- ✅ VM initialization fixed (vm.start() call)
-- ✅ Generation counter fixed (starts at 2 to avoid conflict with GlkOte init)
-- 🔄 **Testing needed**: Commands should now work with generation counter fix
-- ⚠️ Known issue: Minor "buffer access" error during vm.start() (non-breaking)
+- ✅ Games run entirely in browser (ifvms.js + GlkOte)
+- ✅ Voice recognition and TTS narration working
+- ✅ AI command translation (optional - Ollama/OpenAI/Claude)
+- ✅ Navigation controls (back, forward, pause, play, skip)
+- ✅ Text highlighting system for narration sync
+- 🔄 **In Progress**: Architecture improvements (see TODO.md)
 
-See [TODO.md](TODO.md) for detailed technical status and debugging notes.
+See [TODO.md](TODO.md) for detailed technical status and current tasks.
 
 ---
 

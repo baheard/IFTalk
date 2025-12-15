@@ -11,11 +11,13 @@
   - GlkOte handles display, windowing, and input
 - **Backend**: Node.js/Express - **static file server ONLY**
   - No game processing on server
-  - No Socket.IO game commands
+  - **No Socket.IO** - completely removed (was legacy from Frotz architecture)
   - Just serves HTML, JS, CSS, and game files
 - **TTS**: Browser Web Speech API (client-side only)
+  - Narration runs entirely in browser with `speechSynthesis`
+  - No server round-trip for audio generation
 - **Speech Recognition**: Web Speech Recognition API (webkitSpeechRecognition)
-- **AI Translation**: REMOVED - direct command input only
+- **Save/Restore**: Use in-game SAVE and RESTORE commands (ZVM native mechanism)
 
 ## File Structure
 
@@ -87,6 +89,44 @@ For detailed technical information, see the `reference/` folder:
 - ~~Frotz Configuration~~ - We use browser-based ZVM, not server-side Frotz
 - ~~AI Translation~~ - Removed Ollama/OpenAI integration
 - ~~ElevenLabs TTS~~ - Browser TTS only
+- ~~Socket.IO~~ - Completely removed (Dec 2024)
+
+## Recent Fixes (December 2024)
+
+### Critical Bug Fixes
+1. **TTS/Narration Fixed** - Removed Socket.IO dependency, now uses browser `speechSynthesis` directly
+   - File: `public/js/narration/tts-player.js`
+   - TTS no longer hangs on Socket.IO promises
+   - Faster response time (no server round-trip)
+
+2. **Socket.IO Removed** - Completely eliminated legacy Socket.IO infrastructure
+   - Files: `public/js/app.js`, `public/js/core/socket.js`, `public/js/game/saves.js`
+   - App now runs in pure browser mode
+   - No server dependencies for game logic or TTS
+
+3. **Game Loading Fixed** - Resolved initialization hang
+   - File: `public/js/core/socket.js`
+   - Made Socket.IO optional (returns null if not loaded)
+   - App initialization now completes successfully
+
+4. **Generation Counter Fixed** - Resolved command rejection issue
+   - File: `public/js/game/game-loader.js`
+   - Track generation from GlkOte events instead of manual counter
+   - Commands now accepted properly by ZVM
+
+5. **VM Start Timing Fixed** - Resolved DOM initialization race condition
+   - File: `public/js/game/game-loader.js`
+   - Use `requestAnimationFrame` instead of `setTimeout`
+   - Prevents "Cannot read properties of null" error
+
+### What Works Now
+- ✅ Game selection and loading
+- ✅ Browser-based ZVM game engine
+- ✅ Text-to-speech narration (browser-based)
+- ✅ Command input and processing
+- ✅ Navigation controls
+- ✅ Voice recognition
+- ✅ Fully offline-capable
 
 ## Current Status
 

@@ -9,7 +9,6 @@
 // Core modules
 import { state } from './core/state.js';
 import { dom, initDOM } from './core/dom.js';
-import { initSocket } from './core/socket.js';
 import { updateStatus } from './utils/status.js';
 
 // Voice modules
@@ -102,28 +101,32 @@ async function initApp() {
   console.log('[App] Initializing IFTalk...');
 
   // Initialize DOM
+  console.log('[App] 1. Initializing DOM...');
   initDOM();
 
-  // Initialize socket connection
-  state.socket = initSocket();
-
   // Load voice configuration
+  console.log('[App] 2. Loading voice config...');
   await loadBrowserVoiceConfig();
+  console.log('[App] 3. Voice config loaded');
 
   // Initialize voice recognition with command processor
+  console.log('[App] 4. Initializing voice recognition...');
   const processVoice = (transcript) => processVoiceKeywords(transcript, voiceCommandHandlers);
   state.recognition = initVoiceRecognition(processVoice);
 
   // Make sendCommand available globally for recognition module
+  console.log('[App] 5. Setting up global command handler...');
   window._sendCommand = () => sendCommand();
 
   // Initialize UI components
+  console.log('[App] 6. Initializing UI components...');
   initSettings();
   initVoiceSelection();
   initHistoryButtons();
-  initSaveHandlers(state.socket);
+  initSaveHandlers();
 
   // Initialize game selection with output callback
+  console.log('[App] 7. Initializing game selection...');
   initGameSelection(handleGameOutput);
 
   // Navigation button handlers

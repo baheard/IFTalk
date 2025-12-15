@@ -1,6 +1,18 @@
-# Frotz Configuration Reference
+# ⚠️ DEPRECATED: Frotz Configuration Reference
 
-## Current dfrotz Version: 2.54 (via WSL)
+**This document is preserved for historical reference only.**
+
+**Status:** Frotz server-side architecture was abandoned on 2025-12-15
+
+**Reason:** Unix-style line-oriented I/O (stdin/stdout) is fundamentally incompatible with modern web-based interactive fiction. Browser-based ZVM (ifvms.js + GlkOte) provides direct API access to game state without fragile text parsing.
+
+**Current Architecture:** See [reference/zvm-integration.md](zvm-integration.md)
+
+---
+
+# Frotz Configuration Reference (Historical)
+
+## Last Used dfrotz Version: 2.54 (via WSL)
 
 ```json
 "interpreter": "wsl",

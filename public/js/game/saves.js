@@ -43,60 +43,32 @@ export function saveGame(saveData) {
 
 /**
  * Restore game from most recent save
- * @param {Object} socket - Socket.IO connection
+ * NOTE: Save/restore via server Socket.IO is disabled for browser-based ZVM.
+ * ZVM has its own native save mechanism accessible via game commands.
  */
-export function restoreLatest(socket) {
-  const saves = getSaves();
-
-  if (saves.length === 0) {
-    updateStatus('No saves found', 'error');
-    return;
-  }
-
-  // Get most recent save for current game
-  const currentGameSaves = saves.filter(s => s.game === state.currentGameName);
-
-  if (currentGameSaves.length === 0) {
-    updateStatus('No saves for current game', 'error');
-    return;
-  }
-
-  const latest = currentGameSaves[0];
-
-  console.log('[Saves] Restoring latest save:', latest.game, new Date(latest.timestamp));
-  updateStatus('Restoring save...');
-
-  socket.emit('restore-data', { data: latest.data });
+export function restoreLatest() {
+  console.warn('[Saves] Server-based save/restore not supported with browser ZVM');
+  console.warn('[Saves] Use in-game SAVE and RESTORE commands instead');
+  updateStatus('Use in-game RESTORE command', 'error');
 }
 
 /**
  * Restore game from specific save slot
+ * NOTE: Save/restore via server Socket.IO is disabled for browser-based ZVM.
+ * ZVM has its own native save mechanism accessible via game commands.
  * @param {number} slot - Save slot number (0-based)
- * @param {Object} socket - Socket.IO connection
  */
-export function restoreFromSlot(slot, socket) {
-  const saves = getSaves();
-
-  if (slot < 0 || slot >= saves.length) {
-    updateStatus('Invalid save slot', 'error');
-    return;
-  }
-
-  const save = saves[slot];
-
-  console.log('[Saves] Restoring slot', slot, ':', save.game, new Date(save.timestamp));
-  updateStatus('Restoring save...');
-
-  socket.emit('restore-data', { data: save.data });
+export function restoreFromSlot(slot) {
+  console.warn('[Saves] Server-based save/restore not supported with browser ZVM');
+  console.warn('[Saves] Use in-game SAVE and RESTORE commands instead');
+  updateStatus('Use in-game RESTORE command', 'error');
 }
 
 /**
  * Initialize save/restore handlers
- * @param {Object} socket - Socket.IO connection
+ * NOTE: Socket.IO save handlers removed - browser-based ZVM uses native save mechanism
  */
-export function initSaveHandlers(socket) {
-  // Listen for save data from server
-  socket.on('save-data', (saveData) => {
-    saveGame(saveData);
-  });
+export function initSaveHandlers() {
+  console.log('[Saves] Browser-based ZVM uses in-game SAVE/RESTORE commands');
+  // No initialization needed for browser-based ZVM saves
 }

@@ -166,7 +166,7 @@ export async function playWithBrowserTTS(text) {
  * @param {string|null} text - Unused (chunks come from state.narrationChunks)
  * @param {number} startFromIndex - Chunk index to start from
  */
-export async function speakTextChunked(text, startFromIndex = 0, socket) {
+export async function speakTextChunked(text, startFromIndex = 0) {
   // Check if narration is enabled at the very start
   if (!state.narrationEnabled) {
     console.log('[TTS] Narration disabled, not starting');
@@ -221,41 +221,22 @@ export async function speakTextChunked(text, startFromIndex = 0, socket) {
     const chunkText = state.narrationChunks[i];
     console.log(`[TTS] Playing chunk ${i + 1}/${totalChunks}: "${chunkText.substring(0, 50)}..."`);
 
-    // Request audio from server
-    socket.emit('speak-text', state.narrationChunks[i]);
+    // Use browser TTS directly (no server round-trip needed)
+    // Mark when this chunk started playing
+    state.currentChunkStartTime = Date.now();
+    await playWithBrowserTTS(chunkText);
 
-    // Wait for audio
-    const audioData = await new Promise((resolve) => {
-      const handler = (data) => {
-        socket.off('audio-ready', handler);
-        resolve(data);
-      };
-      socket.on('audio-ready', handler);
-    });
-
-    // Check session ID again after async wait
+    // Check session ID after playing
     if (mySessionId !== state.narrationSessionId) {
-      console.log(`[TTS] Session ${mySessionId} invalidated while waiting - stopping`);
+      console.log(`[TTS] Session ${mySessionId} invalidated after playing - stopping`);
       return;
     }
 
-    // Check if we should still play
-    if (!state.narrationEnabled || state.isPaused || state.currentChunkIndex !== i) {
-      console.log('[TTS] Cancelled - navigation changed while waiting');
+    // Check if we should still continue
+    if (!state.narrationEnabled || state.isPaused) {
+      console.log('[TTS] Cancelled - narration stopped during playback');
       removeHighlight();
       break;
-    }
-
-    if (audioData) {
-      // Mark when this chunk started playing
-      state.currentChunkStartTime = Date.now();
-      await playAudio(audioData);
-
-      // Check session ID after playing
-      if (mySessionId !== state.narrationSessionId) {
-        console.log(`[TTS] Session ${mySessionId} invalidated after playing - stopping`);
-        return;
-      }
     }
   }
 
