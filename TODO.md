@@ -110,9 +110,11 @@ I'll then:
 
 ---
 
-## Upcoming: Architecture Refactoring
+## In Progress: Architecture Refactoring
 
-**Status:** 📋 Planned - Detailed implementation plan ready
+**Status:** 🚧 Phase 1 Complete - Proceeding with full implementation
+
+**Commit:** c2bec6d - Phase 1 foundation modules created
 
 ### Goal
 Transform monolithic codebase into modular ES6 architecture:
@@ -156,7 +158,53 @@ server/
 5. **Phase 5:** UI & Game (7 modules - output, buttons, saves, loader)
 6. **Phase 6:** Main Entry (wire everything together)
 
-**Next Action:** Fix high-risk items from latest commit, then begin refactoring
+### Progress Tracker
+
+**Phase 1: Foundation** ✅ COMPLETE
+- [x] core/state.js - Centralized state (27+ variables)
+- [x] core/dom.js - DOM element cache
+- [x] utils/text-processing.js - Text transformations
+- [x] utils/pronunciation.js - Pronunciation dictionary
+- [x] utils/status.js - Status bar updates
+
+**Phase 2: Core Infrastructure** ⏳ IN PROGRESS
+- [ ] core/socket.js - Socket.IO wrapper
+- [ ] voice/echo-detection.js - Echo filtering
+- [ ] voice/voice-meter.js - Audio visualization
+
+**Phase 3: Narration System** ⏸️ PENDING
+- [ ] narration/chunking.js - Text splitting & markers
+- [ ] narration/highlighting.js - Text highlighting
+- [ ] narration/tts-player.js - Audio playback
+- [ ] narration/navigation.js - Chunk navigation
+
+**Phase 4: Voice System** ⏸️ PENDING
+- [ ] voice/voice-commands.js - Keyword parsing
+- [ ] voice/recognition.js - Speech recognition
+
+**Phase 5: UI & Game** ⏸️ PENDING
+- [ ] ui/nav-buttons.js - Navigation controls
+- [ ] ui/game-output.js - Text rendering
+- [ ] ui/settings.js - Settings panel
+- [ ] ui/history.js - Command/voice history
+- [ ] game/commands.js - Send commands
+- [ ] game/saves.js - Save/restore
+- [ ] game/game-loader.js - Game selection
+
+**Phase 6: Integration** ⏸️ PENDING
+- [ ] js/app.js - Main entry point (wire all modules)
+- [ ] Update index.html - ES6 module support
+- [ ] Delete deprecated code from old app.js
+
+**Server Refactoring** ⏸️ PENDING
+- [ ] server/core/config.js
+- [ ] server/core/app.js
+- [ ] server/game/frotz-manager.js
+- [ ] server/game/text-processor.js
+- [ ] server/ai/translator.js
+- [ ] server/ai/tts.js
+
+**Next Action:** Continue with Phases 2-6 (all at once approach)
 
 ---
 
