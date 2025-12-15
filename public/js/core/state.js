@@ -6,6 +6,9 @@
  */
 
 export const state = {
+  // Socket connection
+  socket: null,
+
   // Game state
   currentGamePath: null,
   currentGameName: null,

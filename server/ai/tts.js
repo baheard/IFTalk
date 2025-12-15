@@ -16,7 +16,6 @@ export async function generateSpeech(text, isInstruction = false) {
   try {
     const startTime = Date.now();
 
-    console.log(`[TTS] Received text (${text.length} chars)`);
 
     // Split into lines for processing
     const lines = text.split('\n');
@@ -36,7 +35,6 @@ export async function generateSpeech(text, isInstruction = false) {
 
       // Skip single artifacts
       if (trimmed.match(/^[.\)]+$/)) {
-        console.log(`[Parse] Skipping artifact: "${trimmed}"`);
         continue;
       }
 
@@ -65,11 +63,8 @@ export async function generateSpeech(text, isInstruction = false) {
 
     const cleaned = processedLines.join('. ').trim();
 
-    console.log(`[TTS] After processing: ${processedLines.length} lines kept`);
-    console.log(`[TTS] Cleaned text (${cleaned.length} chars): "${cleaned}"`);
 
     if (cleaned.length < 10) {
-      console.log('[TTS] SKIPPED - text too short (<10 chars)');
       return null;
     }
 
@@ -88,11 +83,9 @@ export async function generateSpeech(text, isInstruction = false) {
       speakText = speakText.replace(regex, pronunciation);
     }
 
-    console.log(`[TTS] >>> SPEAKING: "${speakText}"`);
 
     // If using browser TTS, return text
     if (config.voice.tts.method === 'browser') {
-      console.log('[TTS] Using browser TTS, returning text');
       return speakText;
     }
 
@@ -104,7 +97,6 @@ export async function generateSpeech(text, isInstruction = false) {
       ? (config.voice.tts.elevenlabs.instruction_voice_id || config.voice.tts.elevenlabs.voice_id)
       : config.voice.tts.elevenlabs.voice_id;
 
-    console.log(`[TTS] Generating audio (${useInstructionVoice ? 'INSTRUCTION voice' : 'normal voice'})`);
 
     const modelId = config.voice.tts.elevenlabs.model_id;
     const apiKey = process.env.ELEVENLABS_API_KEY || config.voice.tts.elevenlabs.api_key;
@@ -134,12 +126,10 @@ export async function generateSpeech(text, isInstruction = false) {
     const base64Audio = buffer.toString('base64');
 
     const totalTime = Date.now() - startTime;
-    console.log(`[TTS] Generated in ${totalTime}ms, size: ${buffer.length} bytes`);
 
     return base64Audio;
 
   } catch (error) {
-    console.error('[TTS] Error:', error);
     return null;
   }
 }

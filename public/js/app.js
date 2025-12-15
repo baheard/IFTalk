@@ -3,6 +3,7 @@
  * Main Application Entry Point
  *
  * This file wires together all modules and initializes the app.
+ * Uses browser-based ZVM + GlkOte instead of server-side Frotz.
  */
 
 // Core modules
@@ -31,13 +32,10 @@ import { sendCommand, sendCommandDirect } from './game/commands.js';
 import { initSaveHandlers, restoreLatest, restoreFromSlot } from './game/saves.js';
 import { initGameSelection } from './game/game-loader.js';
 
-// Initialize socket
-const socket = initSocket();
-
 // Voice command handlers
 const voiceCommandHandlers = {
-  restart: () => skipToStart(() => speakTextChunked(null, state.currentChunkIndex, socket)),
-  back: () => skipToChunk(-1, () => speakTextChunked(null, state.currentChunkIndex, socket)),
+  restart: () => skipToStart(() => speakTextChunked(null, state.currentChunkIndex)),
+  back: () => skipToChunk(-1, () => speakTextChunked(null, state.currentChunkIndex)),
   pause: () => {
     if (state.isNarrating) {
       state.narrationEnabled = false;
@@ -52,10 +50,10 @@ const voiceCommandHandlers = {
       state.narrationEnabled = true;
       state.isPaused = false;
       state.pendingNarrationText = null;
-      speakTextChunked(null, state.currentChunkIndex, socket);
+      speakTextChunked(null, state.currentChunkIndex);
     }
   },
-  skip: () => skipToChunk(1, () => speakTextChunked(null, state.currentChunkIndex, socket)),
+  skip: () => skipToChunk(1, () => speakTextChunked(null, state.currentChunkIndex)),
   skipToEnd: () => skipToEnd(),
   unmute: () => {
     state.isMuted = false;
@@ -81,10 +79,23 @@ const voiceCommandHandlers = {
     updateStatus('Microphone muted');
     updateNavButtons();
   },
-  sendCommandDirect: (cmd) => sendCommandDirect(cmd, socket),
-  restoreLatest: () => restoreLatest(socket),
-  restoreSlot: (slot) => restoreFromSlot(slot, socket)
+  sendCommandDirect: (cmd) => sendCommandDirect(cmd),
+  restoreLatest: () => restoreLatest(),
+  restoreSlot: (slot) => restoreFromSlot(slot)
 };
+
+// Handle game output from GlkOte
+function handleGameOutput(text) {
+  console.log('[App] Game output received:', text.substring(0, 100) + '...');
+
+  // Store for potential narration
+  state.pendingNarrationText = text;
+
+  // Auto-narrate if autoplay is enabled and talk mode is active
+  if (state.autoplayEnabled && state.talkModeActive && !state.isNarrating) {
+    speakTextChunked(text);
+  }
+}
 
 // Initialize app
 async function initApp() {
@@ -92,6 +103,9 @@ async function initApp() {
 
   // Initialize DOM
   initDOM();
+
+  // Initialize socket connection
+  state.socket = initSocket();
 
   // Load voice configuration
   await loadBrowserVoiceConfig();
@@ -101,29 +115,29 @@ async function initApp() {
   state.recognition = initVoiceRecognition(processVoice);
 
   // Make sendCommand available globally for recognition module
-  window._sendCommand = () => sendCommand(socket);
+  window._sendCommand = () => sendCommand();
 
   // Initialize UI components
   initSettings();
   initVoiceSelection();
   initHistoryButtons();
-  initSaveHandlers(socket);
+  initSaveHandlers(state.socket);
 
-  // Initialize game selection
-  initGameSelection(socket, startTalkMode);
+  // Initialize game selection with output callback
+  initGameSelection(handleGameOutput);
 
   // Navigation button handlers
   const skipToStartBtn = document.getElementById('skipToStartBtn');
   if (skipToStartBtn) {
     skipToStartBtn.addEventListener('click', () =>
-      skipToStart(() => speakTextChunked(null, state.currentChunkIndex, socket))
+      skipToStart(() => speakTextChunked(null, state.currentChunkIndex))
     );
   }
 
   const prevChunkBtn = document.getElementById('prevChunkBtn');
   if (prevChunkBtn) {
     prevChunkBtn.addEventListener('click', () =>
-      skipToChunk(-1, () => speakTextChunked(null, state.currentChunkIndex, socket))
+      skipToChunk(-1, () => speakTextChunked(null, state.currentChunkIndex))
     );
   }
 
@@ -141,7 +155,7 @@ async function initApp() {
         // Play/Resume
         state.narrationEnabled = true;
         state.isPaused = false;
-        speakTextChunked(null, state.currentChunkIndex, socket);
+        speakTextChunked(null, state.currentChunkIndex);
       }
     });
   }
@@ -149,7 +163,7 @@ async function initApp() {
   const nextChunkBtn = document.getElementById('nextChunkBtn');
   if (nextChunkBtn) {
     nextChunkBtn.addEventListener('click', () =>
-      skipToChunk(1, () => speakTextChunked(null, state.currentChunkIndex, socket))
+      skipToChunk(1, () => speakTextChunked(null, state.currentChunkIndex))
     );
   }
 
@@ -181,7 +195,7 @@ async function initApp() {
 
   // Send button
   if (dom.sendBtn) {
-    dom.sendBtn.addEventListener('click', () => sendCommand(socket));
+    dom.sendBtn.addEventListener('click', () => sendCommand());
   }
 
   // Enter key
@@ -189,7 +203,7 @@ async function initApp() {
     dom.userInput.addEventListener('keydown', (e) => {
       if (e.key === 'Enter') {
         e.preventDefault();
-        sendCommand(socket);
+        sendCommand();
       } else {
         // Any other key = manual typing
         state.hasManualTyping = true;
@@ -198,8 +212,9 @@ async function initApp() {
   }
 
   // Click on game output focuses input (but not when selecting text)
-  if (dom.gameOutput) {
-    dom.gameOutput.addEventListener('click', (e) => {
+  const gameOutput = document.querySelector('.game-output');
+  if (gameOutput) {
+    gameOutput.addEventListener('click', (e) => {
       const selection = window.getSelection();
       if (selection && selection.toString().length > 0) {
         return;
@@ -234,9 +249,9 @@ async function initApp() {
 
     // Arrow keys - navigation
     if (e.key === 'ArrowLeft') {
-      skipToChunk(-1, () => speakTextChunked(null, state.currentChunkIndex, socket));
+      skipToChunk(-1, () => speakTextChunked(null, state.currentChunkIndex));
     } else if (e.key === 'ArrowRight') {
-      skipToChunk(1, () => speakTextChunked(null, state.currentChunkIndex, socket));
+      skipToChunk(1, () => speakTextChunked(null, state.currentChunkIndex));
     }
 
     // Escape - stop talk mode
@@ -259,7 +274,7 @@ async function initApp() {
 }
 
 // Start talk mode (voice recognition + auto-narration)
-function startTalkMode() {
+window.startTalkMode = function() {
   if (state.talkModeActive) return;
 
   console.log('[Talk Mode] Starting...');
@@ -285,12 +300,12 @@ function startTalkMode() {
 
   // Auto-play initial text
   if (state.narrationChunks.length > 0 && state.autoplayEnabled) {
-    speakTextChunked(null, 0, socket);
+    speakTextChunked(null, 0);
   }
 
   updateStatus('Talk mode active');
   console.log('[Talk Mode] Started');
-}
+};
 
 // Stop talk mode
 function stopTalkMode() {
@@ -318,25 +333,6 @@ function stopTalkMode() {
   updateStatus('Talk mode stopped');
   console.log('[Talk Mode] Stopped');
 }
-
-// Socket event handlers
-socket.on('clear-screen', () => {
-  console.log('[Socket] Clear screen requested');
-  if (dom.gameOutputInner) {
-    dom.gameOutputInner.innerHTML = '';
-  }
-});
-
-socket.on('status-line', (statusLine) => {
-  console.log('[Socket] Status line:', statusLine);
-  // Could display this in UI if needed
-});
-
-socket.on('game-ended', (code) => {
-  console.log('[Socket] Game ended:', code);
-  updateStatus('Game ended');
-  stopTalkMode();
-});
 
 // Initialize when DOM is ready
 if (document.readyState === 'loading') {

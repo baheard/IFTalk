@@ -72,11 +72,9 @@ export function startGame(socketId, gamePath, onOutput, onError) {
   });
 
   gameProcess.stderr.on('data', (data) => {
-    console.error('[Game] Error:', data.toString());
   });
 
   gameProcess.on('close', (code) => {
-    console.log('[Game] Ended:', code);
     gameSessions.delete(socketId);
   });
 
@@ -137,7 +135,6 @@ export function sendCommand(socketId, command, onOutput, onError, options = {}) 
     session.pendingSaveFile = options.saveFilename;
     setTimeout(() => {
       session.process.stdin.write(options.saveFilename + '\n');
-      console.log('[Save] Sending filename to Frotz:', options.saveFilename);
     }, 200);
   }
 

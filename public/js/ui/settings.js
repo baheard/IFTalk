@@ -132,7 +132,6 @@ export function populateVoiceDropdown() {
     });
   }
 
-  console.log('[Voice Dropdown] Loaded', voices.length, 'voices');
 }
 
 /**
@@ -145,10 +144,8 @@ export async function loadBrowserVoiceConfig() {
 
     if (config.voice?.tts?.browser) {
       state.browserVoiceConfig = config.voice.tts.browser;
-      console.log('[Browser TTS] Config loaded:', state.browserVoiceConfig);
     }
   } catch (error) {
-    console.error('[Browser TTS] Failed to load config:', error);
   }
 
   // Load app voice from localStorage
@@ -156,7 +153,6 @@ export async function loadBrowserVoiceConfig() {
   if (savedAppVoice) {
     if (!state.browserVoiceConfig) state.browserVoiceConfig = {};
     state.browserVoiceConfig.appVoice = savedAppVoice;
-    console.log('[App Voice] Loaded from localStorage:', savedAppVoice);
   }
 
   // Populate dropdown after loading config
@@ -175,7 +171,6 @@ export function initVoiceSelection() {
     dom.voiceSelect.addEventListener('change', (e) => {
       if (!state.browserVoiceConfig) state.browserVoiceConfig = {};
       state.browserVoiceConfig.voice = e.target.value;
-      console.log('[Voice] Changed to:', e.target.value);
       updateStatus(`Voice changed to: ${e.target.value}`);
     });
   }
@@ -186,7 +181,6 @@ export function initVoiceSelection() {
       if (!state.browserVoiceConfig) state.browserVoiceConfig = {};
       state.browserVoiceConfig.appVoice = e.target.value;
       localStorage.setItem('appVoice', e.target.value);
-      console.log('[App Voice] Changed to:', e.target.value);
       updateStatus(`App voice changed to: ${e.target.value}`);
     });
   }
@@ -212,7 +206,6 @@ export function initVoiceSelection() {
       speechSynthesis.cancel();
       speechSynthesis.speak(utterance);
 
-      console.log('[Voice Test] Playing sample');
       updateStatus('Testing voice: ' + dom.voiceSelect.value);
     });
   }
@@ -237,7 +230,6 @@ export function initVoiceSelection() {
       speechSynthesis.cancel();
       speechSynthesis.speak(utterance);
 
-      console.log('[App Voice Test] Playing sample');
       updateStatus('Testing app voice: ' + dom.appVoiceSelect.value);
     });
   }

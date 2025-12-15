@@ -81,7 +81,6 @@ Input: "go north" -> {"command": "N", "confidence": 100, "reasoning": "Clear dir
     });
 
     const responseText = response.choices[0].message.content.trim();
-    console.log('[AI] Raw response:', responseText);
 
     // Parse JSON response
     let result;
@@ -90,7 +89,6 @@ Input: "go north" -> {"command": "N", "confidence": 100, "reasoning": "Clear dir
       const jsonText = jsonMatch ? jsonMatch[0] : responseText;
       result = JSON.parse(jsonText);
     } catch (parseError) {
-      console.warn('[AI] Failed to parse JSON:', parseError);
       result = {
         command: responseText,
         confidence: 50,
@@ -98,12 +96,10 @@ Input: "go north" -> {"command": "N", "confidence": 100, "reasoning": "Clear dir
       };
     }
 
-    console.log(`[AI] Translation: "${userInput}" -> "${result.command}" (${result.confidence}%: ${result.reasoning})`);
 
     return result;
 
   } catch (error) {
-    console.error('[AI] Translation error:', error);
     // Fallback to passing through user input
     return {
       command: userInput,

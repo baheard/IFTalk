@@ -20,7 +20,6 @@ const __dirname = path.dirname(__filename);
 const savesDir = path.join(__dirname, '../../saves');
 if (!existsSync(savesDir)) {
   mkdirSync(savesDir);
-  console.log('[Server] Created saves directory');
 }
 
 /**
@@ -44,12 +43,10 @@ export function createApp() {
 
   // Socket.IO connection handler
   io.on('connection', (socket) => {
-    console.log('[Server] Client connected:', socket.id);
 
     // Start game
     socket.on('start-game', async (gamePath) => {
       try {
-        console.log('[Game] Starting:', gamePath);
 
         startGame(
           socket.id,
@@ -57,14 +54,12 @@ export function createApp() {
           (htmlOutput, statusLine, hasClearScreen) => {
             if (hasClearScreen) {
               socket.emit('clear-screen');
-              console.log('[Game] Clear screen from ANSI code');
             }
 
             // Check for scene change
             const session = getSession(socket.id);
             if (session && statusLine && session.lastStatusLine && session.lastStatusLine !== statusLine) {
               socket.emit('clear-screen');
-              console.log('[Game] Scene change:', session.lastStatusLine, '->', statusLine);
             }
             if (session && statusLine) {
               session.lastStatusLine = statusLine;
@@ -81,7 +76,6 @@ export function createApp() {
         );
 
       } catch (error) {
-        console.error('[Game] Start error:', error);
         socket.emit('error', error.message);
       }
     });
@@ -113,13 +107,11 @@ export function createApp() {
           (htmlOutput, statusLine, hasClearScreen, pendingSaveFile) => {
             if (hasClearScreen) {
               socket.emit('clear-screen');
-              console.log('[Game] Clear screen from ANSI code');
             }
 
             // Check for scene change
             if (statusLine && session.lastStatusLine && session.lastStatusLine !== statusLine) {
               socket.emit('clear-screen');
-              console.log('[Game] Scene change:', session.lastStatusLine, '->', statusLine);
             }
             if (statusLine) {
               session.lastStatusLine = statusLine;
@@ -141,7 +133,6 @@ export function createApp() {
                     data: saveData.toString('base64'),
                     timestamp: Date.now()
                   });
-                  console.log('[Save] Sent save data:', pendingSaveFile);
                   try { unlinkSync(pendingSaveFile); } catch (e) {}
                 }
               }, 300);
@@ -154,7 +145,6 @@ export function createApp() {
         );
 
       } catch (error) {
-        console.error('[Game] Command error:', error);
         socket.emit('error', error.message);
       }
     });
@@ -173,7 +163,6 @@ export function createApp() {
         // Write save data to temp file
         tempFile = path.join(savesDir, `restore_${socket.id}_${Date.now()}.sav`);
         writeFileSync(tempFile, Buffer.from(data, 'base64'));
-        console.log('[Restore] Wrote temp file:', tempFile);
 
         // Send RESTORE command with filename
         sendCommand(
@@ -204,7 +193,6 @@ export function createApp() {
         );
 
       } catch (error) {
-        console.error('[Restore] Error:', error);
         socket.emit('error', error.message);
         if (tempFile && existsSync(tempFile)) {
           try { unlinkSync(tempFile); } catch (e) {}
@@ -220,7 +208,6 @@ export function createApp() {
 
     // Disconnect handler
     socket.on('disconnect', () => {
-      console.log('[Server] Client disconnected:', socket.id);
       killSession(socket.id);
     });
   });

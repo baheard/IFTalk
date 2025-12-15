@@ -1,23 +1,20 @@
 /**
  * Game Commands Module
  *
- * Handles sending commands to the game server and processing responses.
+ * Handles sending commands to the game using browser-based ZVM.
  */
 
-import { state, resetNarrationState } from '../core/state.js';
+import { state } from '../core/state.js';
 import { dom } from '../core/dom.js';
 import { updateStatus } from '../utils/status.js';
-import { addGameText } from '../ui/game-output.js';
 import { addToCommandHistory } from '../ui/history.js';
-import { stopNarration, speakTextChunked } from '../narration/tts-player.js';
-import { updateNavButtons } from '../ui/nav-buttons.js';
+import { sendCommandToGame } from './game-loader.js';
 
 /**
  * Send command directly to game (no AI translation)
  * @param {string} cmd - Command to send
- * @param {Object} socket - Socket.IO connection
  */
-export async function sendCommandDirect(cmd, socket) {
+export async function sendCommandDirect(cmd) {
   const input = cmd !== undefined ? cmd : (dom.userInput ? dom.userInput.value : '');
 
   // Mark that a command is being processed
@@ -32,49 +29,23 @@ export async function sendCommandDirect(cmd, socket) {
 
   updateStatus('Sending...', 'processing');
 
-  // Show command (empty shows as gray [ENTER])
-  addGameText(input, true);
-
-  // Add to command history
+  // Add to command history (show [ENTER] for empty commands)
   addToCommandHistory(input || '[ENTER]');
 
-  // Send to server
-  socket.emit('send-command', input);
+  // Send to ZVM
+  sendCommandToGame(input);
 
-  // Wait for response
-  socket.once('game-output', async (output) => {
-    if (output && output.trim()) {
-      // Stop any currently running narration
-      stopNarration();
-
-      // Reset narration for new text
-      state.pendingNarrationText = output;
-      state.narrationChunks = [];
-      state.currentChunkIndex = 0;
-      state.isPaused = false;
-
-      // Display the game output
-      addGameText(output);
-
-      // Auto-narrate if autoplay is enabled and in talk mode
-      if (state.autoplayEnabled && state.talkModeActive) {
-        state.narrationEnabled = true;
-        await speakTextChunked(null, 0, socket);
-      }
-
-      updateNavButtons();
-    }
-
+  // Reset status after a brief delay
+  setTimeout(() => {
     updateStatus('Ready');
     if (dom.userInput) dom.userInput.focus();
-  });
+  }, 100);
 }
 
 /**
  * Send command (called from Enter key or send button)
- * @param {Object} socket - Socket.IO connection
  */
-export async function sendCommand(socket) {
+export async function sendCommand() {
   const input = dom.userInput ? dom.userInput.value : '';
 
   // Mark that a command is being processed
@@ -88,5 +59,5 @@ export async function sendCommand(socket) {
   state.hasManualTyping = false;
 
   // Send directly without AI translation
-  sendCommandDirect(input || '', socket);
+  sendCommandDirect(input || '');
 }

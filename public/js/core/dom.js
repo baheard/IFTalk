@@ -159,5 +159,4 @@ function validateDOM() {
     }
   }
 
-  console.log('[DOM] All elements initialized successfully');
 }

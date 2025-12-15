@@ -16,17 +16,14 @@ export function initSocket() {
 
   // Connection events
   socket.on('connect', () => {
-    console.log('[Socket] Connected to server');
     updateStatus('Connected');
   });
 
   socket.on('disconnect', () => {
-    console.log('[Socket] Disconnected from server');
     updateStatus('Disconnected from server', 'error');
   });
 
   socket.on('error', (error) => {
-    console.error('[Socket] Error:', error);
     updateStatus('Error: ' + error, 'error');
   });
 

@@ -30,10 +30,7 @@ export function processFrotzOutput(output) {
   }).join('');
 
   const logLength = Math.min(800, output.length);
-  console.log('[Frotz RAW] (' + output.length + ' chars total):');
-  console.log(chars.substring(0, logLength));
   if (output.length > logLength) {
-    console.log('... (truncated)');
   }
 
   // Detect clear screen codes
@@ -42,7 +39,6 @@ export function processFrotzOutput(output) {
   const hasClearScreen = hasAnsiClear || hasFormFeed;
 
   if (hasClearScreen) {
-    console.log('[Frotz] Clear screen detected:', hasAnsiClear ? 'ANSI' : 'Form Feed');
   }
 
   let processedOutput = output
@@ -66,7 +62,6 @@ export function processFrotzOutput(output) {
       continue;
     } else if (line.match(/^\s{1,5}\S.{10,}\s{20,}\S/)) {
       statusLine = line.trim();
-      console.log('[Status] Detected status line:', statusLine);
       continue;
     }
 

@@ -1,5 +1,30 @@
 # IFTalk TODO
 
+## 📋 COMPREHENSIVE ARCHITECTURE REVIEW (2025-12-15)
+
+**⚠️ ACTION REQUIRED: Review architectural improvements plan**
+
+**Plan Location:** `C:\Users\bahea\.claude\plans\spicy-wandering-wall.md`
+
+**Summary**: After migrating from Frotz to browser-based ZVM, comprehensive code exploration revealed:
+- 🔴 **Critical bugs** blocking functionality (TTS/ZVM integration broken, generation counter mismatch)
+- 🟡 **Architectural debt** affecting maintainability (state management complexity, async race conditions)
+- 🟢 **Code organization** opportunities for improvement (app.js cleanup, event duplication)
+
+**Key Findings**:
+1. TTS system still expects server Socket.IO but game now runs in browser (narration completely broken)
+2. Generation counter mismatch between app and GlkOte (commands rejected)
+3. Async initialization race conditions (voice selection, socket readiness)
+4. 71+ mutable state variables with no validation or transaction safety
+5. Fragile ZVM output capture that could break if GlkOte changes format
+
+**Estimated Effort**: 5-7 days for complete implementation across 4 phases
+**Priority**: Fix critical bugs (Phase 1) first to restore narration functionality
+
+👉 **Review the full plan before proceeding with any implementation**
+
+---
+
 ## 🔴 POST-REBOOT: WSL SETUP FOR FROTZ ANSI UPGRADE
 
 **After your system restarts, follow these steps:**

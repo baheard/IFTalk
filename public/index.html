@@ -6,6 +6,20 @@
   <title>IF Talk - Voice-Powered Interactive Fiction</title>
   <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
   <link href="https://fonts.googleapis.com/css2?family=Crimson+Pro:ital,wght@0,400;0,600;1,400&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+  <!-- jQuery (required by GlkOte) -->
+  <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+
+  <!-- GlkOte display library -->
+  <script src="lib/dialog-stub.js"></script>
+  <script src="lib/glkote.js"></script>
+  <script src="lib/glkapi.js"></script>
+  <link rel="stylesheet" href="lib/glkote.css">
+  <link rel="stylesheet" href="lib/dialog.css">
+
+  <!-- ifvms ZVM interpreter -->
+  <script src="lib/zvm.js"></script>
+
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
@@ -91,29 +105,40 @@
   </div>
 
   <div class="container">
-    <div class="game-output" id="gameOutput">
-      <div class="game-output-inner" id="gameOutputInner">
-      <div class="welcome" id="welcome">
-        <h2>Welcome to IF Talk</h2>
-        <p>Play interactive fiction with voice control and AI-powered natural language commands.</p>
+    <!-- Welcome Screen -->
+    <div class="welcome" id="welcome">
+      <h2>Welcome to IF Talk</h2>
+      <p>Play interactive fiction with voice control and natural language commands.</p>
 
-        <div class="game-list">
-          <h3>Available Games:</h3>
-          <button class="game-card" data-game="Anchorhead.z8">
-            <div class="game-title">Anchorhead</div>
-            <div class="game-desc">Lovecraftian horror - Atmospheric and dark</div>
-          </button>
-          <button class="game-card" data-game="Photopia.z5">
-            <div class="game-title">Photopia</div>
-            <div class="game-desc">Award-winning story - Beautiful and emotional</div>
-          </button>
-          <button class="game-card" data-game="Dungeon.z5">
-            <div class="game-title">Dungeon (Zork)</div>
-            <div class="game-desc">Classic adventure - Treasure hunting</div>
-          </button>
-        </div>
+      <div class="game-list">
+        <h3>Available Games:</h3>
+        <button class="game-card" data-game="Anchorhead.z8">
+          <div class="game-title">Anchorhead</div>
+          <div class="game-desc">Lovecraftian horror - Atmospheric and dark</div>
+        </button>
+        <button class="game-card" data-game="Photopia.z5">
+          <div class="game-title">Photopia</div>
+          <div class="game-desc">Award-winning story - Beautiful and emotional</div>
+        </button>
+        <button class="game-card" data-game="Dungeon.z5">
+          <div class="game-title">Dungeon (Zork)</div>
+          <div class="game-desc">Classic adventure - Treasure hunting</div>
+        </button>
+        <button class="game-card" data-game="LostPig.z8">
+          <div class="game-title">Lost Pig</div>
+          <div class="game-desc">Comedy adventure - Fun and lighthearted</div>
+        </button>
       </div>
-      </div>
+    </div>
+
+    <!-- Game Output (hidden until game starts) -->
+    <div class="game-output hidden" id="gameOutput">
+      <div class="game-output-inner" id="gameOutputInner"></div>
+    </div>
+
+    <!-- GlkOte game container -->
+    <div id="gameport" class="hidden">
+      <div id="windowport"></div>
     </div>
   </div>
 
@@ -162,7 +187,6 @@
 
   <div class="status" id="status">Select a game to start</div>
 
-  <script src="/socket.io/socket.io.js"></script>
   <script type="module" src="js/app.js"></script>
 </body>
 </html>
