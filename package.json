@@ -3,10 +3,10 @@
   "version": "1.0.0",
   "description": "Voice-powered interactive fiction player with AI natural language commands",
   "type": "module",
-  "main": "server.js",
+  "main": "server/index.js",
   "scripts": {
-    "start": "node server.js",
-    "dev": "node server.js"
+    "start": "node server/index.js",
+    "dev": "node server/index.js"
   },
   "keywords": [
     "interactive-fiction",

@@ -110,11 +110,96 @@ I'll then:
 
 ---
 
-## In Progress: Architecture Refactoring
+## 🐛 ISSUE: dfrotz 2.54 Title Banner Regression
 
-**Status:** 🚧 Phase 1 Complete - Proceeding with full implementation
+**Status:** 🔴 Open - Blocking proper game display
 
-**Commit:** c2bec6d - Phase 1 foundation modules created
+**Date Discovered:** 2025-12-15
+
+### Problem
+
+**Anchorhead title banner not displaying on initial game screen.**
+
+**Expected (dfrotz 2.44 Windows):**
+```
+The oldest and strongest emotion of mankind
+is fear, and the oldest and strongest kind
+of fear is fear of the unknown.
+
+-- H.P. Lovecraft
+
+A N C H O R H E A D
+
+[Press 'R' to restore; any other key to begin]
+```
+
+**Actual (dfrotz 2.54 WSL):**
+```
+[blank lines]
+[Press 'R' to restore; any other key to begin]
+```
+
+### Root Cause
+
+dfrotz 2.54 (WSL Ubuntu version) does not display the game's title banner/splash screen, while dfrotz 2.44 (Windows version) does. This appears to be a regression in dfrotz 2.54.
+
+**Testing Results:**
+- ✅ dfrotz 2.44 (Windows): Shows full title banner with quote and game name
+- ❌ dfrotz 2.54 (WSL): Only shows blank lines before restore prompt
+- Tested with flags: `-h 999` only (same as 2.44) - still no title
+- Tested without `-q`, `-m`, `-f ansi` flags - still no title
+
+**Files:**
+- `E:\Project\IFTalk\dfrotz.exe` - Old working version (2.44)
+- WSL Ubuntu dfrotz - Current version (2.54)
+
+### Possible Solutions
+
+1. **Revert to dfrotz 2.44 (Windows)**
+   - ✅ Title banner works
+   - ❌ Loses `-q`, `-m`, `-f ansi` flags (not available in 2.44)
+   - ❌ Will show "Loading..." messages (need text processor to filter)
+
+2. **Report bug to dfrotz maintainers**
+   - File issue at https://gitlab.com/DavidGriffith/frotz
+   - Wait for fix in future version
+   - May take weeks/months
+
+3. **Find workaround in dfrotz 2.54**
+   - Test different flag combinations
+   - Check if Z8 games have special banner requirements
+   - Try different terminal settings
+
+4. **Client-side title injection** (REJECTED by user)
+   - Add custom title in `game-loader.js`
+   - Not acceptable - should come from game
+
+### Current Configuration
+
+**config.json:**
+```json
+"interpreter": "wsl",
+"interpreterArgs": ["-d", "Ubuntu", "-u", "root", "--", "dfrotz", "-m", "-f", "ansi", "-h", "999"]
+```
+
+**Changes Made (2025-12-15):**
+- Removed `-q` flag to try to show banner
+- Added Frotz message filtering in `text-processor.js` to handle "Using ANSI formatting" and "Loading" messages
+
+### Next Steps
+
+1. Test other IF games (Zork, Photopia) to see if title banners work in 2.54
+2. Check dfrotz 2.54 release notes for known issues
+3. Try different Z-machine file versions of Anchorhead
+4. Consider hybrid approach: use 2.44 for games with banners, 2.54 for others
+
+---
+
+## ✅ COMPLETED: Architecture Refactoring
+
+**Status:** ✅ All phases complete - Fully refactored to modular ES6 architecture
+
+**Date Completed:** 2025-12-15
 
 ### Goal
 Transform monolithic codebase into modular ES6 architecture:
@@ -167,44 +252,49 @@ server/
 - [x] utils/pronunciation.js - Pronunciation dictionary
 - [x] utils/status.js - Status bar updates
 
-**Phase 2: Core Infrastructure** ⏳ IN PROGRESS
-- [ ] core/socket.js - Socket.IO wrapper
-- [ ] voice/echo-detection.js - Echo filtering
-- [ ] voice/voice-meter.js - Audio visualization
+**Phase 2: Core Infrastructure** ✅ COMPLETE
+- [x] core/socket.js - Socket.IO wrapper
+- [x] voice/echo-detection.js - Echo filtering
+- [x] voice/voice-meter.js - Audio visualization
 
-**Phase 3: Narration System** ⏸️ PENDING
-- [ ] narration/chunking.js - Text splitting & markers
-- [ ] narration/highlighting.js - Text highlighting
-- [ ] narration/tts-player.js - Audio playback
-- [ ] narration/navigation.js - Chunk navigation
+**Phase 3: Narration System** ✅ COMPLETE
+- [x] narration/chunking.js - Text splitting & markers
+- [x] narration/highlighting.js - Text highlighting
+- [x] narration/tts-player.js - Audio playback
+- [x] narration/navigation.js - Chunk navigation
 
-**Phase 4: Voice System** ⏸️ PENDING
-- [ ] voice/voice-commands.js - Keyword parsing
-- [ ] voice/recognition.js - Speech recognition
+**Phase 4: Voice System** ✅ COMPLETE
+- [x] voice/voice-commands.js - Keyword parsing
+- [x] voice/recognition.js - Speech recognition
 
-**Phase 5: UI & Game** ⏸️ PENDING
-- [ ] ui/nav-buttons.js - Navigation controls
-- [ ] ui/game-output.js - Text rendering
-- [ ] ui/settings.js - Settings panel
-- [ ] ui/history.js - Command/voice history
-- [ ] game/commands.js - Send commands
-- [ ] game/saves.js - Save/restore
-- [ ] game/game-loader.js - Game selection
+**Phase 5: UI & Game** ✅ COMPLETE
+- [x] ui/nav-buttons.js - Navigation controls
+- [x] ui/game-output.js - Text rendering
+- [x] ui/settings.js - Settings panel
+- [x] ui/history.js - Command/voice history
+- [x] game/commands.js - Send commands
+- [x] game/saves.js - Save/restore
+- [x] game/game-loader.js - Game selection
 
-**Phase 6: Integration** ⏸️ PENDING
-- [ ] js/app.js - Main entry point (wire all modules)
-- [ ] Update index.html - ES6 module support
-- [ ] Delete deprecated code from old app.js
+**Phase 6: Integration** ✅ COMPLETE
+- [x] js/app.js - Main entry point (wire all modules)
+- [x] Update index.html - ES6 module support
+- [x] Backup old app.js and server.js
 
-**Server Refactoring** ⏸️ PENDING
-- [ ] server/core/config.js
-- [ ] server/core/app.js
-- [ ] server/game/frotz-manager.js
-- [ ] server/game/text-processor.js
-- [ ] server/ai/translator.js
-- [ ] server/ai/tts.js
+**Server Refactoring** ✅ COMPLETE
+- [x] server/core/config.js
+- [x] server/core/app.js
+- [x] server/game/frotz-manager.js
+- [x] server/game/text-processor.js
+- [x] server/ai/translator.js
+- [x] server/ai/tts.js
+- [x] server/index.js - Entry point
+- [x] Update package.json
 
-**Next Action:** Continue with Phases 2-6 (all at once approach)
+**Testing** ✅ COMPLETE
+- [x] Server starts successfully
+- [x] All modules load without errors
+- [x] Socket.IO connections work
 
 ---
 

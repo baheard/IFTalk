@@ -48,3 +48,7 @@ eng.traineddata
 
 # Windows artifacts
 nul
+
+# Backup files
+*.backup
+*.tar

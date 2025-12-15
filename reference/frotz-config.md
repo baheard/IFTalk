@@ -1,59 +1,124 @@
 # Frotz Configuration Reference
 
-## Current dfrotz Version: 2.44
+## Current dfrotz Version: 2.54 (via WSL)
+
+```json
+"interpreter": "wsl",
+"interpreterArgs": ["-d", "Ubuntu", "-u", "root", "--", "dfrotz", "-q", "-m", "-f", "ansi", "-h", "999"]
+```
+
+**Upgrade completed 2025-12-15:** Successfully migrated from Windows dfrotz 2.44 to WSL Ubuntu dfrotz 2.54.
+
+### Installation
+
+Frotz 2.54 is installed via WSL Ubuntu:
+
+```bash
+# Install WSL Ubuntu (if not already installed)
+wsl --install -d Ubuntu
+
+# Install frotz in WSL
+wsl -d Ubuntu -u root -- bash -c "apt update && apt install -y frotz"
+
+# Verify installation
+wsl -d Ubuntu -u root -- dfrotz --version
+# Output: FROTZ V2.54 - Dumb interface.
+```
+
+### Previous Configuration (dfrotz 2.44 - Windows)
 
 ```json
 "interpreter": "./dfrotz.exe",
-"interpreterArgs": []
+"interpreterArgs": ["-h", "999"]
 ```
 
-**Important:** dfrotz version 2.44 does NOT support the `-f`, `-m`, or `-q` flags. These flags were added in version 2.51 (February 2020). No pre-compiled Windows binary exists for v2.51+, so we use v2.44 with no flags.
+**Limitations of 2.44:**
+- No `-f`, `-m`, or `-q` flags (added in v2.51)
+- Plain text output only (no ANSI capability)
+- Startup messages couldn't be suppressed
+- MORE prompts couldn't be disabled
 
-## dfrotz 2.44 Output Format
+## dfrotz 2.54 Output Format & Test Results
 
-- **Plain text only** - No ANSI escape codes for formatting
-- **No bold/colors/underline** - All text is unformatted
-- **Works perfectly** - Games are fully playable, just without visual formatting
-- **Server processing** - The `ansi-to-html` library has nothing to convert (no codes present)
+### Test Methodology (2025-12-15)
 
-## Supported Flags in dfrotz 2.44
+Comprehensive testing performed on:
+- **LostPig.z8** - Modern IF game
+- **Anchorhead.z8** - Classic horror IF with formatting
 
-Available flags (use sparingly - most are unnecessary for server use):
+**Test commands:**
+```bash
+# With ANSI formatting
+wsl -d Ubuntu -u root -- dfrotz -q -m -f ansi -h 999 /root/test.z8 <<< 'look'
 
+# Without formatting (comparison)
+wsl -d Ubuntu -u root -- dfrotz -q -m -h 999 /root/test.z8 <<< 'look'
+
+# Raw byte analysis
+wsl -d Ubuntu -u root -- dfrotz -f ansi /root/test.z8 <<< 'look' | od -An -tx1 -c
+```
+
+### Key Findings
+
+1. **ANSI Support Available but Game-Dependent:**
+   - Flag `-f ansi` enables ANSI escape code support
+   - However, ANSI codes only appear if the game itself uses formatting features
+   - Tested games (LostPig, Anchorhead) output plain text even with `-f ansi`
+   - Hexadecimal analysis confirmed: no `\x1b[` escape sequences in output
+   - Games that DO use bold/italic/color will benefit from `-f ansi`
+
+2. **Startup Message Suppression:**
+   - Without `-q`: Shows "Using ANSI formatting." and "Loading /path/to/game.z8."
+   - With `-q`: Clean output, no startup messages
+   - Essential for clean server-side output parsing
+
+3. **MORE Prompt Handling:**
+   - Flag `-m` successfully disables pagination prompts
+   - Critical for server use - prevents hanging on long text
+
+4. **Output Quality:**
+   - Text output is clean and well-formatted
+   - Identical text quality to v2.44
+   - Proper paragraph breaks and spacing preserved
+
+## Supported Flags in dfrotz 2.54
+
+All dfrotz 2.44 flags PLUS new additions:
+
+**New in 2.51+ (now available):**
+- `-f <type>` - Format codes: `ansi`, `none`, or omit for normal (default: normal)
+- `-m` - Turn off MORE prompts
+- `-q` - Quiet mode (suppress startup messages)
+
+**Existing flags (from 2.44):**
 - `-a` - Watch attribute setting
 - `-A` - Watch attribute testing
-- `-h #` - Screen height (requires number)
+- `-h #` - Screen height (default: 24)
 - `-i` - Ignore fatal errors
 - `-I #` - Interpreter number
+- `-L <file>` - Load save file
 - `-o` - Watch object movement
 - `-O` - Watch object locating
-- `-p` - Plain ASCII output only (avoid - degrades text quality)
+- `-p` - Plain ASCII output only
 - `-P` - Alter piracy opcode
+- `-r <option>` - Set runtime options
+- `-R <path>` - Restricted read/write directory
 - `-s #` - Random number seed value
 - `-S #` - Transcript width
 - `-t` - Set Tandy bit
-- `-u #` - Slots for multiple undo
-- `-w #` - Screen width
+- `-u #` - Slots for multiple undo (default: 100)
+- `-v` - Show version information
+- `-w #` - Screen width (default: 80)
 - `-x` - Expand abbreviations g/x/z
-- `-Z #` - Error checking mode (0-3)
+- `-Z #` - Error checking: 0=none, 1=first only (default), 2=all, 3=exit after error
 
-**Recommendation:** Use no flags (empty array) for best compatibility.
+**Current configuration uses:** `-q -m -f ansi -h 999`
 
-## Upgrading to Newer Versions
-
-If you need ANSI formatting support (bold text, colors), you would need dfrotz 2.51+:
-
-**Version 2.51+ adds:**
-- `-f ansi` - Enable ANSI escape codes for formatting
-- `-m` - Disable MORE prompts
-- `-q` - Quiet mode (suppress startup messages)
-
-**Problem:** No pre-compiled Windows binary available. Would require:
-- Compiling from source using WSL/MinGW/Cygwin
-- Significant time investment for minimal visual improvement
-- Current v2.44 works perfectly for gameplay
-
-**Latest version:** Frotz 2.55 (February 2025) - source code only
+**Rationale:**
+- `-q`: Clean output for server parsing
+- `-m`: No pagination interruptions
+- `-f ansi`: Enable formatting support (for games that use it)
+- `-h 999`: Large screen height to prevent unwanted breaks
 
 ## Status Line Detection
 

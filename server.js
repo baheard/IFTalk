@@ -3,7 +3,6 @@ import { createServer } from 'http';
 import { Server } from 'socket.io';
 import { spawn } from 'child_process';
 import { readFileSync, writeFileSync, existsSync, mkdirSync, unlinkSync } from 'fs';
-import OpenAI from 'openai';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import Convert from 'ansi-to-html';
@@ -41,26 +40,9 @@ app.use(express.static('public'));
 // API endpoint to get config (for client-side voice settings)
 app.get('/api/config', (req, res) => {
   res.json({
-    voice: config.voice,
-    provider: config.provider
+    voice: config.voice
   });
 });
-
-// Initialize AI provider
-const providerConfig = config.providers[config.provider];
-const apiKey = providerConfig.apiKeyEnv
-  ? process.env[providerConfig.apiKeyEnv] || 'dummy-key'
-  : 'not-needed';
-
-const ai = new OpenAI({
-  baseURL: config.baseURL || providerConfig.baseURL,
-  apiKey: apiKey,
-  defaultHeaders: config.provider === 'claude' ? {
-    'anthropic-version': '2023-06-01'
-  } : {}
-});
-
-const model = config.model || providerConfig.model;
 
 // Game sessions (one per socket connection)
 const gameSessions = new Map();
@@ -453,103 +435,6 @@ io.on('connection', (socket) => {
     }
   });
 
-  // Translate natural language to IF command
-  socket.on('translate-command', async (userInput) => {
-    try {
-      const session = gameSessions.get(socket.id);
-      const context = session?.lastOutput || '';
-
-      // Build context hint from last room description
-      let contextHint = '';
-      if (context) {
-        // Extract first 600 chars (usually contains room description and exits)
-        const roomContext = context.substring(0, 600);
-        contextHint = `\n\nCurrent room description:\n${roomContext}\n\nIMPORTANT: Read the room description carefully to find correct directions and object names!`;
-      }
-
-      const messages = [
-        {
-          role: 'system',
-          content: `You are a command translator for interactive fiction games. Convert natural language to valid IF commands.
-
-Rules:
-- Return a JSON object with: {"command": "THE_COMMAND", "confidence": 0-100, "reasoning": "brief explanation"}
-- CAREFULLY read the room description to understand available exits and objects
-- ONLY use objects and directions that are explicitly mentioned in the room description
-- Common directions: N, S, E, W, NE, NW, SE, SW, U (up), D (down), IN, OUT
-- Common actions: LOOK, EXAMINE [object], TAKE [object], DROP [object], INVENTORY (or I), OPEN [object], CLOSE [object]
-- IMPORTANT: "press enter", "next", "continue" -> empty string "" (just pressing Enter)
-- IMPORTANT: Don't invent objects or locations that aren't visible in the room
-- IMPORTANT: If user says "look at [object]" or "examine [object]", preserve the object in the command (e.g., "EXAMINE ALLEY" or "LOOK AT ALLEY", NOT just "LOOK")
-- Only use "LOOK" alone when user doesn't specify an object (e.g., "look around")
-
-Confidence levels:
-- 90-100: Clear, unambiguous command OR standard action
-- 70-89: Reasonable interpretation with explicit room context
-- 50-69: Uncertain, guessing at meaning
-- Below 50: Unclear input, probably wrong
-
-Examples:
-Input: "look around" -> {"command": "LOOK", "confidence": 100, "reasoning": "Standard look command"}
-Input: "look at alley" -> {"command": "EXAMINE ALLEY", "confidence": 100, "reasoning": "User specified object to examine"}
-Input: "look at the door" -> {"command": "EXAMINE DOOR", "confidence": 100, "reasoning": "User specified object to examine"}
-Input: "examine sword" -> {"command": "EXAMINE SWORD", "confidence": 100, "reasoning": "Direct examine command"}
-Input: "press enter" -> {"command": "", "confidence": 100, "reasoning": "User wants to press Enter"}
-Input: "next" -> {"command": "", "confidence": 100, "reasoning": "Continue/next means press Enter"}
-Input: "go north" -> {"command": "N", "confidence": 100, "reasoning": "Clear direction"}
-Input: "check inventory" -> {"command": "INVENTORY", "confidence": 100, "reasoning": "Standard inventory command"}
-Input: "go to the alley" (room says "alley to the southeast") -> {"command": "SE", "confidence": 95, "reasoning": "Room shows alley is southeast"}
-Input: "go to the store" (no store mentioned) -> {"command": "LOOK", "confidence": 30, "reasoning": "No store visible, suggesting look around"}
-Input: "examine the blue orb" (orb not in room) -> {"command": "LOOK", "confidence": 25, "reasoning": "Object not visible, suggesting look"}`
-        },
-        {
-          role: 'user',
-          content: `User input: "${userInput}"${contextHint}\n\nTranslate to IF command (return JSON):`
-        }
-      ];
-
-      const response = await ai.chat.completions.create({
-        model: model,
-        messages: messages,
-        temperature: 0.1,  // Lower for more deterministic translations
-        max_tokens: 100
-      });
-
-      const responseText = response.choices[0].message.content.trim();
-      console.log('[AI] Raw response:', responseText);
-
-      // Parse JSON response
-      let result;
-      try {
-        // Try to extract JSON from response (in case AI wraps it in markdown)
-        const jsonMatch = responseText.match(/\{[\s\S]*\}/);
-        const jsonText = jsonMatch ? jsonMatch[0] : responseText;
-        result = JSON.parse(jsonText);
-      } catch (parseError) {
-        // Fallback if JSON parsing fails
-        console.warn('[AI] Failed to parse JSON, using fallback:', parseError);
-        result = {
-          command: responseText,
-          confidence: 50,
-          reasoning: 'AI did not return valid JSON'
-        };
-      }
-
-      console.log(`[AI] Translation: "${userInput}" -> "${result.command}" (${result.confidence}% confident: ${result.reasoning})`);
-
-      // Send result with confidence info
-      socket.emit('command-translated', result);
-
-    } catch (error) {
-      console.error('[AI] Translation error:', error);
-      // Fallback to passing through user input
-      socket.emit('command-translated', {
-        command: userInput,
-        confidence: 100,
-        reasoning: 'AI translation failed, using raw input'
-      });
-    }
-  });
 
   // Generate TTS audio (with optional voice override for special text)
   socket.on('speak-text', async (data) => {
@@ -638,54 +523,9 @@ Input: "examine the blue orb" (orb not in room) -> {"command": "LOOK", "confiden
 
       console.log(`[TTS] >>> SPEAKING: "${speakText}"`);
 
-      // If using browser TTS, just return the text (client will speak it)
-      if (config.voice.tts.method === 'browser') {
-        console.log('[TTS] Using browser TTS, returning text');
-        socket.emit('audio-ready', speakText);  // Send text instead of audio
-        return;
-      }
-
-      // ElevenLabs TTS - Use different voice for instructions in brackets
-      const hasInstructions = cleaned.match(/\[.*\]/);
-      const useInstructionVoice = hasInstructions || isInstruction;
-
-      const voiceId = useInstructionVoice
-        ? (config.voice.tts.elevenlabs.instruction_voice_id || config.voice.tts.elevenlabs.voice_id)
-        : config.voice.tts.elevenlabs.voice_id;
-
-      console.log(`[TTS] Generating audio for ${speakText.length} chars (${useInstructionVoice ? 'INSTRUCTION voice' : 'normal voice'})`);
-
-      const modelId = config.voice.tts.elevenlabs.model_id;
-      const apiKey = process.env.ELEVENLABS_API_KEY || config.voice.tts.elevenlabs.api_key;
-
-      const response = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`, {
-        method: 'POST',
-        headers: {
-          'Accept': 'audio/mpeg',
-          'Content-Type': 'application/json',
-          'xi-api-key': apiKey
-        },
-        body: JSON.stringify({
-          text: speakText,
-          model_id: modelId,
-          voice_settings: {
-            stability: config.voice.tts.elevenlabs.stability || 0.5,
-            similarity_boost: config.voice.tts.elevenlabs.similarity_boost || 0.75
-          }
-        })
-      });
-
-      if (!response.ok) {
-        throw new Error(`ElevenLabs error: ${response.statusText}`);
-      }
-
-      const buffer = Buffer.from(await response.arrayBuffer());
-      const base64Audio = buffer.toString('base64');
-
-      const totalTime = Date.now() - startTime;
-      console.log(`[TTS] Generated in ${totalTime}ms, audio size: ${buffer.length} bytes`);
-
-      socket.emit('audio-ready', base64Audio);
+      // Browser TTS only - return the text (client will speak it)
+      console.log('[TTS] Using browser TTS, returning text');
+      socket.emit('audio-ready', speakText);
 
     } catch (error) {
       console.error('[TTS] Error:', error);
@@ -734,7 +574,7 @@ httpServer.listen(PORT, async () => {
   console.log(`   This computer:  http://localhost:${PORT}`);
   console.log(`   Your phone:     http://${localIP}:${PORT}`);
   console.log(`   (Make sure phone is on same WiFi)\n`);
-  console.log(`🤖 AI Provider: ${config.provider} (${model})`);
   console.log(`🔊 Voice: ${config.voice.enabled ? 'Enabled' : 'Disabled'}`);
+  console.log(`🎮 Frotz: ${config.interpreter} ${config.interpreterArgs.join(' ')}`);
   console.log(`\nPress Ctrl+C to stop\n`);
 });
