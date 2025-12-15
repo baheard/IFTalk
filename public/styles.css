@@ -837,7 +837,7 @@ body {
   text-overflow: ellipsis;
 }
 
-.last-heard:empty::before {
+.voice-panel:not(.muted) .last-heard:empty::before {
   content: 'Say something...';
   color: var(--text-muted);
   font-style: italic;
@@ -1185,21 +1185,39 @@ body {
   margin-bottom: 4px;
 }
 
-.voice-indicator {
-  width: 8px;
-  height: 8px;
+/* Mute indicator button in voice feedback */
+.btn-mute-indicator {
+  padding: 4px;
+  min-width: auto;
+  width: 28px;
+  height: 28px;
   border-radius: 50%;
-  background: #d97706;  /* Orange - listening (default) */
+  background: #22c55e;  /* Green - active/unmuted */
+  border: 1px solid #16a34a;
+  color: white;
   flex-shrink: 0;
-  transition: background 0.1s ease;
+  transition: all 0.2s ease;
 }
 
-.voice-indicator.muted {
-  background: #dc2626;  /* Red - muted */
+.btn-mute-indicator:hover {
+  background: #16a34a;
+  transform: scale(1.05);
 }
 
-.voice-indicator.active {
-  background: #22c55e;  /* Green - receiving sound */
+.btn-mute-indicator.muted {
+  background: var(--bg-elevated);
+  border-color: var(--border);
+  color: var(--text-muted);
+}
+
+.btn-mute-indicator.muted:hover {
+  background: var(--bg-hover);
+}
+
+.btn-mute-indicator.active {
+  background: #4ade80;  /* Bright green - receiving sound */
+  border-color: #22c55e;
+  box-shadow: 0 0 8px rgba(74, 222, 128, 0.5);
 }
 
 .voice-transcript-container {

@@ -15,7 +15,6 @@ const voiceSelect = document.getElementById('voiceSelect');
 const appVoiceSelect = document.getElementById('appVoiceSelect');
 const testAppVoiceBtn = document.getElementById('testAppVoiceBtn');
 const voiceFeedback = document.getElementById('voiceFeedback');
-const voiceIndicator = document.getElementById('voiceIndicator');
 const voiceTranscript = document.getElementById('voiceTranscript');
 const voicePanel = document.querySelector('.voice-panel');
 const lastHeard = document.getElementById('lastHeard');
@@ -60,7 +59,8 @@ let pausedForSound = false;  // Track if narration was paused due to sound detec
 let soundPauseTimeout = null;  // Timeout to resume after silence
 let currentGameTextElement = null;  // Track the current game-text element for highlighting
 let pendingCommandProcessed = false;  // Track if a command was processed during sound pause
-const SOUND_THRESHOLD = 30;  // Audio level threshold (0-100) to trigger pause
+let narrationSessionId = 0;  // Unique ID for each narration session - used to kill old async loops
+const SOUND_THRESHOLD = 60;  // Audio level threshold (0-100) to trigger pause
 const SILENCE_DELAY = 800;  // ms of silence before resuming narration
 
 // Echo detection - recently spoken TTS text for fingerprinting
@@ -368,7 +368,7 @@ function processVoiceKeywords(transcript) {
       const icon = muteBtn.querySelector('.material-icons');
       if (icon) icon.textContent = 'mic';
       muteBtn.classList.remove('muted');
-      voiceIndicator.classList.remove('muted');
+      voicePanel.classList.remove('muted');
       voiceFeedback.classList.remove('hidden');
       voiceTranscript.textContent = 'Listening...';
       startVoiceMeter();
@@ -426,19 +426,13 @@ function processVoiceKeywords(transcript) {
   if (lower === 'play') {
     console.log('[Voice Command] PLAY - resume/start');
     markCommandProcessed();
-    if (!narrationEnabled && (isPaused || pendingNarrationText || narrationChunks.length > 0)) {
+    if (!narrationEnabled && (isPaused || narrationChunks.length > 0)) {
       narrationEnabled = true;
       isPaused = false;
+      pendingNarrationText = null;  // Clear pending flag
 
-      if (narrationChunks.length > 0) {
-        // Resume from current position
-        speakTextChunked(null, currentChunkIndex);
-      } else if (pendingNarrationText) {
-        // Start new narration (create chunks first if not already created)
-        createNarrationChunks(pendingNarrationText);
-        pendingNarrationText = null;
-        speakTextChunked(null, 0);
-      }
+      // Resume from current position (chunks already created by addGameText)
+      speakTextChunked(null, currentChunkIndex);
     }
     return false;
   }
@@ -595,10 +589,43 @@ function addGameText(text, isCommand = false) {
   } else {
     div.className = 'game-text';
 
-    // Insert sentence markers into HTML BEFORE rendering
-    // This preserves original text structure and enables highlighting
-    const markedHTML = insertSentenceMarkersInHTML(text);
+    // IMPORTANT: Stop any active narration before replacing chunks
+    // This prevents race conditions when new text arrives mid-narration
+    if (isNarrating) {
+      console.log('[TTS] New text arriving - stopping current narration');
+      stopNarration();
+      currentChunkIndex = 0;
+      currentChunkStartTime = 0;
+    }
+
+    // TEMPORARY MARKER SYSTEM (System 1)
+    // Step 1: Insert temporary markers (⚐N⚐) at all potential chunk boundaries
+    const markedHTML = insertTemporaryMarkers(text);
+
+    // Step 2: Set HTML with markers
     div.innerHTML = markedHTML;
+
+    // Step 3: Create narration chunks and extract which markers survived
+    const chunksWithMarkers = createNarrationChunks(markedHTML);
+    narrationChunks = chunksWithMarkers.map(c => c.text);
+    const survivingMarkerIDs = chunksWithMarkers.map(c => c.markerID).filter(id => id !== null);
+    console.log('[TTS] Created', narrationChunks.length, 'chunks for narration');
+
+    // Step 4: Replace surviving temp markers with real DOM span elements
+    insertRealMarkersAtIDs(div, survivingMarkerIDs);
+
+    // Step 5: Insert start marker for chunk 0 at the very beginning
+    if (div.firstChild) {
+      const startMarker = document.createElement('span');
+      startMarker.className = 'chunk-marker-start';
+      startMarker.dataset.chunk = 0;
+      startMarker.style.cssText = 'display: none; position: absolute;';
+      div.insertBefore(startMarker, div.firstChild);
+      console.log('[Markers] Inserted start marker for chunk 0 at beginning');
+    }
+
+    // Step 6: Clean up any remaining temporary markers
+    removeTemporaryMarkers(div, narrationChunks);
   }
 
   gameOutputInner.appendChild(div);
@@ -623,7 +650,13 @@ function escapeHtml(text) {
 }
 
 // Stop narration (for "Skip" command or internal use)
-function stopNarration() {
+// preserveHighlight: if true, don't remove highlighting (for pause)
+function stopNarration(preserveHighlight = false) {
+  // CRITICAL: Increment session ID to invalidate ALL old async loops
+  // This kills any running speakTextChunked() loops immediately
+  narrationSessionId++;
+  console.log('[TTS] Stopping narration - new session ID:', narrationSessionId);
+
   // Cancel browser TTS if active
   if ('speechSynthesis' in window) {
     speechSynthesis.cancel();
@@ -647,8 +680,10 @@ function stopNarration() {
     updateStatus('Ready');
   }
 
-  // Remove any highlighting
-  removeHighlight();
+  // Remove highlighting unless we're preserving it (for pause)
+  if (!preserveHighlight) {
+    removeHighlight();
+  }
 }
 
 // CSS Custom Highlight API - find text range without modifying DOM
@@ -711,8 +746,13 @@ function findTextRange(container, searchText) {
 
   const matchIndex = lowerFullText.indexOf(lowerSearchText);
   if (matchIndex === -1) {
-    console.log('[Highlight] Text not found. Searching for:', lowerSearchText.substring(0, 50));
-    console.log('[Highlight] In text:', lowerFullText.substring(0, 200));
+    console.log('[Highlight] Text not found!');
+    console.log('[Highlight] Searching for:', lowerSearchText);
+    console.log('[Highlight] Search length:', lowerSearchText.length);
+    console.log('[Highlight] In text:', lowerFullText);
+    console.log('[Highlight] Text length:', lowerFullText.length);
+    console.log('[Highlight] First 100 chars of search:', lowerSearchText.substring(0, 100));
+    console.log('[Highlight] First 100 chars of text:', lowerFullText.substring(0, 100));
     return null;
   }
 
@@ -800,12 +840,35 @@ function highlightUsingMarkers(chunkIndex) {
   // Remove previous highlight
   removeHighlight();
 
-  // Find markers for this chunk
-  const startMarker = document.querySelector(`.chunk-marker-start[data-chunk="${chunkIndex}"]`);
-  const endMarker = document.querySelector(`.chunk-marker-end[data-chunk="${chunkIndex}"]`);
+  // Make sure we have a current game text element to search within
+  if (!currentGameTextElement) {
+    console.warn(`[Highlight] No currentGameTextElement - cannot highlight`);
+    return false;
+  }
 
-  if (!startMarker || !endMarker) {
-    console.warn(`[Highlight] No markers found for chunk ${chunkIndex}`);
+  // System 1 markers: chunk-marker-start and chunk-marker-end
+  // Both have data-chunk="${chunkIndex}" for the same chunk
+  const startSelector = `.chunk-marker-start[data-chunk="${chunkIndex}"]`;
+  const endSelector = `.chunk-marker-end[data-chunk="${chunkIndex}"]`;
+
+  console.log(`[Highlight] Looking for chunk ${chunkIndex}: start="${startSelector}", end="${endSelector}"`);
+
+  const startMarker = currentGameTextElement.querySelector(startSelector);
+  const endMarker = currentGameTextElement.querySelector(endSelector);
+
+  console.log(`[Highlight] Found: startMarker=${!!startMarker}, endMarker=${!!endMarker}`);
+
+  if (!startMarker) {
+    console.warn(`[Highlight] No start marker found for chunk ${chunkIndex}`);
+    // Debug: Show what markers exist in the current text element
+    const allMarkers = currentGameTextElement.querySelectorAll('.chunk-marker-start, .chunk-marker-end');
+    console.log(`[Highlight] Available markers in current text:`, Array.from(allMarkers).map(m => `${m.className}[${m.dataset.chunk}]`));
+    return false;
+  }
+
+  // For the last chunk, there's no end marker - highlight to end of container
+  if (!endMarker && chunkIndex < narrationChunks.length - 1) {
+    console.warn(`[Highlight] No end marker found for chunk ${chunkIndex} (expected)`);
     return false;
   }
 
@@ -813,13 +876,21 @@ function highlightUsingMarkers(chunkIndex) {
     // Create range between markers
     const range = new Range();
     range.setStartAfter(startMarker);
-    range.setEndBefore(endMarker);
+
+    if (endMarker) {
+      range.setEndBefore(endMarker);
+    } else {
+      // Last chunk: highlight to end of the current game text element
+      if (currentGameTextElement && currentGameTextElement.lastChild) {
+        range.setEndAfter(currentGameTextElement.lastChild);
+      }
+    }
 
     // Apply CSS Highlight API
     const highlight = new Highlight(range);
     CSS.highlights.set('speaking', highlight);
 
-    console.log(`[Highlight] Applied highlight for chunk ${chunkIndex}`);
+    console.log(`[Highlight] Applied highlight for chunk ${chunkIndex} (start: ${startMarker.dataset.chunk}, end: ${endMarker ? endMarker.dataset.chunk : 'EOF'})`);
     return true;
   } catch (e) {
     console.warn(`[Highlight] Failed to highlight chunk ${chunkIndex}:`, e);
@@ -1196,14 +1267,397 @@ function processTextForTTS(text) {
 function splitIntoSentences(processedText) {
   if (!processedText) return [];
 
+  // Split after markers OR after punctuation (when no marker present)
+  // Pattern 1: Split after marker+space → keeps marker in chunk
+  // Pattern 2: Split after punctuation+space when NOT followed by marker
   const chunks = processedText
-    .split(/(?<=[.!?])\s+/)  // Split after sentence-ending punctuation
+    .split(/(?<=⚐\d+⚐)\s+|(?<=[.!?])(?!⚐)\s+/)
     .map(chunk => chunk.trim())
     .filter(chunk => chunk.length > 0);
 
   // If no chunks found, use whole text
   return chunks.length > 0 ? chunks : [processedText];
 }
+
+// ===== TEMPORARY MARKER SYSTEM =====
+// Insert temp markers, let chunk creation determine which survive, then insert real DOM markers
+
+// Step 1: Insert temporary markers BEFORE EVERY delimiter in HTML
+function insertTemporaryMarkers(html) {
+  if (!html) return html;
+
+  console.log('[Markers] Original HTML (full):', html);
+
+  let markerCount = 0;
+  const insertPositions = [];
+
+  // Insert markers BEFORE ALL sentence-ending punctuation AND before paragraph breaks
+  let markedHTML = html;
+
+  // First, mark paragraph breaks (<br><br>) since they become ". " during processing
+  markedHTML = markedHTML.replace(/<br\s*\/?>\s*<br\s*\/?>/gi, (match, offset) => {
+    insertPositions.push({ offset, punct: '<br><br>', after: '→', context: 'paragraph break' });
+    const marker = `⚐${markerCount}⚐`;
+    markerCount++;
+    return marker + match;  // Marker BEFORE <br><br> (don't include line breaks in highlight)
+  });
+
+  // Then, mark regular punctuation followed by space/tag/end
+  // BUT skip periods that are part of single-letter initials (H.P., U.S., etc.)
+  // Use negative lookbehind to exclude periods preceded by uppercase letters
+  markedHTML = markedHTML.replace(/(?<![A-Z])([.!?])(?=\s|<|$)/g, (match, punct, offset) => {
+    insertPositions.push({ offset, punct, after: html.charAt(offset + 1) });
+    const marker = `⚐${markerCount}⚐`;
+    markerCount++;
+    return punct + marker;  // Marker AFTER punctuation
+  });
+
+  console.log('[Markers] Found', insertPositions.length, 'delimiters:');
+  insertPositions.forEach((pos, i) => {
+    const context = html.substring(Math.max(0, pos.offset - 20), Math.min(html.length, pos.offset + 20));
+    console.log(`  [${i}] offset=${pos.offset}, punct="${pos.punct}", after="${pos.after}", context: "...${context}..."`);
+  });
+  console.log('[Markers] Inserted', markerCount, 'temporary markers before delimiters');
+  console.log('[Markers] Full HTML length:', html.length, 'characters');
+  return markedHTML;
+}
+
+// 2. Extract which marker IDs survived in the chunks
+function extractSurvivingMarkerIDs(chunks) {
+  const markerRegex = /⚐(\d+)⚐/g;
+  const survivingIDs = new Set();
+
+  chunks.forEach((chunk, idx) => {
+    let match;
+    while ((match = markerRegex.exec(chunk)) !== null) {
+      survivingIDs.add(parseInt(match[1]));
+    }
+  });
+
+  const ids = Array.from(survivingIDs).sort((a, b) => a - b);
+  console.log('[Markers] Surviving marker IDs:', ids);
+  return ids;
+}
+
+// 3. Insert real <span> markers at positions marked by temp markers
+function insertRealMarkersAtIDs(container, markerIDs) {
+  if (!markerIDs || markerIDs.length === 0) {
+    console.log('[Markers] No marker IDs to insert');
+    return;
+  }
+
+  console.log('[Markers] Inserting real markers for IDs:', markerIDs);
+
+  // Walk through all text nodes to find temporary markers
+  const walker = document.createTreeWalker(
+    container,
+    NodeFilter.SHOW_TEXT,
+    null
+  );
+
+  const nodesToProcess = [];
+  let node;
+  while (node = walker.nextNode()) {
+    nodesToProcess.push(node);
+  }
+
+  // Process in reverse to avoid position shifts
+  for (let i = nodesToProcess.length - 1; i >= 0; i--) {
+    const textNode = nodesToProcess[i];
+    const text = textNode.textContent;
+
+    // Find all markers in this text node
+    const markerRegex = /⚐(\d+)⚐/g;
+    const matches = [];
+    let match;
+
+    while ((match = markerRegex.exec(text)) !== null) {
+      const markerID = parseInt(match[1]);
+      if (markerIDs.includes(markerID)) {
+        matches.push({
+          id: markerID,
+          index: match.index,
+          length: match[0].length
+        });
+      }
+    }
+
+    // Insert real markers in reverse order (to preserve positions)
+    for (let j = matches.length - 1; j >= 0; j--) {
+      const markerMatch = matches[j];
+      const chunkIndex = markerIDs.indexOf(markerMatch.id);
+
+      try {
+        // Split text node at marker position
+        const beforeText = text.substring(0, markerMatch.index);
+        const afterText = text.substring(markerMatch.index + markerMatch.length);
+
+        // Create new text nodes
+        const beforeNode = document.createTextNode(beforeText);
+        const afterNode = document.createTextNode(afterText);
+
+        // Create real marker spans
+        const endMarker = document.createElement('span');
+        endMarker.className = 'chunk-marker-end';
+        endMarker.dataset.chunk = chunkIndex;
+        endMarker.style.cssText = 'display: none; position: absolute;';
+
+        const startMarker = document.createElement('span');
+        startMarker.className = 'chunk-marker-start';
+        startMarker.dataset.chunk = chunkIndex + 1;
+        startMarker.style.cssText = 'display: none; position: absolute;';
+
+        // Replace text node with: before + endMarker + startMarker + after
+        const parent = textNode.parentNode;
+        parent.insertBefore(beforeNode, textNode);
+        parent.insertBefore(endMarker, textNode);
+        parent.insertBefore(startMarker, textNode);
+        parent.insertBefore(afterNode, textNode);
+        parent.removeChild(textNode);
+
+        console.log(`[Markers] Inserted real markers for ID ${markerMatch.id} (chunk ${chunkIndex})`);
+      } catch (e) {
+        console.warn(`[Markers] Failed to insert markers for ID ${markerMatch.id}:`, e);
+      }
+    }
+  }
+}
+
+// 4. Remove all temporary markers from DOM and text
+function removeTemporaryMarkers(container, chunks) {
+  // Remove from DOM
+  const walker = document.createTreeWalker(
+    container,
+    NodeFilter.SHOW_TEXT,
+    null
+  );
+
+  const nodesToClean = [];
+  let node;
+  while (node = walker.nextNode()) {
+    if (/⚐\d+⚐/.test(node.textContent)) {
+      nodesToClean.push(node);
+    }
+  }
+
+  nodesToClean.forEach(textNode => {
+    textNode.textContent = textNode.textContent.replace(/⚐\d+⚐/g, '');
+  });
+
+  // Remove from chunks array (modify in place)
+  for (let i = 0; i < chunks.length; i++) {
+    chunks[i] = chunks[i].replace(/⚐\d+⚐/g, '');
+  }
+
+  console.log('[Markers] Removed all temporary markers');
+}
+
+// ===== DEPRECATED OLD MARKER SYSTEM =====
+// The functions below are replaced by the temporary marker system above
+// Kept for reference only - DO NOT USE
+
+/*
+// Extract plain text from HTML container while tracking which DOM nodes it came from
+function extractTextWithNodes(container) {
+  const walker = document.createTreeWalker(
+    container,
+    NodeFilter.SHOW_TEXT,
+    null
+  );
+
+  let plainText = '';
+  const textNodes = [];
+  let node;
+
+  while (node = walker.nextNode()) {
+    const startPos = plainText.length;
+    const nodeText = node.textContent;
+    plainText += nodeText;
+    const endPos = plainText.length;
+
+    textNodes.push({
+      node: node,
+      startPos: startPos,
+      endPos: endPos
+    });
+  }
+
+  console.log('[Markers] Extracted', plainText.length, 'chars from', textNodes.length, 'text nodes');
+  return { plainText, textNodes };
+}
+
+// Split text into chunks and return both chunks and boundary positions
+function splitWithBoundaryPositions(processedText) {
+  const chunks = splitIntoSentences(processedText);
+  const boundaries = [];
+
+  let position = 0;
+  for (let i = 0; i < chunks.length; i++) {
+    position += chunks[i].length;
+    if (i < chunks.length - 1) {
+      // Add boundary after this chunk (before next chunk)
+      boundaries.push(position);
+      // Account for the whitespace between chunks that was removed during split
+      position += 1;
+    }
+  }
+
+  console.log('[Markers] Found', chunks.length, 'chunks with', boundaries.length, 'boundaries');
+  console.log('[Markers] Boundary positions in processed text:', boundaries);
+  return { chunks, boundaries };
+}
+
+// Map positions from processed text back to plain text positions
+// Tracks how text transformations shift positions
+function mapProcessedToPlainPositions(plainText, processedText, boundaries) {
+  console.log('[Markers] Mapping', boundaries.length, 'boundaries from processed to plain text');
+
+  // Build a character-level map by simulating the processing
+  const charMap = []; // charMap[processedIndex] = plainIndex
+
+  let plainIndex = 0;
+  let processedIndex = 0;
+
+  // We need to simulate processTextForTTS transformations
+  // This is simplified - we'll track major transformations
+
+  // For now, use a simpler approach: find each chunk in the plain text
+  const plainBoundaries = [];
+  const { chunks } = splitWithBoundaryPositions(processedText);
+
+  let searchStart = 0;
+  for (let i = 0; i < chunks.length; i++) {
+    const chunk = chunks[i];
+
+    // Try to find this chunk (or a close match) in plain text
+    // Account for case differences and minor transformations
+    const chunkLower = chunk.toLowerCase().substring(0, 20); // First 20 chars for matching
+    const plainLower = plainText.toLowerCase();
+
+    let matchIndex = plainLower.indexOf(chunkLower, searchStart);
+
+    if (matchIndex !== -1) {
+      // Found the chunk, boundary is at the end of this chunk
+      const boundaryPos = matchIndex + chunk.length;
+      plainBoundaries.push(boundaryPos);
+      searchStart = boundaryPos;
+      console.log(`[Markers] Chunk ${i} found at plain text position ${matchIndex}, boundary at ${boundaryPos}`);
+    } else {
+      console.warn(`[Markers] Could not find chunk ${i} in plain text:`, chunk.substring(0, 30));
+    }
+  }
+
+  return plainBoundaries;
+}
+
+// Find the DOM node and offset for a given position in plain text
+function findNodeAtPosition(textNodes, position) {
+  for (const nodeInfo of textNodes) {
+    if (position >= nodeInfo.startPos && position <= nodeInfo.endPos) {
+      const offset = position - nodeInfo.startPos;
+      return { node: nodeInfo.node, offset: offset };
+    }
+  }
+
+  // If not found, return last node
+  const lastNode = textNodes[textNodes.length - 1];
+  return { node: lastNode.node, offset: lastNode.node.textContent.length };
+}
+
+// Insert marker span in DOM at specified node and offset
+function insertMarkerInNode(node, offset, chunkIndex) {
+  try {
+    // Create start marker for next chunk
+    const startMarker = document.createElement('span');
+    startMarker.className = 'chunk-marker-start';
+    startMarker.dataset.chunk = chunkIndex + 1;
+    startMarker.style.cssText = 'display: none; position: absolute;';
+
+    // Create end marker for current chunk
+    const endMarker = document.createElement('span');
+    endMarker.className = 'chunk-marker-end';
+    endMarker.dataset.chunk = chunkIndex;
+    endMarker.style.cssText = 'display: none; position: absolute;';
+
+    // Split the text node at the offset
+    if (offset > 0 && offset < node.textContent.length) {
+      const afterNode = node.splitText(offset);
+      // Insert markers between the split nodes
+      node.parentNode.insertBefore(endMarker, afterNode);
+      node.parentNode.insertBefore(startMarker, afterNode);
+    } else if (offset === 0) {
+      // Insert at the beginning
+      node.parentNode.insertBefore(endMarker, node);
+      node.parentNode.insertBefore(startMarker, node);
+    } else {
+      // Insert at the end
+      node.parentNode.insertBefore(endMarker, node.nextSibling);
+      node.parentNode.insertBefore(startMarker, node.nextSibling);
+    }
+
+    console.log(`[Markers] Inserted markers for chunk ${chunkIndex} at offset ${offset}`);
+  } catch (e) {
+    console.warn(`[Markers] Failed to insert markers for chunk ${chunkIndex}:`, e);
+  }
+}
+
+// Main function: Create narration chunks and insert markers in one pass
+// This ensures chunks and markers are perfectly aligned
+function createChunksAndMarkersInOnePass(html) {
+  if (!html) return { chunks: [], markedHTML: html };
+
+  console.log('[Markers] Creating chunks and markers in one pass');
+
+  const container = document.createElement('div');
+  container.innerHTML = html;
+
+  // Step 1: Extract plain text while tracking DOM nodes
+  const { plainText, textNodes } = extractTextWithNodes(container);
+
+  // Handle <br> tags as spaces for TTS (same as createNarrationChunks)
+  let textForProcessing = plainText;
+
+  // Step 2: Process text for TTS (apply all transformations)
+  const processedText = processTextForTTS(textForProcessing);
+
+  // Step 3: Split into chunks and get boundary positions in processed text
+  const { chunks, boundaries } = splitWithBoundaryPositions(processedText);
+
+  // Step 4: Map boundary positions from processed text back to plain text
+  const plainBoundaries = mapProcessedToPlainPositions(plainText, processedText, boundaries);
+
+  // Step 5: Insert markers in DOM at plain text boundary positions
+  // Also insert start marker for first chunk
+  const firstTextNode = textNodes[0];
+  if (firstTextNode) {
+    try {
+      const startMarker = document.createElement('span');
+      startMarker.className = 'chunk-marker-start';
+      startMarker.dataset.chunk = 0;
+      startMarker.style.cssText = 'display: none; position: absolute;';
+      firstTextNode.node.parentNode.insertBefore(startMarker, firstTextNode.node);
+      console.log('[Markers] Inserted start marker for chunk 0');
+    } catch (e) {
+      console.warn('[Markers] Failed to insert start marker:', e);
+    }
+  }
+
+  // Insert markers at boundaries (in reverse to preserve positions)
+  for (let i = plainBoundaries.length - 1; i >= 0; i--) {
+    const position = plainBoundaries[i];
+    const { node, offset } = findNodeAtPosition(textNodes, position);
+    insertMarkerInNode(node, offset, i);
+  }
+
+  console.log('[Markers] Successfully created', chunks.length, 'chunks with', plainBoundaries.length, 'markers');
+
+  return {
+    chunks: chunks,
+    markedHTML: container.innerHTML
+  };
+}
+*/
+// ===== END DEPRECATED MARKER SYSTEM =====
 
 // Play using browser's built-in TTS (100% FREE!)
 async function playWithBrowserTTS(text) {
@@ -1239,12 +1693,11 @@ async function playWithBrowserTTS(text) {
       isNarrating = false;
       ttsIsSpeaking = false;
       updateStatus('Ready');
-      updateNavButtons();  // Update pause/play button icon
+      updateNavButtons();
       // Resume recognition if listening was enabled
       if (listeningEnabled && recognition && !isMuted && !isRecognitionActive) {
         try {
           recognition.start();
-          console.log('[Voice] Resumed recognition after TTS');
         } catch (err) {
           // Ignore if already started
         }
@@ -1262,12 +1715,11 @@ async function playWithBrowserTTS(text) {
       }
       isNarrating = false;
       ttsIsSpeaking = false;
-      updateNavButtons();  // Update pause/play button icon
+      updateNavButtons();
       // Resume recognition if listening was enabled
       if (listeningEnabled && recognition && !isMuted && !isRecognitionActive) {
         try {
           recognition.start();
-          console.log('[Voice] Resumed recognition after TTS error');
         } catch (err) {
           // Ignore if already started
         }
@@ -1296,35 +1748,48 @@ async function playWithBrowserTTS(text) {
   });
 }
 
-// Create narration chunks from text (called for ALL new text, regardless of narration state)
-function createNarrationChunks(text) {
-  if (!text) return;
+// Create narration chunks from HTML with temporary markers
+// Returns array of {text, markerID, index} for each chunk
+// text: processed for TTS, markerID: the ⚐N⚐ marker at end of chunk (or null for last chunk)
+function createNarrationChunks(html) {
+  if (!html) return [];
 
-  console.log('[TTS] Creating narration chunks');
-
-  // Split into chunks for new text
-  // Server sends <br><br> for paragraphs, single newlines converted to spaces
+  // Process HTML to plain text (keeps ⚐N⚐ markers)
   const tempDiv = document.createElement('div');
-  // Add pause markers for TTS before stripping HTML
-  let htmlForTTS = text
+  let htmlForText = html
     .replace(/<br\s*\/?>\s*<br\s*\/?>/gi, '. ')  // Paragraph breaks -> sentence break
     .replace(/<br\s*\/?>/gi, ' ')                 // Single line breaks -> space
     .replace(/<span class="soft-break"><\/span>/gi, ' ');  // Soft breaks -> space
-  tempDiv.innerHTML = htmlForTTS;
-  const plainText = tempDiv.textContent || tempDiv.innerText || '';
+  tempDiv.innerHTML = htmlForText;
+  const plainText = (tempDiv.textContent || tempDiv.innerText || '').trim();
 
-  // Pre-process text to normalize before chunking (for TTS)
-  // Use shared function to ensure consistency with highlighting
-  let processedText = processTextForTTS(plainText);
+  // Process text for TTS (markers move with the text during processing)
+  const processedText = processTextForTTS(plainText);
 
-  // Split using shared function (ensures consistency with marker insertion)
-  narrationChunks = splitIntoSentences(processedText);
+  // Split into sentences
+  const sentences = splitIntoSentences(processedText);
 
-  // Note: Display HTML is already rendered by addGameText()
-  // Markers are inserted before rendering, so they're already in the DOM
+  console.log('[TTS] Split into', sentences.length, 'chunks');
 
-  console.log('[TTS] Created', narrationChunks.length, 'chunks');
-  console.log('[TTS] Chunks:', narrationChunks.map((c, i) => `[${i}]: ${c.substring(0, 30)}...`));
+  // Extract marker ID from end of each chunk
+  const markerRegex = /⚐(\d+)⚐/;
+  return sentences.map((sentence, index) => {
+    const match = sentence.match(markerRegex);
+    const markerID = match ? parseInt(match[1]) : null;
+
+    // Remove marker from text for TTS playback
+    const cleanText = sentence.replace(/⚐\d+⚐/g, '').trim();
+
+    console.log(`[Markers] Chunk ${index}: marker ${markerID !== null ? markerID : 'none (last chunk)'}`);
+    console.log(`[Markers]   Raw: "${sentence.substring(0, 80)}..."`);
+    console.log(`[Markers]   Clean: "${cleanText.substring(0, 80)}..."`);
+
+    return {
+      text: cleanText,       // For TTS playback
+      markerID: markerID,    // For inserting DOM markers
+      index
+    };
+  });
 }
 
 // Insert sentence markers into HTML BEFORE rendering
@@ -1445,6 +1910,7 @@ function insertChunkMarkers(containerElement) {
     }
   }
 }
+// ===== END DEPRECATED CODE (Part 2) =====
 
 // Speak text in chunks (with resume and navigation support)
 async function speakTextChunked(text, startFromIndex = 0) {
@@ -1467,16 +1933,31 @@ async function speakTextChunked(text, startFromIndex = 0) {
     stopNarration();
   }
 
-  // Split into chunks if this is new text
-  if (text) {
-    createNarrationChunks(text);
-  }
+  // CRITICAL: Capture the session ID - this loop is only valid for this session
+  // If stopNarration() is called, it increments the session ID, invalidating this loop
+  const mySessionId = narrationSessionId;
+  console.log('[TTS] Starting narration session', mySessionId);
+
+  // Chunks are now created in addGameText() when text is displayed
+  // No need to create them here
 
   currentChunkIndex = startFromIndex;
   isPaused = false;
 
+  // Don't use local chunk reference - we want to stop if chunks change
+  const totalChunks = narrationChunks.length;
+
   // Start from current index
-  for (let i = currentChunkIndex; i < narrationChunks.length; i++) {
+  for (let i = currentChunkIndex; i < totalChunks; i++) {
+    console.log(`[TTS Loop] Iteration start: i=${i}, totalChunks=${totalChunks}, sessionID=${mySessionId}/${narrationSessionId}`);
+
+    // CRITICAL: Check if this session is still valid
+    // If stopNarration() was called, session ID will have changed
+    if (mySessionId !== narrationSessionId) {
+      console.log(`[TTS] Session ${mySessionId} invalidated (current: ${narrationSessionId}) - stopping loop`);
+      return;  // Exit immediately - this loop is dead
+    }
+
     // Update position at START of iteration
     currentChunkIndex = i;
 
@@ -1490,13 +1971,14 @@ async function speakTextChunked(text, startFromIndex = 0) {
       break;
     }
 
+    console.log(`[TTS Loop] Passed all checks, proceeding with chunk ${i}`);
     updateNavButtons();
 
     // Highlight current sentence
     updateTextHighlight(i);
 
     const chunkText = narrationChunks[i];
-    console.log(`[TTS] Playing chunk ${i + 1}/${narrationChunks.length}: "${chunkText.substring(0, 50)}..."`);
+    console.log(`[TTS] Playing chunk ${i + 1}/${totalChunks}: "${chunkText.substring(0, 50)}..."`);
 
     // Request audio from server
     socket.emit('speak-text', narrationChunks[i]);
@@ -1510,6 +1992,12 @@ async function speakTextChunked(text, startFromIndex = 0) {
       socket.on('audio-ready', handler);
     });
 
+    // CRITICAL: Check session ID again after async wait
+    if (mySessionId !== narrationSessionId) {
+      console.log(`[TTS] Session ${mySessionId} invalidated while waiting for audio - stopping`);
+      return;  // Exit immediately
+    }
+
     // Check again if we should still play (user might have skipped while waiting)
     if (!narrationEnabled || isPaused || currentChunkIndex !== i) {
       console.log('[TTS] Cancelled - navigation changed while waiting for audio');
@@ -1522,21 +2010,38 @@ async function speakTextChunked(text, startFromIndex = 0) {
     if (audioData) {
       // Mark when this chunk started playing (for smart back button)
       currentChunkStartTime = Date.now();
+      console.log(`[TTS Loop] About to play audio for chunk ${i}`);
       await playAudio(audioData);
+      console.log(`[TTS Loop] Finished playing audio for chunk ${i}`);
+
+      // Check session ID after playing audio (in case stopped during playback)
+      if (mySessionId !== narrationSessionId) {
+        console.log(`[TTS] Session ${mySessionId} invalidated after playing audio - stopping`);
+        return;
+      }
+      console.log(`[TTS Loop] Session still valid after chunk ${i}, continuing to next iteration`);
     }
+    console.log(`[TTS Loop] End of iteration ${i}, about to increment`);
   }
 
-  // Finished all chunks
-  if (currentChunkIndex >= narrationChunks.length - 1 && narrationEnabled && !isPaused) {
-    console.log('[TTS] Narration complete - resetting to start');
+  console.log(`[TTS Loop] Exited loop - currentChunkIndex=${currentChunkIndex}, totalChunks=${totalChunks}`);
 
-    // Reset to beginning so play restarts from start
-    currentChunkIndex = 0;
+  // Finished all chunks - only process if this session is still valid
+  if (mySessionId !== narrationSessionId) {
+    console.log(`[TTS] Session ${mySessionId} ended - not processing completion`);
+    return;
+  }
+
+  if (currentChunkIndex >= totalChunks - 1 && narrationEnabled && !isPaused) {
+    console.log('[TTS] Narration complete - staying at end position');
+
+    // Stay at end (past last chunk) - allows Back button to work
+    currentChunkIndex = totalChunks;
     narrationEnabled = false;
     isPaused = true;
     isNarrating = false;
 
-    // Remove highlighting when narration completes
+    // Remove highlighting when narration completes (at end, no chunk to highlight)
     removeHighlight();
 
     // Scroll to bottom when narration finishes
@@ -1559,8 +2064,13 @@ function skipToChunk(offset) {
 
   let targetIndex = currentChunkIndex + offset;
 
+  // Special case: if at end (past last chunk) and going back, jump to last chunk
+  if (offset === -1 && currentChunkIndex >= narrationChunks.length) {
+    targetIndex = narrationChunks.length - 1;
+    console.log(`[TTS] Back from end: jumping to last chunk ${targetIndex}`);
+  }
   // Smart back button: if going back and within 500ms of current chunk start, go to previous chunk instead
-  if (offset === -1) {
+  else if (offset === -1) {
     const timeSinceStart = Date.now() - currentChunkStartTime;
     if (timeSinceStart < 500 && currentChunkIndex > 0) {
       // Within 500ms, go to previous chunk
@@ -1631,15 +2141,16 @@ function skipToStart() {
   setTimeout(() => {
     isNavigating = false;
 
-    // Update highlighting
+    // Always update highlighting to first chunk
     updateTextHighlight(0);
 
-    // Auto-resume if narration was enabled
-    if (shouldResume) {
+    // Start playing if: (was playing before) OR (autoplay is enabled)
+    if (shouldResume || autoplayEnabled) {
       isPaused = false;
       narrationEnabled = true;
       speakTextChunked(null, 0);
     } else {
+      // Stay paused but keep first chunk highlighted
       isPaused = true;
     }
   }, 100);
@@ -1670,14 +2181,14 @@ function skipToEnd() {
 
   isNarrating = false;
 
-  // Jump to end
-  currentChunkIndex = narrationChunks.length - 1;
+  // Jump past end (no highlighting - navigator is past content)
+  currentChunkIndex = narrationChunks.length;
   currentChunkStartTime = 0;
 
   updateNavButtons();
   updateStatus('⏩ Skipped to end');
 
-  // Remove all highlighting
+  // Remove all highlighting (at end, no chunk to highlight)
   removeHighlight();
 
   // Scroll to bottom of game output
@@ -1720,15 +2231,18 @@ function updateNavButtons() {
   }
 
   if (prevBtn) {
+    // Enabled unless at or before first chunk (also enabled when "at end")
     prevBtn.disabled = currentChunkIndex <= 0;
   }
 
   if (nextBtn) {
+    // Disabled when at or past last chunk
     nextBtn.disabled = currentChunkIndex >= narrationChunks.length - 1;
   }
 
   if (skipToEndBtn) {
-    skipToEndBtn.disabled = currentChunkIndex >= narrationChunks.length - 1;
+    // Disabled only when already at end (past last chunk)
+    skipToEndBtn.disabled = currentChunkIndex >= narrationChunks.length;
   }
 
   // Update pause/play button icon
@@ -1775,17 +2289,16 @@ async function startGame(gamePath) {
       // Stop any existing narration (in case restarting game)
       stopNarration();
 
-      // Display the game output
-      addGameText(output);
-
       // Reset narration state for new game
       pendingNarrationText = output;
       narrationChunks = [];
       currentChunkIndex = 0;
       isPaused = false;
 
-      // Create narration chunks so play button works
-      createNarrationChunks(output);
+      // Display the game output (this creates chunks and markers)
+      addGameText(output);
+
+      // Chunks are now ready, update UI
       updateNavButtons();
 
       // Auto-start talk mode
@@ -1829,18 +2342,14 @@ async function sendCommandDirect(cmd) {
       // Stop any currently running narration cleanly before processing new output
       stopNarration();
 
-      // Display the game output
-      addGameText(output);
-
       // Reset narration for new text
       pendingNarrationText = output;
       narrationChunks = [];  // Clear old chunks
       currentChunkIndex = 0;
       isPaused = false;
 
-      // ALWAYS create narration chunks (even if not auto-playing)
-      // This ensures navigation buttons work properly
-      createNarrationChunks(output);
+      // Display the game output (this creates chunks and markers)
+      addGameText(output);
 
       // Auto-narrate if autoplay is enabled and we're in talk mode
       if (autoplayEnabled && talkModeActive) {
@@ -1901,9 +2410,19 @@ userInput.addEventListener('keydown', (e) => {
   }
 });
 
-// Click on game output focuses text input (but not when selecting text)
-gameOutput.addEventListener('click', () => {
-  userInput.focus();
+// Click on game-text focuses text input (but not when selecting text)
+gameOutput.addEventListener('click', (e) => {
+  // Don't focus if user was selecting text
+  const selection = window.getSelection();
+  if (selection && selection.toString().length > 0) {
+    return;
+  }
+
+  // Only focus if clicking on game-text element or its descendants
+  const gameText = e.target.closest('.game-text');
+  if (gameText) {
+    userInput.focus();
+  }
 });
 
 // Start voice meter
@@ -1929,13 +2448,15 @@ async function startVoiceMeter() {
       const average = dataArray.reduce((a, b) => a + b) / bufferLength;
       const percentage = Math.min(100, (average / 128) * 100);
 
-      // Update dot indicator (green if > 20%, maroon otherwise)
+      // Update mute button indicator (bright green if > 20%, normal green otherwise)
       // But NOT when muted - keep muted state
       if (!isMuted) {
         if (percentage > 20) {
-          voiceIndicator.classList.add('active');
+          muteBtn.classList.add('active');
+          voiceTranscript.textContent = 'Speaking... (say "Pause" to stop)';
         } else {
-          voiceIndicator.classList.remove('active');
+          muteBtn.classList.remove('active');
+          voiceTranscript.textContent = 'Listening...';
         }
       }
 
@@ -2017,7 +2538,7 @@ function stopVoiceMeter() {
     audioContext = null;
   }
 
-  voiceIndicator.classList.remove('active');
+  muteBtn.classList.remove('active');
   console.log('[Voice Meter] Stopped');
 }
 
@@ -2063,12 +2584,11 @@ async function startTalkMode() {
     }
   }
 
-  // Start narration if there's pending text or existing chunks
-  if (pendingNarrationText) {
-    createNarrationChunks(pendingNarrationText);
-    pendingNarrationText = null;
-    await speakTextChunked(null, 0);
-  } else if (narrationChunks.length > 0) {
+  // Start narration if there are existing chunks
+  // Note: Chunks were already created by addGameText() with temporary markers
+  pendingNarrationText = null;  // Clear pending text flag
+
+  if (narrationChunks.length > 0) {
     console.log('[TTS] Starting narration from existing chunks:', narrationChunks.length);
     await speakTextChunked(null, 0);
   }
@@ -2088,13 +2608,15 @@ muteBtn.addEventListener('click', () => {
     // Hide voice feedback panel (hides "Say something..." etc)
     voiceFeedback.classList.add('hidden');
 
-    // Update voice indicator to muted state (red dot, "Muted" text)
-    voiceIndicator.classList.remove('active');
-    voiceIndicator.classList.add('muted');
+    // Add muted state to voice panel (hides "Say something..." placeholder)
+    voicePanel.classList.add('muted');
+
+    // Update mute button to muted state (grayed out, "Muted" text)
+    muteBtn.classList.remove('active');
+    muteBtn.classList.add('muted');
     voiceTranscript.textContent = 'Muted';
 
     if (icon) icon.textContent = 'mic_off';
-    muteBtn.classList.add('muted');
     updateStatus('Muted - say "unmute" to resume');
 
     console.log('[Mute] Muted, recognition still running:', isRecognitionActive);
@@ -2104,8 +2626,11 @@ muteBtn.addEventListener('click', () => {
 
     voiceFeedback.classList.remove('hidden');
 
-    // Update voice indicator to listening state
-    voiceIndicator.classList.remove('muted');
+    // Remove muted state from voice panel
+    voicePanel.classList.remove('muted');
+
+    // Update mute button to listening state
+    muteBtn.classList.remove('muted');
     voiceTranscript.textContent = 'Listening...';
 
     startVoiceMeter();
@@ -2171,13 +2696,12 @@ pausePlayBtn.addEventListener('click', () => {
   } else {
     // Pause
     console.log('[Control] Pause button clicked');
-    stopNarration();
+    stopNarration(true);  // preserveHighlight = true
     isPaused = true;
     updateNavButtons();
     updateStatus('Narration paused');
 
-    // Keep highlighting to show where we're paused
-    updateTextHighlight(currentChunkIndex);
+    // Highlighting already preserved by stopNarration(true)
   }
 });
 

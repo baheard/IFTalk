@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Marker System Test</title>
+  <style>
+    body { font-family: monospace; padding: 20px; background: #1a1a1a; color: #ccc; }
+    .test { margin: 20px 0; padding: 15px; background: #2a2a2a; border-left: 3px solid #4a4a4a; }
+    .pass { border-left-color: #4a4; }
+    .fail { border-left-color: #a44; }
+    h2 { margin: 0 0 10px 0; }
+    pre { background: #0a0a0a; padding: 10px; overflow-x: auto; }
+    .marker { background: yellow; color: black; padding: 2px 4px; }
+  </style>
+</head>
+<body>
+  <h1>Temporary Marker System Test</h1>
+
+  <div id="results"></div>
+
+  <script>
+    // Actual Anchorhead opening text from server (with <br> tags)
+    const anchorheadHTML = `The oldest and strongest emotion of mankind is fear, and the oldest and strongest kind of fear is fear of the unknown.<br><br>-- H.P. Lovecraft<br><br>A N C H O R H E A D<br><br>[Press 'R' to restore; any other key to begin]`;
+
+    // Copy of the insertTemporaryMarkers function from app.js
+    function insertTemporaryMarkers(html) {
+      if (!html) return html;
+
+      console.log('[Markers] Original HTML:', html.substring(0, 200) + '...');
+
+      let markerCount = 0;
+
+      // Insert markers after sentence-ending punctuation (. ! ?)
+      // Match both: punctuation + spaces AND punctuation + HTML tags
+      const markedHTML = html.replace(/([.!?])(\s+|(?=<))/g, (match, punct, after) => {
+        const marker = `⚐${markerCount}⚐`;
+        markerCount++;
+        return punct + marker + after;
+      });
+
+      // Also add a marker at the very end (for last chunk)
+      const finalMarked = markedHTML + `⚐${markerCount}⚐`;
+
+      console.log('[Markers] Inserted', markerCount + 1, 'temporary markers');
+      return finalMarked;
+    }
+
+    // Simplified version of createNarrationChunks (just the text processing part)
+    function processTextForTTS(html) {
+      const tempDiv = document.createElement('div');
+
+      // Process HTML like app.js does
+      let htmlForTTS = html
+        .replace(/<br\s*\/?>\s*<br\s*\/?>/gi, '. ')  // Paragraph breaks -> sentence break
+        .replace(/<br\s*\/?>/gi, ' ')                 // Single line breaks -> space
+        .replace(/<span class="soft-break"><\/span>/gi, ' ');
+
+      tempDiv.innerHTML = htmlForTTS;
+      const plainText = tempDiv.textContent || tempDiv.innerText || '';
+
+      // Normalize whitespace
+      let processed = plainText.replace(/\s+/g, ' ').trim();
+
+      // Auto-collapse spaced capitals (A N C H O R H E A D -> ANCHORHEAD)
+      processed = processed.replace(/\b([A-Z])\s+(?=[A-Z](?:\s+[A-Z]|\s*\b))/g, '$1');
+
+      return processed;
+    }
+
+    function splitIntoSentences(text) {
+      // Split on sentence boundaries
+      const sentences = text.split(/(?<=[.!?])\s+/);
+      return sentences.filter(s => s.trim().length > 0);
+    }
+
+    function extractSurvivingMarkerIDs(chunks) {
+      const markerRegex = /⚐(\d+)⚐/g;
+      const survivingIDs = new Set();
+
+      chunks.forEach((chunk, idx) => {
+        let match;
+        while ((match = markerRegex.exec(chunk)) !== null) {
+          survivingIDs.add(parseInt(match[1]));
+        }
+      });
+
+      return Array.from(survivingIDs).sort((a, b) => a - b);
+    }
+
+    // Run the test
+    function runTest() {
+      const results = document.getElementById('results');
+
+      // Step 1: Insert temporary markers
+      const markedHTML = insertTemporaryMarkers(anchorheadHTML);
+      const markerCount = (markedHTML.match(/⚐\d+⚐/g) || []).length;
+
+      results.innerHTML += `
+        <div class="test">
+          <h2>Step 1: Insert Temporary Markers</h2>
+          <p>Original HTML length: ${anchorheadHTML.length}</p>
+          <p>Marked HTML length: ${markedHTML.length}</p>
+          <p>Markers inserted: ${markerCount}</p>
+          <pre>${markedHTML.replace(/⚐(\d+)⚐/g, '<span class="marker">⚐$1⚐</span>')}</pre>
+        </div>
+      `;
+
+      // Step 2: Process text for TTS (this is where HTML is stripped)
+      const processedText = processTextForTTS(markedHTML);
+
+      results.innerHTML += `
+        <div class="test">
+          <h2>Step 2: Process for TTS (strip HTML)</h2>
+          <p>Processed text length: ${processedText.length}</p>
+          <p>Markers remaining: ${(processedText.match(/⚐\d+⚐/g) || []).length}</p>
+          <pre>${processedText.replace(/⚐(\d+)⚐/g, '<span class="marker">⚐$1⚐</span>')}</pre>
+        </div>
+      `;
+
+      // Step 3: Split into chunks
+      const chunks = splitIntoSentences(processedText);
+
+      results.innerHTML += `
+        <div class="test">
+          <h2>Step 3: Split into Chunks</h2>
+          <p>Number of chunks: ${chunks.length}</p>
+          <pre>${chunks.map((c, i) => `[${i}]: ${c.replace(/⚐(\d+)⚐/g, '<span class="marker">⚐$1⚐</span>')}`).join('\n\n')}</pre>
+        </div>
+      `;
+
+      // Step 4: Extract surviving marker IDs
+      const survivingIDs = extractSurvivingMarkerIDs(chunks);
+
+      const expectedMarkers = chunks.length - 1; // Need N-1 markers for N chunks
+      const pass = survivingIDs.length === expectedMarkers;
+
+      results.innerHTML += `
+        <div class="test ${pass ? 'pass' : 'fail'}">
+          <h2>Step 4: Verify Marker Count</h2>
+          <p>Chunks: ${chunks.length}</p>
+          <p>Expected markers (chunks - 1): ${expectedMarkers}</p>
+          <p>Surviving marker IDs: [${survivingIDs.join(', ')}]</p>
+          <p>Actual markers: ${survivingIDs.length}</p>
+          <p><strong>${pass ? '✅ PASS' : '❌ FAIL'}: ${pass ? 'Correct number of markers!' : 'Marker count mismatch!'}</strong></p>
+        </div>
+      `;
+
+      // Show what each chunk should highlight
+      results.innerHTML += `
+        <div class="test">
+          <h2>Step 5: Marker Positions</h2>
+          ${chunks.map((chunk, i) => {
+            const startMarker = i === 0 ? 'chunk-start-0' : `chunk-marker-${survivingIDs[i-1]}`;
+            const endMarker = i === chunks.length - 1 ? '(end of text)' : `chunk-marker-${survivingIDs[i]}`;
+            return `<p><strong>Chunk ${i}:</strong> From marker <code>${startMarker}</code> to <code>${endMarker}</code></p>`;
+          }).join('')}
+        </div>
+      `;
+    }
+
+    runTest();
+  </script>
+</body>
+</html>

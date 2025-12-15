@@ -67,20 +67,35 @@ const gameSessions = new Map();
 
 // Process Frotz output - extract status line and clean up text
 function processFrotzOutput(output) {
-  // Debug: Log raw output with escape codes visible (only in debug mode)
-  if (process.env.DEBUG) {
-    console.log('[Frotz RAW]:', JSON.stringify(output.substring(0, 500)));
+  // ALWAYS log raw output with character codes to debug clear screen detection
+  const chars = output.split('').map(c => {
+    const code = c.charCodeAt(0);
+    if (code < 32) return `\\x${code.toString(16).padStart(2, '0')}`;
+    return c;
+  }).join('');
+
+  // Log first 800 chars to see full initial output
+  const logLength = Math.min(800, output.length);
+  console.log('[Frotz RAW] (' + output.length + ' chars total):');
+  console.log(chars.substring(0, logLength));
+  if (output.length > logLength) {
+    console.log('... (truncated)');
   }
 
-  // Detect clear screen ANSI codes
-  const hasClearScreen = output.includes('\x1b[2J') || output.includes('\x1b[H\x1b[2J') || output.includes('\x1b[H\x1b[J');
+  // Detect clear screen codes (ANSI or form feed)
+  const hasAnsiClear = output.includes('\x1b[2J') || output.includes('\x1b[H\x1b[2J') || output.includes('\x1b[H\x1b[J');
+  const hasFormFeed = output.includes('\f') || output.includes('\x0C');
+  const hasClearScreen = hasAnsiClear || hasFormFeed;
+
   if (hasClearScreen) {
-    console.log('[Frotz] Clear screen detected');
+    console.log('[Frotz] Clear screen detected:', hasAnsiClear ? 'ANSI' : 'Form Feed');
   }
 
   let processedOutput = output
     .replace(/\r\n/g, '\n')            // Normalize Windows line endings
-    .replace(/\r/g, '\n');             // Normalize Mac line endings
+    .replace(/\r/g, '\n')              // Normalize Mac line endings
+    .replace(/\f/g, '')                // Remove form feed characters (used for clear screen)
+    .replace(/\x0C/g, '');             // Remove form feed (hex notation)
 
   // Split into lines and process each
   let lines = processedOutput.split('\n');
