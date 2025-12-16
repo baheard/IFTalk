@@ -248,15 +248,16 @@ export async function speakTextChunked(text, startFromIndex = 0) {
     }
 
     // Highlight current sentence
+    // For chunk 0, add RAF delay to ensure DOM is fully rendered
+    if (i === 0) {
+      await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+    }
     updateTextHighlight(i);
 
     // Update nav buttons for current position
     updateNavButtons();
 
     const chunkText = state.narrationChunks[i];
-
-    // Brief pause between sentences for natural flow
-    await new Promise(resolve => setTimeout(resolve, 150));
 
     // Use browser TTS directly (no server round-trip needed)
     // Mark when this chunk started playing
