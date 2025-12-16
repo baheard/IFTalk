@@ -232,7 +232,7 @@ export async function speakTextChunked(text, startFromIndex = 0) {
   for (let i = state.currentChunkIndex; i < totalChunks; i++) {
     // Check if this session is still valid (not superseded by newer narration)
     if (currentSessionId !== state.narrationSessionId) {
-      removeHighlight();
+      // Don't remove highlight - the new session will manage it
       updateNavButtons();
       break;
     }
@@ -255,8 +255,8 @@ export async function speakTextChunked(text, startFromIndex = 0) {
 
     const chunkText = state.narrationChunks[i];
 
-    // DEBUG: Pause before speaking to allow visual verification
-    await new Promise(resolve => setTimeout(resolve, 800));
+    // Brief pause between sentences for natural flow
+    await new Promise(resolve => setTimeout(resolve, 150));
 
     // Use browser TTS directly (no server round-trip needed)
     // Mark when this chunk started playing
