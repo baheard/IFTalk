@@ -12,6 +12,25 @@ import { insertTemporaryMarkers, createNarrationChunks, insertRealMarkersAtIDs, 
 import { stopNarration } from '../narration/tts-player.js';
 
 /**
+ * Extract chunks and marker IDs in a single pass
+ * @param {Array} chunksWithMarkers - Array of {text, markerID, index} objects
+ * @returns {{chunks: string[], markerIDs: number[]}} Extracted chunks and marker IDs
+ */
+function extractChunksAndMarkers(chunksWithMarkers) {
+  const chunks = [];
+  const markerIDs = [];
+
+  for (const item of chunksWithMarkers) {
+    chunks.push(item.text);
+    if (item.markerID !== null) {
+      markerIDs.push(item.markerID);
+    }
+  }
+
+  return { chunks, markerIDs };
+}
+
+/**
  * Ensure chunks are ready for narration
  * Creates chunks on-demand from status line + game text (lazy evaluation)
  * @returns {boolean} True if chunks are ready
@@ -47,8 +66,8 @@ export function ensureChunksReady() {
   if (hasStatus && statusEl) {
     const statusMarkedHTML = insertTemporaryMarkers(statusHTML);
     const statusChunksWithMarkers = createNarrationChunks(statusMarkedHTML);
-    const statusChunks = statusChunksWithMarkers.map(c => c.text);
-    const statusMarkerIDs = statusChunksWithMarkers.map(c => c.markerID).filter(id => id !== null);
+    const { chunks: statusChunks, markerIDs: statusMarkerIDs } =
+      extractChunksAndMarkers(statusChunksWithMarkers);
 
     // Apply markers to status element
     statusEl.innerHTML = statusMarkedHTML;
@@ -73,8 +92,8 @@ export function ensureChunksReady() {
   if (hasUpper && upperEl) {
     const upperMarkedHTML = insertTemporaryMarkers(upperHTML);
     const upperChunksWithMarkers = createNarrationChunks(upperMarkedHTML);
-    const upperChunks = upperChunksWithMarkers.map(c => c.text);
-    const upperMarkerIDs = upperChunksWithMarkers.map(c => c.markerID).filter(id => id !== null);
+    const { chunks: upperChunks, markerIDs: upperMarkerIDs } =
+      extractChunksAndMarkers(upperChunksWithMarkers);
 
     // Apply markers to upper window element (NO renumbering - keep original marker IDs!)
     upperEl.innerHTML = upperMarkedHTML;
@@ -103,8 +122,8 @@ export function ensureChunksReady() {
   if (hasMain && mainEl) {
     let mainMarkedHTML = insertTemporaryMarkers(mainHTML);
     const mainChunksWithMarkers = createNarrationChunks(mainMarkedHTML);
-    const mainChunks = mainChunksWithMarkers.map(c => c.text);
-    const mainMarkerIDs = mainChunksWithMarkers.map(c => c.markerID).filter(id => id !== null);
+    const { chunks: mainChunks, markerIDs: mainMarkerIDs } =
+      extractChunksAndMarkers(mainChunksWithMarkers);
 
     // Apply markers to main element (NO renumbering - keep original marker IDs!)
     mainEl.innerHTML = mainMarkedHTML;

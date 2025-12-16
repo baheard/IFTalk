@@ -61,6 +61,42 @@ export function splitIntoSentences(processedText) {
 }
 
 /**
+ * Process text for TTS and split into sentences (combined operation)
+ * @param {string} text - Raw text to process
+ * @returns {string[]} Array of processed sentence chunks
+ */
+export function processAndSplitText(text) {
+  if (!text) return [];
+
+  // Process for TTS - normalize formatting and apply transformations
+  let processed = text
+    // Collapse spaced capitals: "A N C H O R H E A D" → "ANCHORHEAD"
+    .replace(/\b([A-Z])\s+(?=[A-Z](?:\s+[A-Z]|\s*\b))/g, '$1')
+    // Normalize initials: "H.P." → "H P"
+    .replace(/\b([A-Z])\.\s*/g, '$1 ')
+    .replace(/\b([A-Z])\s+([A-Z])\s+/g, '$1$2 ')
+    // Collapse whitespace
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  // Title case for all-caps words (4+ letters): "ANCHORHEAD" → "Anchorhead"
+  processed = processed.replace(/\b([A-Z]{4,})\b/g, (match) => {
+    return match.charAt(0) + match.slice(1).toLowerCase();
+  });
+
+  // Split into sentences - CRITICAL: Preserve this exact regex (line 55 logic)
+  // Pattern 1: Split after marker (with or without space) → keeps marker in chunk
+  // Pattern 2: Split after punctuation+space when NOT followed by marker
+  const chunks = processed
+    .split(/(?<=⚐\d+⚐)\s*|(?<=[.!?])(?!⚐)\s+/)
+    .map(chunk => chunk.trim())
+    .filter(chunk => chunk.length > 0);
+
+  // If no chunks found, use whole text
+  return chunks.length > 0 ? chunks : [processed];
+}
+
+/**
  * Calculate Levenshtein distance between two strings
  * @param {string} str1 - First string
  * @param {string} str2 - Second string

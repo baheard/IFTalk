@@ -4,7 +4,7 @@
  * Splits game text into narration chunks (sentences) and manages temporary markers.
  */
 
-import { processTextForTTS, splitIntoSentences } from '../utils/text-processing.js';
+import { processAndSplitText } from '../utils/text-processing.js';
 
 /**
  * Insert temporary markers (⚐N⚐) BEFORE EVERY delimiter in HTML
@@ -57,11 +57,9 @@ export function createNarrationChunks(html) {
   tempDiv.innerHTML = htmlForText;
   const plainText = (tempDiv.textContent || tempDiv.innerText || '').trim();
 
-  // Process text for TTS (markers move with the text during processing)
-  const processedText = processTextForTTS(plainText);
-
-  // Split into sentences
-  const sentences = splitIntoSentences(processedText);
+  // Process text for TTS and split into sentences (combined operation)
+  // Markers move with the text during processing
+  const sentences = processAndSplitText(plainText);
 
   // Extract marker ID from end of each chunk
   const markerRegex = /⚐(\d+)⚐/;
@@ -171,27 +169,20 @@ export function insertRealMarkersAtIDs(container, markerIDs, chunkOffset = 0) {
  * @param {string[]} chunks - Array of chunk texts to clean
  */
 export function removeTemporaryMarkers(container, chunks) {
-  // Remove from DOM
-  const walker = document.createTreeWalker(
-    container,
-    NodeFilter.SHOW_TEXT,
-    null
-  );
+  const markerRegex = /⚐\d+⚐/g;
 
-  const nodesToClean = [];
+  // Remove from DOM text nodes (process inline)
+  const walker = document.createTreeWalker(container, NodeFilter.SHOW_TEXT, null);
   let node;
   while (node = walker.nextNode()) {
-    if (/⚐\d+⚐/.test(node.textContent)) {
-      nodesToClean.push(node);
+    if (markerRegex.test(node.textContent)) {
+      node.textContent = node.textContent.replace(markerRegex, '');
+      markerRegex.lastIndex = 0;  // Reset regex for next test
     }
   }
 
-  nodesToClean.forEach(textNode => {
-    textNode.textContent = textNode.textContent.replace(/⚐\d+⚐/g, '');
-  });
-
-  // Remove from chunks array (modify in place)
+  // Remove from chunks array (in place)
   for (let i = 0; i < chunks.length; i++) {
-    chunks[i] = chunks[i].replace(/⚐\d+⚐/g, '');
+    chunks[i] = chunks[i].replace(markerRegex, '');
   }
 }
