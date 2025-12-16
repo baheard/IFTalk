@@ -88,13 +88,9 @@ function handleGameOutput(text) {
   console.log('[HandleGameOutput] New game output received');
   console.log('[HandleGameOutput] State check - autoplayEnabled:', state.autoplayEnabled, 'narrationEnabled:', state.narrationEnabled, 'isNarrating:', state.isNarrating);
 
-  // Stop any previous narration before showing new content
-  if (state.isNarrating) {
-    console.log('[HandleGameOutput] Stopping previous narration');
-    stopNarration();
-  }
-
   // Store for potential narration
+  // Note: Don't stop narration here - speakTextChunked() handles stopping the old session
+  // properly with a 50ms delay to let the old loop exit cleanly
   state.pendingNarrationText = text;
 
   // STRICT CHECK: Auto-start narration ONLY if autoplay is explicitly enabled
@@ -319,8 +315,8 @@ async function initApp() {
 
   // Keyboard shortcuts
   document.addEventListener('keydown', (e) => {
-    // Alt key - push to talk
-    if (e.key === 'Alt' && !state.isPushToTalkActive) {
+    // Ctrl key - push to talk
+    if (e.key === 'Control' && !state.isPushToTalkActive) {
       state.isPushToTalkActive = true;
       state.wasMutedBeforePTT = state.isMuted;
       if (state.isMuted) {
@@ -351,8 +347,8 @@ async function initApp() {
   });
 
   document.addEventListener('keyup', (e) => {
-    // Alt key released - end push to talk
-    if (e.key === 'Alt' && state.isPushToTalkActive) {
+    // Ctrl key released - end push to talk
+    if (e.key === 'Control' && state.isPushToTalkActive) {
       state.isPushToTalkActive = false;
       if (state.wasMutedBeforePTT) {
         voiceCommandHandlers.mute();
