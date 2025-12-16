@@ -1,141 +1,124 @@
 # IFTalk TODO
 
-## 📋 COMPREHENSIVE ARCHITECTURE REVIEW (2025-12-15)
+## 🐛 Current Issue: TTS Marker Insertion Failure
 
-**⚠️ ACTION REQUIRED: Review architectural improvements plan**
+**Problem:** Text-to-speech chunk markers fail to insert into the DOM, causing the warning:
+```
+[Markers] Skipping ID N: text node has no parent
+```
 
-**Plan Location:** `C:\Users\bahea\.claude\plans\spicy-wandering-wall.md`
+### Root Cause Analysis (2024-12-15)
 
-**Summary**: After migrating from Frotz to browser-based ZVM, comprehensive code exploration revealed:
-- 🔴 **Critical bugs** blocking functionality (TTS/ZVM integration broken, generation counter mismatch)
-- 🟡 **Architectural debt** affecting maintainability (state management complexity, async race conditions)
-- 🟢 **Code organization** opportunities for improvement (app.js cleanup, event duplication)
+**The Issue:**
+GlkOte splits content into **multiple style runs with the same style name**. For example, Anchorhead's opening screen has a single line with 3 separate "normal" runs:
 
-**Key Findings**:
-1. TTS system still expects server Socket.IO but game now runs in browser (narration completely broken)
-2. Generation counter mismatch between app and GlkOte (commands rejected)
-3. Async initialization race conditions (voice selection, socket readiness)
-4. 71+ mutable state variables with no validation or transaction safety
-5. Fragile ZVM output capture that could break if GlkOte changes format
+```javascript
+Line 3: [
+  "normal", "                         ",  // Run 1: 25 spaces
+  "normal", "                                               ",  // Run 2: 47 spaces
+  "normal", "                            "   // Run 3: 28 spaces
+]
+```
 
-**Estimated Effort**: 5-7 days for complete implementation across 4 phases
-**Priority**: Fix critical bugs (Phase 1) first to restore narration functionality
+**Current Processing:**
+1. `voxglk-renderer.js` flattens all runs into a single HTML string (line 165-188):
+   ```javascript
+   for (let i = 0; i < contentArray.length; i += 2) {
+     currentLine += `<span style="...">${text}</span>`;  // Creates separate <span> for each run
+   }
+   ```
 
-👉 **Review the full plan before proceeding with any implementation**
+2. `chunking.js` inserts temporary markers (⚐N⚐) into the HTML at sentence boundaries
+
+3. When we try to find markers in the DOM, they may be split across multiple `<span>` boundaries:
+   - Span 1 ends with: `"...text⚐"`
+   - Span 2 starts with: `"12⚐more..."`
+   - Result: Marker `⚐12⚐` is split, can't be found in any single text node
+
+**Impact:**
+- Most markers fail to insert (only 2-3 out of 14 succeed)
+- Text highlighting during narration doesn't work properly
+- Sentence boundaries lost
+
+**Next Steps:**
+1. Update ifvms.js to latest version (may change data format)
+2. Re-evaluate marker insertion strategy after update
+3. Consider alternative approaches:
+   - Insert markers before GlkOte rendering
+   - Track run boundaries during flattening
+   - Use DOM positions instead of text markers
 
 ---
 
-## Current Status (2025-12-15)
+## 📋 Current Tasks
 
-### Browser-Based ZVM Architecture ✅
+### High Priority
+- [ ] **Update ifvms.js** to latest version
+- [ ] **Re-test TTS marker system** after ifvms update
+- [ ] **Fix marker insertion** if issue persists after update
 
-**Status:** ✅ Core migration complete - Testing in progress
+### Medium Priority
+- [ ] Test TTS narration with all games
+- [ ] Verify responsive layout on mobile devices
+- [ ] Review and update voice recognition accuracy
 
-**What Works:**
-- ✅ Browser-based ZVM (ifvms.js) + GlkOte display
-- ✅ Games run entirely client-side (no server game logic)
-- ✅ Static file serving only (simplified backend)
-- ✅ Voice recognition and TTS narration
-- ✅ AI command translation (Ollama/OpenAI/Claude)
-- ✅ All navigation controls (back, forward, pause, play, skip)
-- ✅ Pronunciation dictionary
-- ✅ Two-panel input layout (voice + text)
-- ✅ Text highlighting system with marker-based implementation
-
----
-
-## Styling Progress
-
-### ✅ Completed
-- [x] Typography - Google Fonts: Crimson Pro (serif) + IBM Plex Mono
-- [x] Color Scheme - Refined dark theme (charcoal + muted accents)
-- [x] Layout - Game output sizing, mobile responsiveness, touch-friendly buttons
-- [x] Text Highlighting - Marker system working correctly
-
-### ⬚ Polish (TODO)
-- [ ] Loading states
+### Low Priority
+- [ ] Loading states styling
 - [ ] Error message styling
-- [ ] Transitions and animations refinement
-- [ ] Focus states and accessibility
-- [ ] Status bar styling (location, score, moves)
+- [ ] Focus states and accessibility improvements
+- [ ] Add transitions and animations
 
 ---
 
-## Recent Work
+## Current Architecture
 
-### Text Highlighting System (2025-12-14)
+### VoxGlk Custom Display Engine
 
-**Status:** ✅ Working - All chunks highlighted correctly
+**Files:**
+- `public/js/game/voxglk.js` - Display interface (init, update, error)
+- `public/js/game/voxglk-renderer.js` - HTML renderer with space preservation
+- `public/js/narration/chunking.js` - TTS marker system (currently broken)
 
-**What was done:**
-- Implemented marker-based highlighting system
-- Fixed marker selector logic
-- Fixed ReferenceError bug (`currentNarrationChunks` → `narrationChunks`)
-- Added debug logging for troubleshooting
+**Data Flow:**
+```
+ZVM (ifvms.js game engine)
+  ↓ calls Glk API
+glkapi.js
+  ↓ GlkOte.update(updateObj)
+VoxGlk.update()
+  ↓ VoxGlkRenderer.renderUpdate()
+  ↓ HTML with white-space: pre
+#gameOutputInner (rendered output)
+  ↓ chunking.js inserts markers
+TTS narration with highlighting
+```
 
-**See:** [reference/text-highlighting-system.md](reference/text-highlighting-system.md) for detailed implementation
-
-### Next Steps
-
-1. ~~**Test highlighting**~~ ✅ DONE - Working correctly
-2. **Edge case testing** - Test with different game text patterns (longer paragraphs, special formatting)
-3. **Cleanup** - Remove debug logging once confirmed stable
-4. **CSS refinement** - Adjust highlight colors/styling to match theme
+**Key Features:**
+- Browser-based Z-machine interpreter (ifvms.js)
+- Custom VoxGlk renderer (replaces GlkOte UI)
+- Preserves spaces via `white-space: pre` CSS
+- Responsive layout (768px, 480px breakpoints)
+- Voice recognition (Web Speech API)
+- TTS narration (Web Speech API)
 
 ---
 
-## ✅ COMPLETED: Browser-Based ZVM Migration
+## What Works ✅
 
-**Status:** ✅ Migration complete - Frotz server-side architecture replaced
+- Game loading and playback (all 4 games tested)
+- Character input (single keypress)
+- Line input (command entry)
+- Voice recognition
+- Basic TTS narration
+- Responsive mobile layout
+- Status line rendering
+- Generation counter sync
 
-**Date Completed:** 2025-12-15
+## What's Broken ❌
 
-### What Changed
-Migrated from server-side Frotz (dfrotz via WSL/Socket.IO) to browser-based ZVM:
-- Replaced Frotz with ifvms.js (browser Z-machine interpreter)
-- Implemented GlkOte display layer for IF games
-- Simplified backend to static file server only
-- Removed server-side game state management
-- Games now run entirely client-side
-
-### Why Abandon Frotz?
-
-**Primary Reason:** Unix-style line-oriented I/O is fundamentally incompatible with modern web-based interactive fiction
-
-**Technical Limitations:**
-- **Line-based I/O:** Frotz expects traditional terminal input/output (stdin/stdout with line breaks)
-- **No state exposure:** Game state locked inside Frotz process, inaccessible to web UI
-- **Status line parsing:** Required fragile regex patterns to detect room changes
-- **Output buffering:** Had to guess when Frotz finished outputting text (500ms delays)
-- **Complex infrastructure:** Required WSL on Windows, process management, Socket.IO
-- **Deployment complexity:** Server-side game logic requires VPS hosting ($4-6/month)
-
-**Browser-based advantages:**
-- Direct access to game state and output via GlkOte API
-- Immediate response (no network latency)
-- Free static hosting (GitHub Pages, Netlify, Vercel)
-- Simpler architecture (no process management)
-- Unlimited concurrent users (no server bottleneck)
-
-### Module Structure (Post-Migration)
-```
-public/js/
-├── core/ (state, dom)
-├── voice/ (recognition, commands, meter, echo)
-├── narration/ (tts-player, chunking, navigation, highlighting)
-├── ui/ (game-output, nav-buttons, settings, history)
-├── game/ (commands, saves, loader)
-└── utils/ (text-processing, pronunciation, status)
-
-server/
-├── core/ (app, config) - Static file serving only
-└── ai/ (translator) - Optional AI translation
-```
-
-**Removed:**
-- `server/game/frotz-manager.js` - No longer needed
-- `server/game/text-processor.js` - Text processing now client-side
-- All Socket.IO game commands (only AI translation uses Socket.IO now)
+- TTS marker insertion (12/14 markers fail)
+- Text highlighting during narration
+- Sentence boundary detection in multi-run content
 
 ---
 
@@ -146,27 +129,18 @@ server/
 cd /e/Project/IFTalk && npm start
 
 # Access at http://localhost:3000
-
-# Check for running servers
-netstat -ano | findstr :3000
-tasklist | findstr node
-
-# Kill stuck process
-powershell -Command "Stop-Process -Id <PID> -Force"
 ```
 
 ---
 
-## Git History
-
-```
-f8b5d5d WIP: ifvms-glkote flow with Parchment-compatible versions
-41eff5b Update README with browser-based ZVM architecture
-17f1d9e Replace Parchment with ifvms/ZVM + GlkOte
-5d1850f Change default voices
-12aa9d7 Initial commit: IFTalk voice-controlled IF player
-```
+## Version History
 
 **Architecture Evolution:**
-1. **v1 (5d1850f):** Server-side Frotz via WSL + Socket.IO
-2. **v2 (current):** Browser-based ifvms.js + GlkOte
+1. **v1:** Server-side Frotz via WSL + Socket.IO (removed Dec 2024)
+2. **v2:** Browser-based Parchment (replaced Dec 2024)
+3. **v3 (current):** Browser-based ifvms.js + VoxGlk custom renderer
+
+**Current Libraries:**
+- ifvms.js: Copyright 2017 (version unknown) - **needs update to 1.1.6**
+- GlkOte: 2.2.5 (latest: 2.3.7)
+- jQuery: 3.7.1

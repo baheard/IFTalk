@@ -37,7 +37,6 @@ export function saveGame(saveData) {
 
   localStorage.setItem('ifTalkSaves', JSON.stringify(saves));
 
-  console.log('[Saves] Saved game:', saveData.game);
   updateStatus(`Game saved (${saves.length} total saves)`);
 }
 
@@ -69,6 +68,5 @@ export function restoreFromSlot(slot) {
  * NOTE: Socket.IO save handlers removed - browser-based ZVM uses native save mechanism
  */
 export function initSaveHandlers() {
-  console.log('[Saves] Browser-based ZVM uses in-game SAVE/RESTORE commands');
   // No initialization needed for browser-based ZVM saves
 }

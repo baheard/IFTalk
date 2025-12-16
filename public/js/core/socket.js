@@ -15,7 +15,6 @@ import { updateStatus } from '../utils/status.js';
 export function initSocket() {
   // Check if Socket.IO is loaded
   if (typeof io === 'undefined') {
-    console.log('[Socket] Socket.IO not loaded - running in offline mode (browser-only)');
     return null;
   }
 

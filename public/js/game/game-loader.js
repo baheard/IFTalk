@@ -1,7 +1,7 @@
 /**
  * Game Loader Module
  *
- * Handles game selection and initialization using browser-based ZVM + GlkOte.
+ * Handles game selection and initialization using browser-based ZVM with custom display.
  */
 
 import { state, resetNarrationState } from '../core/state.js';
@@ -9,49 +9,39 @@ import { dom } from '../core/dom.js';
 import { updateStatus } from '../utils/status.js';
 import { updateNavButtons } from '../ui/nav-buttons.js';
 import { stopNarration } from '../narration/tts-player.js';
-
-/**
- * Track the last generation number received from GlkOte
- * We'll use this to send the correct generation in responses
- */
-let lastReceivedGeneration = 0;
+import { createVoxGlk, sendInput, getInputType } from './voxglk.js';
 
 /**
  * Start a game using browser-based ZVM
  * @param {string} gamePath - Path to game file
  * @param {Function} onOutput - Callback for game output (for TTS)
+ * @param {Function} startTalkMode - Function to start talk mode
  */
-export async function startGame(gamePath, onOutput) {
+export async function startGame(gamePath, onOutput, startTalkMode) {
   try {
     state.currentGamePath = gamePath;
     // Set game name for save/restore
     state.currentGameName = gamePath.split('/').pop().replace(/\.[^.]+$/, '').toLowerCase();
-    console.log('[Game] Starting:', state.currentGameName);
 
     updateStatus('Starting game...', 'processing');
 
-    // Hide welcome, show gameport and input
+    // Hide welcome, show game output and input
     if (dom.welcome) dom.welcome.classList.add('hidden');
-    const gameport = document.getElementById('gameport');
-    if (gameport) gameport.classList.remove('hidden');
+    const gameOutput = document.getElementById('gameOutput');
+    if (gameOutput) gameOutput.classList.remove('hidden');
     if (dom.inputArea) dom.inputArea.classList.remove('hidden');
 
-    console.log('[ZVM] Loading game:', gamePath);
-
-    // Verify libraries are loaded
+    // Verify ZVM is loaded
     if (typeof window.ZVM === 'undefined') {
       console.error('[ZVM] ZVM library not loaded');
       updateStatus('Error: Game engine not loaded');
       return;
     }
+
+    // Verify Glk is loaded
     if (typeof window.Glk === 'undefined') {
       console.error('[ZVM] Glk library not loaded');
       updateStatus('Error: Glk library not loaded');
-      return;
-    }
-    if (typeof window.GlkOte === 'undefined') {
-      console.error('[ZVM] GlkOte library not loaded');
-      updateStatus('Error: GlkOte library not loaded');
       return;
     }
 
@@ -64,105 +54,43 @@ export async function startGame(gamePath, onOutput) {
     }
     const arrayBuffer = await response.arrayBuffer();
     const storyData = arrayBuffer;
-    console.log('[ZVM] Story file loaded:', storyData.byteLength, 'bytes');
 
     // Create ZVM instance
     const vm = new window.ZVM();
     window.zvmInstance = vm;
 
-    // Prepare VM with story data BEFORE GlkOte.init()
-    console.log('[ZVM] Preparing VM...');
+    // Create VoxGlk display engine
+    const voxglk = createVoxGlk(onOutput);
+
+    // Prepare options for Glk
     const options = {
       vm: vm,
       Glk: window.Glk,
-      GlkOte: window.GlkOte,
+      GlkOte: voxglk,  // Pass VoxGlk as GlkOte - duck typing!
       Dialog: window.Dialog
     };
+
+    // Prepare VM with story data
     vm.prepare(storyData, options);
 
-    // Create Game interface for GlkOte
-    window.Game = {
-      gameport: 'gameport',  // ID of the container element
-      spacing: 4,
-      accept: function(event) {
-        console.log('[Game] Received event:', event.type);
+    // Initialize Glk - this starts everything!
+    window.Glk.init(options);
+    // Glk.init() will:
+    // 1. Set options.accept to its internal handler
+    // 2. Call customDisplay.init(options)
+    // 3. customDisplay.init() will call options.accept({type: 'init'})
+    // 4. Glk will call vm.start()
+    // 5. Game output will come through customDisplay.update()
 
-        if (event.type === 'init') {
-          // GlkOte has measured the gameport and provided metrics
-          console.log('[Game] Init event received with metrics');
+    updateStatus('Ready - Game loaded');
 
-          // Initialize Glk first
-          console.log('[ZVM] Initializing Glk...');
-          window.Glk.init(options);
-          console.log('[ZVM] Glk initialized');
+    // Reset narration state
+    resetNarrationState();
+    updateNavButtons();
 
-          // Start VM after GlkOte UI is fully ready
-          // Wait for next animation frame to ensure DOM is settled
-          requestAnimationFrame(() => {
-            requestAnimationFrame(() => {
-              try {
-                console.log('[ZVM] Starting VM...');
-                window.zvmInstance.start();
-                console.log('[ZVM] VM started successfully');
-              } catch (e) {
-                console.warn('[ZVM] VM start error (may be non-fatal):', e.message);
-                console.error('[ZVM] Full error:', e);
-              }
-            });
-          });
-
-          console.log('[ZVM] Game initialized successfully');
-          updateStatus('Ready - Game loaded');
-
-          // Reset generation tracking for new game
-          lastReceivedGeneration = 0;
-
-          // Reset narration state
-          resetNarrationState();
-
-          updateNavButtons();
-          if (dom.userInput) dom.userInput.focus();
-        } else if (event.type === 'line' || event.type === 'char') {
-          // Handle user input events
-          console.log('[Game] Input event:', event);
-          // Track the generation from GlkOte's event
-          if (event.gen !== undefined) {
-            lastReceivedGeneration = event.gen;
-          }
-          vm.resume(event);
-        } else if (event.type === 'specialresponse') {
-          // Handle file operations
-          console.log('[Game] Special response:', event);
-          if (event.gen !== undefined) {
-            lastReceivedGeneration = event.gen;
-          }
-          vm.resume(event);
-        }
-      }
-    };
-
-    // Verify gameport element exists
-    const gameportEl = document.getElementById('gameport');
-    if (!gameportEl) {
-      throw new Error('Gameport element not found');
-    }
-    console.log('[ZVM] Gameport element found:', gameportEl);
-
-    // Initialize GlkOte - it will use the global window.Game object
-    // GlkOte will measure the gameport and call Game.accept() with init event
-    console.log('[ZVM] Initializing GlkOte...');
-    try {
-      window.GlkOte.init();
-      console.log('[ZVM] GlkOte.init() called successfully');
-
-      // Hook into GlkOte.update() for output capture
-      if (onOutput) {
-        hookGlkOteOutput(onOutput);
-      }
-    } catch (error) {
-      console.error('[ZVM] GlkOte.init() error:', error);
-      throw error;
-    }
+    // Auto-start talk mode
+    if (startTalkMode) startTalkMode();
+    if (dom.userInput) dom.userInput.focus();
 
     // Stop any existing narration
     stopNarration();
@@ -174,102 +102,38 @@ export async function startGame(gamePath, onOutput) {
 }
 
 /**
- * Hook into GlkOte.update() to capture game output for TTS
- * @param {Function} onOutput - Callback for game output
- */
-function hookGlkOteOutput(onOutput) {
-  if (typeof GlkOte === 'undefined' || !GlkOte.update) {
-    console.warn('[Game] GlkOte.update not available for output capture');
-    return;
-  }
-
-  console.log('[Game] Hooking GlkOte.update for output capture');
-
-  // Save original update function
-  const originalUpdate = GlkOte.update;
-
-  // Wrap update to capture text output
-  GlkOte.update = function(updateObj) {
-    try {
-      // Extract text from content structure
-      if (updateObj && updateObj.content) {
-        let capturedText = '';
-
-        updateObj.content.forEach(windowContent => {
-          if (windowContent.text) {
-            windowContent.text.forEach(textBlock => {
-              if (textBlock.content) {
-                textBlock.content.forEach(run => {
-                  // Check different possible text formats
-                  if (typeof run === 'string') {
-                    capturedText += run;
-                  } else if (Array.isArray(run) && run.length >= 2) {
-                    // Format: ['style', 'text']
-                    capturedText += run[1] || '';
-                  } else if (run.text) {
-                    capturedText += run.text;
-                  }
-                });
-              }
-            });
-          }
-        });
-
-        // If we captured text, pass it to the callback
-        if (capturedText.trim()) {
-          console.log('[Game] Captured output:', capturedText.substring(0, 100) + '...');
-          onOutput(capturedText);
-        }
-      }
-    } catch (error) {
-      console.error('[Game] Error capturing output:', error);
-    }
-
-    // Call original update function
-    return originalUpdate.call(this, updateObj);
-  };
-}
-
-/**
- * Send command directly to ZVM
- * @param {string} cmd - Command to send
+ * Send command to the game
+ * @param {string} cmd - Command to send (optional, uses input field if not provided)
  */
 export function sendCommandToGame(cmd) {
   const input = cmd !== undefined ? cmd : (dom.userInput ? dom.userInput.value : '');
 
-  console.log('[Game] Sending command:', input);
+  // Get the current input type from VoxGlk (game may want 'char' or 'line')
+  const type = getInputType();
 
-  // Send line input event to ZVM via Game.accept()
-  try {
-    if (typeof Game !== 'undefined' && Game.accept && window.zvmInstance) {
-      // Use the generation number from the last event we received
-      // GlkOte expects us to respond with the same generation it sent
-      const genToSend = lastReceivedGeneration;
-      Game.accept({
-        type: 'line',
-        gen: genToSend,
-        value: input,
-        terminator: 'enter'
-      });
-      console.log('[Game] Command sent (gen ' + genToSend + ')');
-    } else {
-      console.error('[Game] Game not initialized');
-    }
-  } catch (error) {
-    console.error('[Game] Error sending command:', error);
+  // For char input with empty string, send Enter key
+  const text = (type === 'char' && input === '') ? '\n' : input;
+
+  // Send through our custom display layer with correct type
+  sendInput(text, type);
+
+  // Clear the input field
+  if (dom.userInput) {
+    dom.userInput.value = '';
   }
 }
 
 /**
  * Initialize game selection handlers
  * @param {Function} onOutput - Callback for game output (for TTS)
+ * @param {Function} startTalkMode - Function to start talk mode
  */
-export function initGameSelection(onOutput) {
+export function initGameSelection(onOutput, startTalkMode) {
   // Game card click handlers
   document.querySelectorAll('.game-card').forEach(card => {
     card.addEventListener('click', () => {
       const gamePath = card.dataset.game;
-      startGame(gamePath, onOutput);
+      startGame(gamePath, onOutput, startTalkMode);
     });
   });
 

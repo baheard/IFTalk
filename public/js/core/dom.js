@@ -9,7 +9,9 @@ export const dom = {
   // Game display
   welcome: null,
   gameOutput: null,
-  gameOutputInner: null,
+  statusBar: null,
+  upperWindow: null,
+  lowerWindow: null,
 
   // Input area
   inputArea: null,
@@ -77,7 +79,9 @@ export function initDOM() {
   // Game display
   dom.welcome = document.getElementById('welcome');
   dom.gameOutput = document.getElementById('gameOutput');
-  dom.gameOutputInner = document.getElementById('gameOutputInner');
+  dom.statusBar = document.getElementById('statusBar');
+  dom.upperWindow = document.getElementById('upperWindow');
+  dom.lowerWindow = document.getElementById('lowerWindow');
 
   // Input area
   dom.inputArea = document.getElementById('inputArea');
@@ -147,7 +151,9 @@ export function initDOM() {
 function validateDOM() {
   const required = [
     'gameOutput',
-    'gameOutputInner',
+    'statusBar',
+    'upperWindow',
+    'lowerWindow',
     'userInput',
     'status',
     'sendBtn'

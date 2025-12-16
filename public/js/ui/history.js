@@ -11,9 +11,10 @@ import { state } from '../core/state.js';
  * @param {string} original - Original command text
  * @param {string|null} translated - AI translated command (optional)
  * @param {number|null} confidence - AI confidence level (optional)
+ * @param {boolean} isVoiceCommand - Whether this was a voice command
  */
-export function addToCommandHistory(original, translated = null, confidence = null) {
-  state.commandHistoryItems.unshift({ original, translated, confidence });
+export function addToCommandHistory(original, translated = null, confidence = null, isVoiceCommand = false) {
+  state.commandHistoryItems.unshift({ original, translated, confidence, isVoiceCommand });
   if (state.commandHistoryItems.length > 20) {
     state.commandHistoryItems.pop();
   }
@@ -46,7 +47,8 @@ export function showCommandHistory() {
 
   const historyText = state.commandHistoryItems
     .map((item, i) => {
-      let line = `${i + 1}. ${item.original}`;
+      let icon = item.isVoiceCommand ? '🎤 ' : '⌨️ ';
+      let line = `${i + 1}. ${icon}${item.original}`;
       if (item.translated) {
         line += ` → ${item.translated} (${item.confidence}%)`;
       }

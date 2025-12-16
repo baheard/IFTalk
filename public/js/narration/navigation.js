@@ -19,7 +19,6 @@ import { dom } from '../core/dom.js';
 export function skipToChunk(offset, speakTextChunked) {
   // Prevent concurrent navigation
   if (state.isNavigating) {
-    console.log('[TTS] Navigation already in progress, ignoring');
     return;
   }
 
@@ -28,31 +27,26 @@ export function skipToChunk(offset, speakTextChunked) {
   // Special case: if at end and going back, jump to last chunk
   if (offset === -1 && state.currentChunkIndex >= state.narrationChunks.length) {
     targetIndex = state.narrationChunks.length - 1;
-    console.log(`[TTS] Back from end: jumping to last chunk ${targetIndex}`);
   }
   // Smart back button: if going back and within 500ms, go to previous chunk
   else if (offset === -1) {
     const timeSinceStart = Date.now() - state.currentChunkStartTime;
     if (timeSinceStart < 500 && state.currentChunkIndex > 0) {
       targetIndex = state.currentChunkIndex - 1;
-      console.log(`[TTS] Smart back: within 500ms, going to previous chunk ${targetIndex}`);
     } else {
       targetIndex = state.currentChunkIndex;
-      console.log(`[TTS] Smart back: past 500ms, restarting current chunk ${targetIndex}`);
     }
   }
 
   if (targetIndex < 0 || targetIndex >= state.narrationChunks.length) {
-    console.log('[TTS] Cannot skip - out of bounds');
     return;
   }
 
-  console.log(`[TTS] Skipping from chunk ${state.currentChunkIndex} to ${targetIndex}`);
 
   state.isNavigating = true;
 
-  // Check if narration is enabled (should resume after navigation)
-  const shouldResume = state.narrationEnabled;
+  // Check if narration is ACTIVELY PLAYING (not just enabled)
+  const wasPlaying = state.isNarrating;
 
   // Stop current playback immediately
   stopNarration();
@@ -65,13 +59,14 @@ export function skipToChunk(offset, speakTextChunked) {
     // Update highlighting
     updateTextHighlight(targetIndex);
 
-    // Auto-resume if narration was enabled
-    if (shouldResume) {
-      console.log(`[TTS] Auto-resuming from chunk ${targetIndex}`);
+    // Auto-resume ONLY if narration was actively playing
+    if (wasPlaying) {
+      console.log('[SkipToChunk] Was playing, resuming at chunk', targetIndex);
       state.isPaused = false;
       state.narrationEnabled = true;
       speakTextChunked(null, targetIndex);
     } else {
+      console.log('[SkipToChunk] Was not playing, staying paused at chunk', targetIndex);
       // Just update highlight if not playing
       state.isPaused = true;
     }
@@ -85,13 +80,12 @@ export function skipToChunk(offset, speakTextChunked) {
 export function skipToStart(speakTextChunked) {
   if (state.narrationChunks.length === 0 || state.isNavigating) return;
 
-  console.log('[TTS] Skipping to start');
 
   state.isNavigating = true;
   state.currentChunkStartTime = 0;
 
-  // Check if narration is enabled (should resume after navigation)
-  const shouldResume = state.narrationEnabled;
+  // Check if narration is ACTIVELY PLAYING (not just enabled)
+  const wasPlaying = state.isNarrating;
 
   stopNarration();
   state.currentChunkIndex = 0;
@@ -102,12 +96,15 @@ export function skipToStart(speakTextChunked) {
     // Always update highlighting to first chunk
     updateTextHighlight(0);
 
-    // Start playing if: (was playing before) OR (autoplay is enabled)
-    if (shouldResume || state.autoplayEnabled) {
+    // ONLY start playing if narration was actively playing before (not if autoplay is on)
+    // User must explicitly click play if they want to start from beginning
+    if (wasPlaying) {
+      console.log('[SkipToStart] Was playing, resuming from start');
       state.isPaused = false;
       state.narrationEnabled = true;
       speakTextChunked(null, 0);
     } else {
+      console.log('[SkipToStart] Was not playing, staying paused');
       // Stay paused but keep first chunk highlighted
       state.isPaused = true;
     }
@@ -120,7 +117,6 @@ export function skipToStart(speakTextChunked) {
 export function skipToEnd() {
   if (state.narrationChunks.length === 0) return;
 
-  console.log('[TTS] FORCE SKIP TO END - stopping all narration');
 
   // Force stop everything immediately
   state.narrationEnabled = false;
@@ -155,5 +151,4 @@ export function skipToEnd() {
     dom.gameOutput.scrollTop = dom.gameOutput.scrollHeight;
   }
 
-  console.log('[TTS] Force stop complete - position:', state.currentChunkIndex + 1, '/', state.narrationChunks.length);
 }

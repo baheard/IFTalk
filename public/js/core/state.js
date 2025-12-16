@@ -5,7 +5,8 @@
  * Export as object so properties can be mutated from other modules.
  */
 
-export const state = {
+// Create state object with property tracking for debugging
+const _state = {
   // Socket connection
   socket: null,
 
@@ -13,23 +14,25 @@ export const state = {
   currentGamePath: null,
   currentGameName: null,
   currentGameTextElement: null,
+  currentStatusLineElement: null,
 
   // Voice recognition state
   recognition: null,
   isListening: false,
   listeningEnabled: false,
   isRecognitionActive: false,
-  isMuted: false,
+  isMuted: true,  // Start with microphone muted by default
   hasProcessedResult: false,
   hasManualTyping: false,
 
   // Narration state
   currentAudio: null,
   narrationEnabled: false,
-  autoplayEnabled: true,
+  _autoplayEnabled: false,
   isNarrating: false,
   pendingNarrationText: null,
   narrationChunks: [],
+  chunksValid: false,
   currentChunkIndex: 0,
   isPaused: false,
   narrationSessionId: 0,
@@ -70,6 +73,24 @@ export const state = {
   browserVoiceConfig: null
 };
 
+// Add getter/setter for autoplayEnabled with logging
+Object.defineProperty(_state, 'autoplayEnabled', {
+  get() {
+    return this._autoplayEnabled;
+  },
+  set(value) {
+    if (this._autoplayEnabled !== value) {
+      console.log('[State] autoplayEnabled changed:', this._autoplayEnabled, '->', value);
+      console.trace('[State] Stack trace:');
+    }
+    this._autoplayEnabled = value;
+  },
+  enumerable: true,
+  configurable: true
+});
+
+export const state = _state;
+
 export const constants = {
   SOUND_THRESHOLD: 60,
   SILENCE_DELAY: 800,
@@ -83,8 +104,8 @@ export const constants = {
  */
 export function resetNarrationState() {
   state.narrationChunks = [];
+  state.chunksValid = false;
   state.currentChunkIndex = 0;
-  state.narrationSessionId++;
   state.isNarrating = false;
   state.isPaused = false;
   state.currentChunkStartTime = 0;

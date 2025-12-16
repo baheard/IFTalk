@@ -5,17 +5,11 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>IF Talk - Voice-Powered Interactive Fiction</title>
   <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
-  <link href="https://fonts.googleapis.com/css2?family=Crimson+Pro:ital,wght@0,400;0,600;1,400&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Crimson+Pro:ital,wght@0,400;0,600;1,400&family=IBM+Plex+Mono:wght@400;500&family=Inter:wght@400;500;600&family=Literata:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
 
-  <!-- jQuery (required by GlkOte) -->
-  <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
-
-  <!-- GlkOte display library -->
+  <!-- Glk API and Dialog (required by ZVM) -->
   <script src="lib/dialog-stub.js"></script>
-  <script src="lib/glkote.js"></script>
   <script src="lib/glkapi.js"></script>
-  <link rel="stylesheet" href="lib/glkote.css">
-  <link rel="stylesheet" href="lib/dialog.css">
 
   <!-- ifvms ZVM interpreter -->
   <script src="lib/zvm.js"></script>
@@ -131,59 +125,42 @@
       </div>
     </div>
 
-    <!-- Game Output (hidden until game starts) -->
+    <!-- Game Output -->
     <div class="game-output hidden" id="gameOutput">
-      <div class="game-output-inner" id="gameOutputInner"></div>
-    </div>
-
-    <!-- GlkOte game container -->
-    <div id="gameport" class="hidden">
-      <div id="windowport"></div>
+      <!-- Three-primitive Z-machine window model -->
+      <div class="status-bar" id="statusBar"></div>
+      <div class="upper-window" id="upperWindow"></div>
+      <div class="lower-window" id="lowerWindow"></div>
     </div>
   </div>
 
-  <div class="input-area hidden" id="inputArea">
-    <div class="controls">
-      <div class="controls-left">
-        <button id="skipToStartBtn" class="btn-nav" title='"Restart"'><span class="material-icons">skip_previous</span></button>
-        <button id="prevChunkBtn" class="btn-nav" title='"Back"'><span class="material-icons">fast_rewind</span></button>
-        <button id="pausePlayBtn" class="btn-nav" title='"Pause" / "Play"'><span class="material-icons">pause</span></button>
-        <button id="nextChunkBtn" class="btn-nav" title='"Skip"'><span class="material-icons">fast_forward</span></button>
-        <button id="skipToEndBtn" class="btn-nav" title='"Skip All"'><span class="material-icons">skip_next</span></button>
-      </div>
-      <div class="controls-right">
-        <button id="autoplayBtn" class="btn-nav btn-autoplay active" title="Auto-play new text"><span class="material-icons">play_circle</span></button>
-        <button id="settingsBtn" class="btn-nav btn-settings" title="Settings"><span class="material-icons">settings</span></button>
-      </div>
-    </div>
-
-    <!-- Two-Panel Input Layout -->
-    <div class="input-panels">
-      <!-- Left Panel: Voice Input (only visible in talk mode) -->
-      <div class="input-panel voice-panel">
-        <div class="voice-feedback hidden" id="voiceFeedback">
-          <button id="muteBtn" class="btn-icon btn-mute-indicator" title='"Mute" / "Unmute"'><span class="material-icons">mic</span></button>
-          <div class="voice-transcript" id="voiceTranscript">Listening...</div>
+  <div class="input-wrapper">
+    <div class="input-area hidden" id="inputArea">
+      <div class="controls">
+        <div class="controls-left">
+          <button id="skipToStartBtn" class="btn-nav" title='"Restart"'><span class="material-icons">skip_previous</span></button>
+          <button id="prevChunkBtn" class="btn-nav" title='"Back"'><span class="material-icons">fast_rewind</span></button>
+          <button id="pausePlayBtn" class="btn-nav" title="Play"><span class="material-icons">play_arrow</span></button>
+          <button id="nextChunkBtn" class="btn-nav" title='"Skip"'><span class="material-icons">fast_forward</span></button>
+          <button id="skipToEndBtn" class="btn-nav" title='"Skip All"'><span class="material-icons">skip_next</span></button>
         </div>
-        <div class="voice-exchange" id="voiceExchange">
-          <div class="last-heard" id="lastHeard"></div>
-          <div class="last-response" id="lastResponse"></div>
-        </div>
-        <div class="voice-panel-buttons">
-          <button class="btn-icon" id="voiceHistoryBtn" title="Voice History"><span class="material-icons">history</span></button>
+        <div class="controls-right">
+          <button id="settingsBtn" class="btn-nav btn-settings" title="Settings"><span class="material-icons">settings</span></button>
+          <button id="autoplayBtn" class="btn-nav btn-autoplay" title="Auto-play new text"><span class="material-icons">play_circle</span></button>
         </div>
       </div>
 
-      <!-- Right Panel: Text Input -->
-      <div class="input-panel text-panel">
-        <div class="input-row">
-          <input type="text" id="userInput" placeholder="Type command..." autocomplete="off" />
-          <button id="sendBtn" class="btn-primary" title="Send command"><span class="material-icons">send</span></button>
-          <button class="btn-history" id="commandHistoryBtn" title="Command History"><span class="material-icons">history</span></button>
-        </div>
-      </div>
+    <!-- Unified Input -->
+    <div class="unified-input">
+      <input type="text" id="userInput" placeholder="Type something..." autocomplete="off" />
+      <button id="sendBtn" class="btn-icon-input" title="Send command"><span class="material-icons">send</span></button>
+      <button class="btn-icon-input" id="commandHistoryBtn" title="Command History"><span class="material-icons">history</span></button>
+      <button id="muteBtn" class="btn-mic" title="Toggle voice input"><span class="material-icons">mic</span></button>
     </div>
   </div>
+</div>
+  
+
 
   <div class="status" id="status">Select a game to start</div>
 

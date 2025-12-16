@@ -33,16 +33,23 @@ export async function startVoiceMeter() {
       const average = dataArray.reduce((a, b) => a + b) / bufferLength;
       const percentage = Math.min(100, (average / 128) * 100);
 
-      // Update mute button indicator (bright green if > 20%, normal green otherwise)
+      // Update mute button with volume-based glow
       // But NOT when muted - keep muted state
       if (!state.isMuted && dom.muteBtn) {
+        // Set CSS variable for volume-based glow intensity (0-1 scale)
+        const intensity = Math.min(1, percentage / 100);
+        dom.muteBtn.style.setProperty('--mic-intensity', intensity);
+
+        // Add 'listening' class when mic is active (for green color)
+        if (!dom.muteBtn.classList.contains('listening')) {
+          dom.muteBtn.classList.add('listening');
+        }
+
         if (percentage > 20) {
-          dom.muteBtn.classList.add('active');
           if (dom.voiceTranscript) {
             dom.voiceTranscript.textContent = 'Speaking... (say "Pause" to stop)';
           }
         } else {
-          dom.muteBtn.classList.remove('active');
           if (dom.voiceTranscript) {
             dom.voiceTranscript.textContent = 'Listening...';
           }
@@ -54,7 +61,6 @@ export async function startVoiceMeter() {
         // Sound detected above threshold
         if (!state.soundDetected) {
           state.soundDetected = true;
-          console.log('[Sound] Detected above threshold:', percentage.toFixed(1) + '%');
 
           // Pause narration if it's playing
           if (state.isNarrating && !state.pausedForSound && !state.isMuted) {
@@ -63,7 +69,6 @@ export async function startVoiceMeter() {
             if ('speechSynthesis' in window) {
               speechSynthesis.pause();
             }
-            console.log('[Sound] Paused narration for voice input');
           }
         }
 
@@ -89,9 +94,7 @@ export async function startVoiceMeter() {
                 if ('speechSynthesis' in window) {
                   speechSynthesis.resume();
                 }
-                console.log('[Sound] Resumed narration after silence');
               } else if (state.isPaused) {
-                console.log('[Sound] Not resuming - explicitly paused');
               }
             }, constants.SILENCE_DELAY);
           }
@@ -99,7 +102,6 @@ export async function startVoiceMeter() {
       }
     }, 50);
 
-    console.log('[Voice Meter] Started');
   } catch (error) {
     console.error('[Voice Meter] Error:', error);
   }
@@ -139,5 +141,4 @@ export function stopVoiceMeter() {
     state.audioContext = null;
   }
 
-  console.log('[Voice Meter] Stopped');
 }

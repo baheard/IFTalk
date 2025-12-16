@@ -25,7 +25,6 @@ export function recordSpokenChunk(text) {
     state.recentlySpokenChunks.shift();
   }
 
-  console.log('[Echo] Recorded:', text.substring(0, 40) + '...');
 }
 
 /**
@@ -50,14 +49,12 @@ export function isEchoOfSpokenText(transcript) {
     // Check for substring match (even partial)
     if (normalizedChunk.includes(normalizedTranscript) ||
         normalizedTranscript.includes(normalizedChunk)) {
-      console.log('[Echo] Substring match:', transcript);
       return true;
     }
 
     // Check similarity ratio
     const similarity = textSimilarity(normalizedTranscript, normalizedChunk);
     if (similarity >= constants.ECHO_SIMILARITY_THRESHOLD) {
-      console.log('[Echo] Similarity ' + (similarity * 100).toFixed(0) + '%:', transcript);
       return true;
     }
 
@@ -69,7 +66,6 @@ export function isEchoOfSpokenText(transcript) {
       const commonWords = transcriptWords.filter(w => chunkWords.includes(w));
       const wordOverlap = commonWords.length / transcriptWords.length;
       if (wordOverlap >= 0.5) {
-        console.log('[Echo] Word overlap ' + (wordOverlap * 100).toFixed(0) + '%:', transcript);
         return true;
       }
     }

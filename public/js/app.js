@@ -59,9 +59,7 @@ const voiceCommandHandlers = {
     const icon = dom.muteBtn?.querySelector('.material-icons');
     if (icon) icon.textContent = 'mic';
     if (dom.muteBtn) dom.muteBtn.classList.remove('muted');
-    if (dom.voicePanel) dom.voicePanel.classList.remove('muted');
-    if (dom.voiceFeedback) dom.voiceFeedback.classList.remove('hidden');
-    if (dom.voiceTranscript) dom.voiceTranscript.textContent = 'Listening...';
+    if (dom.userInput) dom.userInput.placeholder = '🎤 Say something...';
     startVoiceMeter();
     updateStatus('Microphone unmuted');
     updateNavButtons();
@@ -70,10 +68,12 @@ const voiceCommandHandlers = {
     state.isMuted = true;
     const icon = dom.muteBtn?.querySelector('.material-icons');
     if (icon) icon.textContent = 'mic_off';
-    if (dom.muteBtn) dom.muteBtn.classList.add('muted');
-    if (dom.voicePanel) dom.voicePanel.classList.add('muted');
-    if (dom.voiceFeedback) dom.voiceFeedback.classList.add('hidden');
-    if (dom.voiceTranscript) dom.voiceTranscript.textContent = 'Muted';
+    if (dom.muteBtn) {
+      dom.muteBtn.classList.add('muted');
+      dom.muteBtn.classList.remove('listening');
+      dom.muteBtn.style.setProperty('--mic-intensity', '0');
+    }
+    if (dom.userInput) dom.userInput.placeholder = 'Type something...';
     stopVoiceMeter();
     updateStatus('Microphone muted');
     updateNavButtons();
@@ -85,49 +85,105 @@ const voiceCommandHandlers = {
 
 // Handle game output from GlkOte
 function handleGameOutput(text) {
-  console.log('[App] Game output received:', text.substring(0, 100) + '...');
+  console.log('[HandleGameOutput] New game output received');
+  console.log('[HandleGameOutput] State check - autoplayEnabled:', state.autoplayEnabled, 'narrationEnabled:', state.narrationEnabled, 'isNarrating:', state.isNarrating);
+
+  // Stop any previous narration before showing new content
+  if (state.isNarrating) {
+    console.log('[HandleGameOutput] Stopping previous narration');
+    stopNarration();
+  }
 
   // Store for potential narration
   state.pendingNarrationText = text;
 
-  // Auto-narrate if autoplay is enabled and talk mode is active
-  if (state.autoplayEnabled && state.talkModeActive && !state.isNarrating) {
-    speakTextChunked(text);
+  // STRICT CHECK: Auto-start narration ONLY if autoplay is explicitly enabled
+  if (state.autoplayEnabled === true) {
+    console.log('[HandleGameOutput] ✓ Autoplay is TRUE, starting narration');
+    // Enable narration and start playing
+    state.narrationEnabled = true;
+    state.isPaused = false;
+
+    // Start narration (chunks will be created on-demand)
+    speakTextChunked(null, 0);
+  } else {
+    console.log('[HandleGameOutput] ✗ Autoplay is FALSE or undefined, NOT starting narration');
   }
 }
 
 // Initialize app
 async function initApp() {
-  console.log('[App] Initializing IFTalk...');
-
   // Initialize DOM
-  console.log('[App] 1. Initializing DOM...');
   initDOM();
 
+  // Add debug event listener for chunk highlighting
+  window.addEventListener('chunkHighlighted', async (e) => {
+    const { chunkIndex, chunkText, totalChunks, success } = e.detail;
+    console.log(`[CHUNK EVENT] Chunk ${chunkIndex}/${totalChunks - 1} highlighted (success: ${success})`);
+    console.log(`[CHUNK EVENT] Text: "${chunkText}"`);
+
+    // Query DOM for markers to verify they exist
+    const statusEl = window.currentStatusBarElement || document.getElementById('statusBar');
+    const mainEl = state.currentGameTextElement;
+    const upperEl = document.getElementById('upperWindow');
+
+    const startMarkers = [];
+    const endMarkers = [];
+
+    if (statusEl) {
+      startMarkers.push(...statusEl.querySelectorAll(`.chunk-marker-start[data-chunk="${chunkIndex}"]`));
+      endMarkers.push(...statusEl.querySelectorAll(`.chunk-marker-end[data-chunk="${chunkIndex}"]`));
+    }
+    if (upperEl) {
+      startMarkers.push(...upperEl.querySelectorAll(`.chunk-marker-start[data-chunk="${chunkIndex}"]`));
+      endMarkers.push(...upperEl.querySelectorAll(`.chunk-marker-end[data-chunk="${chunkIndex}"]`));
+    }
+    if (mainEl) {
+      startMarkers.push(...mainEl.querySelectorAll(`.chunk-marker-start[data-chunk="${chunkIndex}"]`));
+      endMarkers.push(...mainEl.querySelectorAll(`.chunk-marker-end[data-chunk="${chunkIndex}"]`));
+    }
+
+    console.log(`[CHUNK EVENT] Found ${startMarkers.length} start markers, ${endMarkers.length} end markers`);
+
+    // Check CSS Highlights API
+    if (CSS.highlights) {
+      const highlight = CSS.highlights.get('speaking');
+      if (highlight) {
+        console.log(`[CHUNK EVENT] CSS Highlight active with ${highlight.size} ranges`);
+      } else {
+        console.warn(`[CHUNK EVENT] No CSS highlight found!`);
+      }
+    }
+  });
+
   // Load voice configuration
-  console.log('[App] 2. Loading voice config...');
   await loadBrowserVoiceConfig();
-  console.log('[App] 3. Voice config loaded');
 
   // Initialize voice recognition with command processor
-  console.log('[App] 4. Initializing voice recognition...');
   const processVoice = (transcript) => processVoiceKeywords(transcript, voiceCommandHandlers);
   state.recognition = initVoiceRecognition(processVoice);
 
   // Make sendCommand available globally for recognition module
-  console.log('[App] 5. Setting up global command handler...');
   window._sendCommand = () => sendCommand();
 
   // Initialize UI components
-  console.log('[App] 6. Initializing UI components...');
   initSettings();
   initVoiceSelection();
   initHistoryButtons();
   initSaveHandlers();
 
-  // Initialize game selection with output callback
-  console.log('[App] 7. Initializing game selection...');
-  initGameSelection(handleGameOutput);
+  // Initialize mute button state to match default (muted)
+  if (dom.muteBtn) {
+    const icon = dom.muteBtn.querySelector('.material-icons');
+    if (icon) icon.textContent = 'mic_off';
+    dom.muteBtn.classList.add('muted');
+  }
+  if (dom.userInput) {
+    dom.userInput.placeholder = 'Type something...';
+  }
+
+  // Initialize game selection with output callback and talk mode starter
+  initGameSelection(handleGameOutput, window.startTalkMode);
 
   // Navigation button handlers
   const skipToStartBtn = document.getElementById('skipToStartBtn');
@@ -146,9 +202,19 @@ async function initApp() {
 
   const pausePlayBtn = document.getElementById('pausePlayBtn');
   if (pausePlayBtn) {
-    pausePlayBtn.addEventListener('click', () => {
+    pausePlayBtn.addEventListener('click', async () => {
+      console.log('[Play Button] Clicked. State:', {
+        isNarrating: state.isNarrating,
+        narrationEnabled: state.narrationEnabled,
+        isPaused: state.isPaused,
+        chunksLength: state.narrationChunks.length,
+        currentChunkIndex: state.currentChunkIndex,
+        chunksValid: state.chunksValid
+      });
+
       if (state.isNarrating && state.narrationEnabled) {
         // Pause
+        console.log('[Play Button] Pausing narration');
         state.narrationEnabled = false;
         state.isPaused = true;
         stopNarration();
@@ -156,9 +222,23 @@ async function initApp() {
         updateNavButtons();
       } else if (state.narrationChunks.length > 0) {
         // Play/Resume
+        console.log('[Play Button] Starting/Resuming narration from chunk', state.currentChunkIndex);
         state.narrationEnabled = true;
         state.isPaused = false;
         speakTextChunked(null, state.currentChunkIndex);
+      } else {
+        console.warn('[Play Button] Cannot play - no chunks available. Attempting to create chunks...');
+        // Try to create chunks if we have content
+        const { ensureChunksReady } = await import('./ui/game-output.js');
+        if (ensureChunksReady()) {
+          console.log('[Play Button] Chunks created successfully, starting narration');
+          state.narrationEnabled = true;
+          state.isPaused = false;
+          speakTextChunked(null, 0);
+        } else {
+          console.error('[Play Button] Failed to create chunks - no content available');
+          updateStatus('No text to narrate');
+        }
       }
     });
   }
@@ -181,6 +261,7 @@ async function initApp() {
     autoplayBtn.addEventListener('click', () => {
       state.autoplayEnabled = !state.autoplayEnabled;
       autoplayBtn.classList.toggle('active', state.autoplayEnabled);
+      console.log('[Autoplay Button] Toggled to:', state.autoplayEnabled);
       updateStatus(state.autoplayEnabled ? 'Autoplay enabled' : 'Autoplay disabled');
     });
   }
@@ -198,7 +279,11 @@ async function initApp() {
 
   // Send button
   if (dom.sendBtn) {
-    dom.sendBtn.addEventListener('click', () => sendCommand());
+    dom.sendBtn.addEventListener('click', () => {
+      // Mark as manual input (user clicked button, not voice)
+      state.hasManualTyping = true;
+      sendCommand();
+    });
   }
 
   // Enter key
@@ -206,6 +291,8 @@ async function initApp() {
     dom.userInput.addEventListener('keydown', (e) => {
       if (e.key === 'Enter') {
         e.preventDefault();
+        // Mark as manual input (user pressed Enter, not voice)
+        state.hasManualTyping = true;
         sendCommand();
       } else {
         // Any other key = manual typing
@@ -273,24 +360,35 @@ async function initApp() {
     }
   });
 
-  console.log('[App] Initialization complete');
 }
 
 // Start talk mode (voice recognition + auto-narration)
 window.startTalkMode = function() {
+  console.log('[StartTalkMode] Called. talkModeActive:', state.talkModeActive);
   if (state.talkModeActive) return;
 
-  console.log('[Talk Mode] Starting...');
   state.talkModeActive = true;
   state.listeningEnabled = true;
   state.narrationEnabled = true;
   state.autoplayEnabled = true;
+  console.log('[StartTalkMode] Autoplay ENABLED (forced on by talk mode)');
 
-  // Show voice panel
-  if (dom.voicePanel) dom.voicePanel.classList.remove('hidden');
+  // Set initial placeholder based on mute state
+  if (dom.userInput) {
+    dom.userInput.placeholder = state.isMuted ? 'Type something...' : '🎤 Say something...';
+  }
 
-  // Start voice meter
-  startVoiceMeter();
+  // Update autoplay button UI to reflect forced-on state
+  const autoplayBtn = document.getElementById('autoplayBtn');
+  if (autoplayBtn) {
+    autoplayBtn.classList.add('active');
+    console.log('[StartTalkMode] Autoplay button UI updated to active');
+  }
+
+  // Start voice meter if not muted
+  if (!state.isMuted) {
+    startVoiceMeter();
+  }
 
   // Start recognition
   if (state.recognition && !state.isRecognitionActive) {
@@ -307,14 +405,12 @@ window.startTalkMode = function() {
   }
 
   updateStatus('Talk mode active');
-  console.log('[Talk Mode] Started');
 };
 
 // Stop talk mode
 function stopTalkMode() {
   if (!state.talkModeActive) return;
 
-  console.log('[Talk Mode] Stopping...');
   state.talkModeActive = false;
   state.listeningEnabled = false;
 
@@ -334,12 +430,20 @@ function stopTalkMode() {
   stopNarration();
 
   updateStatus('Talk mode stopped');
-  console.log('[Talk Mode] Stopped');
 }
 
 // Initialize when DOM is ready
+async function startApp() {
+  try {
+    await initApp();
+  } catch (error) {
+    console.error('[App] Initialization error:', error);
+    console.error('[App] Stack:', error.stack);
+  }
+}
+
 if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', initApp);
+  document.addEventListener('DOMContentLoaded', startApp);
 } else {
-  initApp();
+  startApp();
 }

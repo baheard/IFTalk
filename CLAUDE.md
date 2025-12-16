@@ -49,8 +49,8 @@ cd /e/Project/IFTalk && npm start
 ## Third-Party Libraries
 
 ### ifvms.js (Z-Machine Interpreter)
-- **Current Version**: Copyright 2017 (specific version unknown)
-- **Latest Version**: 1.1.6 (released February 11, 2021)
+- **Current Version**: 1.1.6 (released February 11, 2021) - ✅ Updated December 15, 2024
+- **Previous Version**: Copyright 2017 (backed up as zvm.js.backup.2017)
 - **GitHub**: [curiousdannii/ifvms.js](https://github.com/curiousdannii/ifvms.js)
 - **npm**: [ifvms package](https://www.npmjs.com/package/ifvms)
 - **Documentation**: [IFWiki - ZVM (ifvms.js)](https://www.ifwiki.org/ZVM_(ifvms.js))
@@ -118,6 +118,13 @@ For detailed technical information, see the `reference/` folder:
    - File: `public/js/game/game-loader.js`
    - Use `requestAnimationFrame` instead of `setTimeout`
    - Prevents "Cannot read properties of null" error
+
+6. **ifvms.js Updated to 1.1.6** - Upgraded from 2017 version (December 15, 2024)
+   - File: `public/lib/zvm.js`
+   - Fixes read opcode handling in Z-Machine v3-4
+   - Better game compatibility (upper window input, screen height measurement)
+   - Performance improvements and bug fixes
+   - Previous version backed up as `zvm.js.backup.2017`
 
 ### What Works Now
 - ✅ Game selection and loading

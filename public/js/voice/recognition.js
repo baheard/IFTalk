@@ -129,17 +129,13 @@ export function initVoiceRecognition(processVoiceKeywords) {
       dom.voiceTranscript.textContent = interimTranscript;
       dom.voiceTranscript.classList.remove('confirmed');
       dom.voiceTranscript.classList.add('interim');
-      console.log('[Voice] Interim:', interimTranscript);
     }
 
     // Process final result
     if (finalTranscript && !state.hasProcessedResult) {
-      console.log('[Voice] Final:', finalTranscript);
-
       // Check for echo
       try {
         if (isEchoOfSpokenText(finalTranscript)) {
-          console.log('[Voice] Discarding echo:', finalTranscript);
           if (dom.voiceTranscript) {
             dom.voiceTranscript.textContent = state.isMuted ? 'Muted' : 'Listening...';
             dom.voiceTranscript.classList.remove('interim', 'confirmed');
@@ -159,13 +155,23 @@ export function initVoiceRecognition(processVoiceKeywords) {
 
       if (processed !== false && dom.userInput) {
         dom.userInput.value = processed;
+        dom.userInput.classList.add('voice-command');
         state.hasManualTyping = false;
         updateStatus('Recognized: ' + finalTranscript);
+
+        // Remove voice-command class after a short delay or when user types
+        setTimeout(() => {
+          if (dom.userInput && !state.hasManualTyping) {
+            dom.userInput.classList.remove('voice-command');
+          }
+        }, 3000);
       } else {
         // Command was handled, clear input
-        if (dom.userInput) dom.userInput.value = '';
+        if (dom.userInput) {
+          dom.userInput.value = '';
+          dom.userInput.classList.remove('voice-command');
+        }
         state.hasManualTyping = false;
-        console.log('[Voice] Command handled, input cleared');
       }
     }
   };
@@ -175,7 +181,7 @@ export function initVoiceRecognition(processVoiceKeywords) {
     if (event.error === 'network' || event.error === 'aborted') {
       return;
     } else if (event.error === 'no-speech') {
-      console.log('[Voice] No speech detected');
+      // Ignore no-speech errors
     } else {
       console.error('[Voice] Error:', event.error);
       updateStatus('Voice error: ' + event.error);
@@ -194,7 +200,6 @@ export function initVoiceRecognition(processVoiceKeywords) {
     const canSendDuringNarration = state.pausedForSound;
 
     if (hasInput && (!state.isNarrating || canSendDuringNarration) && !state.hasProcessedResult && !state.hasManualTyping) {
-      console.log('[Voice] OnEnd: Auto-sending:', dom.userInput.value);
       state.hasProcessedResult = true;
       // Call sendCommand from handlers
       if (window._sendCommand) window._sendCommand();
@@ -202,7 +207,6 @@ export function initVoiceRecognition(processVoiceKeywords) {
 
     // Always restart listening if continuous mode enabled
     if (state.listeningEnabled && !state.ttsIsSpeaking) {
-      console.log('[Voice] Restarting in 300ms...');
       setTimeout(() => {
         if (state.listeningEnabled && !state.ttsIsSpeaking && !state.isRecognitionActive) {
           try {
