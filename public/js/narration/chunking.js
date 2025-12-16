@@ -154,9 +154,9 @@ export function insertRealMarkersAtIDs(container, markerIDs, chunkOffset = 0) {
         parent.insertBefore(afterNode, textNode);
         parent.removeChild(textNode);
 
-        // Update textNode for next iteration
-        textNode = afterNode;
-        text = afterNode.textContent;
+        // Update textNode for next iteration - use beforeNode because remaining markers are before this one
+        textNode = beforeNode;
+        text = beforeNode.textContent;
 
       } catch (e) {
         console.error('[Markers] Failed to insert marker:', e.message);

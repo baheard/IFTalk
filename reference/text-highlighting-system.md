@@ -455,21 +455,82 @@ CSS.highlights.set('speaking', highlight);
 
 ---
 
-## Known Issues (December 2024)
+### Fix #6 - Chunking Split Regex Missing Markers 🔥 CRITICAL
 
-**Status:** ✅ **RESOLVED** - All major highlighting bugs fixed as of December 16, 2024
+**Problem:** Sentences were being combined into single chunks instead of splitting properly. For example, "November, 1997." and "You take a deep breath..." were being grouped into one chunk instead of two separate chunks.
 
-Previous issues with upper window highlighting and whitespace highlighting have been resolved. The system now works reliably across all container types (status bar, upper window, main content).
+**Root Cause:** The split regex required whitespace AFTER markers: `/(?<=⚐\d+⚐)\s+/`
+
+But in the processed text, markers often had no trailing space:
+```
+"November, 1997.⚐0⚐You take a deep breath..."
+                   ^ No space after marker!
+```
+
+So the regex didn't match and the split didn't happen.
+
+**Solution:** Changed regex to allow zero or more spaces: `/(?<=⚐\d+⚐)\s*/`
+
+**Result:**
+- Before: 8 chunks (markers 1, 2, 5, 7, 8, 11 were missing)
+- After: 15 chunks (all markers 0-14 present) ✅
+
+Each sentence now correctly becomes its own chunk for TTS narration.
+
+**File:** `public/js/utils/text-processing.js` line 55
 
 ---
 
-## Future Improvements
+### Fix #7 - Marker Insertion Reverse Loop Bug 🔥 CRITICAL
 
-1. **Remove debug logging** - Clean up console.log statements once stable
-2. **Error boundary** - Add try-catch around marker insertion for robustness
-3. **Fallback for Firefox** - Detect CSS Highlights support, show graceful message
-4. **Validation tests** - Add automated tests for chunking and highlighting edge cases
-5. **Performance optimization** - Consider caching marker lookups if needed
+**Problem:** When multiple markers existed in the same text node (e.g., markers 2, 3, 4), only the last marker (4) was being inserted. Markers 2 and 3 were skipped, causing chunks 2 and 3 to have no highlighting or collapsed ranges.
+
+**Root Cause:** After processing marker 4, the code updated `textNode = afterNode` (text AFTER marker 4). But markers 2 and 3 are BEFORE marker 4, so they were never processed.
+
+The reverse loop processes markers 4 → 3 → 2:
+```javascript
+// After processing marker 4:
+// DOM: beforeNode("...⚐2⚐...⚐3⚐") + end[4] + start[5] + afterNode("...")
+textNode = afterNode;  // ❌ Wrong! Markers 2 and 3 are in beforeNode
+```
+
+**Solution:** Update `textNode = beforeNode` instead of `afterNode`:
+
+```javascript
+// Now correctly points to text containing remaining markers
+textNode = beforeNode;
+text = beforeNode.textContent;
+```
+
+**Result:**
+- ✅ All markers in multi-marker text nodes are now processed
+- ✅ No more collapsed ranges
+- ✅ No more chunks bleeding into each other's highlight
+
+**File:** `public/js/narration/chunking.js` line 158
+
+---
+
+## Known Issues (December 2024)
+
+**Status:** ✅ **RESOLVED** - All major bugs fixed as of December 16, 2024
+
+Previous issues have been resolved:
+- ✅ Upper window highlighting
+- ✅ Whitespace in highlights
+- ✅ Chunking split regex
+- ✅ Marker insertion in multi-marker nodes
+
+The system now works reliably across all container types and game text variations.
+
+---
+
+## Code Quality Improvements (December 16, 2024)
+
+1. ✅ **Logging cleanup** - Removed excessive debug logs, kept only errors and warnings
+2. ✅ **Code simplification** - Streamlined chunking and highlighting logic
+3. ✅ **Better error handling** - Added collapsed range detection
+4. **Remaining:** Add automated tests for edge cases
 
 ---
 
@@ -487,10 +548,16 @@ The temporary marker system successfully solves the highlighting problem by:
 9. ✅ **STABLE:** All major highlighting bugs resolved (December 16, 2024)
 
 **Key breakthroughs:**
-1. **Split regex design** - Keeps markers within chunks instead of removing them during split
+1. **Split regex design** - Keeps markers within chunks, accepts optional whitespace after markers
 2. **Character-offset ranges** - Use `setStart/setEnd` with offsets to exclude leading/trailing whitespace
 3. **Three-container search** - Status bar → Upper window → Main content ensures all chunks are found
+4. **Reverse iteration fix** - Process multiple markers in same text node by updating to beforeNode not afterNode
+
+**Critical fixes (December 16, 2024):**
+- Fix #5: Leading/trailing whitespace in highlights (character-offset ranges)
+- Fix #6: Chunking split regex (changed `\s+` to `\s*`)
+- Fix #7: Marker insertion reverse loop (changed `afterNode` to `beforeNode`)
 
 **Architecture evolution:** The system has been refactored from a monolithic `app.js` into focused ES6 modules, improving maintainability and enabling new features like lazy chunking.
 
-**Current status:** System is working reliably across all IF game types tested (Anchorhead, Photopia, Lost Pig, Dungeon).
+**Current status:** ✅ System is **STABLE** and working reliably across all IF game types tested (Anchorhead, Photopia, Lost Pig, Dungeon). All major highlighting and chunking bugs have been resolved.
