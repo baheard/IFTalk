@@ -2,7 +2,7 @@
  * Game Output Module
  *
  * Handles rendering game text and commands to the screen.
- * Manages text processing, marker insertion, and highlighting setup.
+ * Uses lazy chunking - chunks are created on-demand when narration starts.
  */
 
 import { state, resetNarrationState } from '../core/state.js';
@@ -12,60 +12,169 @@ import { insertTemporaryMarkers, createNarrationChunks, insertRealMarkersAtIDs, 
 import { stopNarration } from '../narration/tts-player.js';
 
 /**
- * Add text to game output
- * @param {string} text - Text to add (HTML or plain text)
- * @param {boolean} isCommand - Whether this is a user command
- * @returns {HTMLElement} The created element
+ * Ensure chunks are ready for narration
+ * Creates chunks on-demand from status line + game text (lazy evaluation)
+ * @returns {boolean} True if chunks are ready
  */
-export function addGameText(text, isCommand = false) {
-  const div = document.createElement('div');
+export function ensureChunksReady() {
+  // If chunks are already valid, nothing to do
+  if (state.chunksValid && state.narrationChunks.length > 0) {
+    return true;
+  }
 
-  if (isCommand) {
-    div.className = 'user-command';
+  // Get elements
+  const statusEl = window.currentStatusBarElement || document.getElementById('statusBar');
+  const upperEl = document.getElementById('upperWindow');
+  const mainEl = state.currentGameTextElement;
 
-    // Don't show [ENTER] for empty commands - just show >
-    if (text === '' || text === '[ENTER]') {
-      div.innerHTML = `<span class="command-label">&gt;</span> <span style="color: #999;">[ENTER]</span>`;
-    } else {
-      div.innerHTML = `<span class="command-label">&gt;</span> ${escapeHtml(text)}`;
-    }
-  } else {
-    div.className = 'game-text';
+  // Get HTML
+  const statusHTML = statusEl ? statusEl.innerHTML : '';
+  const upperHTML = upperEl ? upperEl.innerHTML : '';
+  const mainHTML = mainEl ? mainEl.innerHTML : '';
 
-    // IMPORTANT: Stop any active narration before replacing chunks
-    if (state.isNarrating) {
-      console.log('[TTS] New text arriving - stopping current narration');
-      stopNarration();
-      state.currentChunkIndex = 0;
-      state.currentChunkStartTime = 0;
-    }
+  const hasStatus = statusHTML && statusHTML.trim();
+  const hasUpper = upperHTML && upperHTML.trim();
+  const hasMain = mainHTML && mainHTML.trim();
 
-    // MARKER SYSTEM: Insert temporary markers, create chunks, insert real markers
-    const markedHTML = insertTemporaryMarkers(text);
-    div.innerHTML = markedHTML;
+  if (!hasStatus && !hasUpper && !hasMain) {
+    return false;
+  }
 
-    const chunksWithMarkers = createNarrationChunks(markedHTML);
-    state.narrationChunks = chunksWithMarkers.map(c => c.text);
-    const survivingMarkerIDs = chunksWithMarkers.map(c => c.markerID).filter(id => id !== null);
-    console.log('[TTS] Created', state.narrationChunks.length, 'chunks for narration');
+  let allChunks = [];
+  let chunkOffset = 0;
 
-    insertRealMarkersAtIDs(div, survivingMarkerIDs);
+  // Process status line first (if exists)
+  if (hasStatus && statusEl) {
+    const statusMarkedHTML = insertTemporaryMarkers(statusHTML);
+    const statusChunksWithMarkers = createNarrationChunks(statusMarkedHTML);
+    const statusChunks = statusChunksWithMarkers.map(c => c.text);
+    const statusMarkerIDs = statusChunksWithMarkers.map(c => c.markerID).filter(id => id !== null);
 
-    // Insert start marker for chunk 0 at the very beginning
-    if (div.firstChild) {
+    // Apply markers to status element
+    statusEl.innerHTML = statusMarkedHTML;
+    insertRealMarkersAtIDs(statusEl, statusMarkerIDs);
+
+    // Insert start marker for chunk 0
+    if (statusEl.firstChild) {
       const startMarker = document.createElement('span');
       startMarker.className = 'chunk-marker-start';
       startMarker.dataset.chunk = 0;
       startMarker.style.cssText = 'display: none; position: absolute;';
-      div.insertBefore(startMarker, div.firstChild);
-      console.log('[Markers] Inserted start marker for chunk 0');
+      statusEl.insertBefore(startMarker, statusEl.firstChild);
     }
 
-    removeTemporaryMarkers(div, state.narrationChunks);
+    removeTemporaryMarkers(statusEl, statusChunks);
+
+    allChunks = allChunks.concat(statusChunks);
+    chunkOffset = statusChunks.length;
   }
 
-  if (dom.gameOutputInner) {
-    dom.gameOutputInner.appendChild(div);
+  // Process upper window second (if exists) - for quotes, formatted text, etc.
+  if (hasUpper && upperEl) {
+    const upperMarkedHTML = insertTemporaryMarkers(upperHTML);
+    const upperChunksWithMarkers = createNarrationChunks(upperMarkedHTML);
+    const upperChunks = upperChunksWithMarkers.map(c => c.text);
+    const upperMarkerIDs = upperChunksWithMarkers.map(c => c.markerID).filter(id => id !== null);
+
+    // Apply markers to upper window element (NO renumbering - keep original marker IDs!)
+    upperEl.innerHTML = upperMarkedHTML;
+
+    // Pass original marker IDs with chunk offset info
+    insertRealMarkersAtIDs(upperEl, upperMarkerIDs, chunkOffset);
+
+    // Insert start marker at beginning of upper window
+    if (upperEl.firstChild) {
+      const startMarker = document.createElement('span');
+      startMarker.className = 'chunk-marker-start';
+      startMarker.dataset.chunk = chunkOffset;
+      startMarker.style.cssText = 'display: none; position: absolute;';
+      upperEl.insertBefore(startMarker, upperEl.firstChild);
+    }
+
+    removeTemporaryMarkers(upperEl, upperChunks);
+
+    allChunks = allChunks.concat(upperChunks);
+    chunkOffset += upperChunks.length;
+
+    console.log('[EnsureChunks] Added', upperChunks.length, 'chunks from upper window');
+  }
+
+  // Process main content third (if exists)
+  if (hasMain && mainEl) {
+    let mainMarkedHTML = insertTemporaryMarkers(mainHTML);
+    const mainChunksWithMarkers = createNarrationChunks(mainMarkedHTML);
+    const mainChunks = mainChunksWithMarkers.map(c => c.text);
+    const mainMarkerIDs = mainChunksWithMarkers.map(c => c.markerID).filter(id => id !== null);
+
+    // Apply markers to main element (NO renumbering - keep original marker IDs!)
+    mainEl.innerHTML = mainMarkedHTML;
+
+    // Pass original marker IDs (not sequential indices) with chunk offset info
+    insertRealMarkersAtIDs(mainEl, mainMarkerIDs, chunkOffset);
+
+    // ALWAYS insert start marker at beginning of main content
+    if (mainEl.firstChild) {
+      const startMarker = document.createElement('span');
+      startMarker.className = 'chunk-marker-start';
+      startMarker.dataset.chunk = chunkOffset;
+      startMarker.style.cssText = 'display: none; position: absolute;';
+      mainEl.insertBefore(startMarker, mainEl.firstChild);
+    }
+
+    removeTemporaryMarkers(mainEl, mainChunks);
+
+    allChunks = allChunks.concat(mainChunks);
+  }
+
+  state.narrationChunks = allChunks;
+
+  // Mark chunks as valid
+  state.chunksValid = true;
+  return true;
+}
+
+/**
+ * Add text to game output
+ * @param {string} text - Text to add (HTML or plain text)
+ * @param {boolean} isCommand - Whether this is a user command
+ * @param {boolean} isVoiceCommand - Whether this was a voice command
+ * @returns {HTMLElement} The created element
+ */
+export function addGameText(text, isCommand = false, isVoiceCommand = false) {
+  const div = document.createElement('div');
+
+  if (isCommand) {
+    // Add voice-command class if this was spoken
+    div.className = isVoiceCommand ? 'user-command voice-command' : 'user-command';
+
+    // Don't show [ENTER] for empty commands - just show >
+    if (text === '' || text === '[ENTER]') {
+      const icon = isVoiceCommand ? '🎤 ' : '';
+      div.innerHTML = `<span class="command-label">&gt;</span> ${icon}<span style="color: #999;">[ENTER]</span>`;
+    } else {
+      const icon = isVoiceCommand ? '🎤 ' : '';
+      div.innerHTML = `<span class="command-label">&gt;</span> ${icon}${escapeHtml(text)}`;
+    }
+  } else {
+    div.className = 'game-text';
+
+    // Stop any active narration when new content arrives
+    if (state.isNarrating) {
+      stopNarration();
+    }
+
+    // LAZY CHUNKING: Just render HTML, don't create chunks yet
+    // Chunks will be created on-demand when narration is requested
+    div.innerHTML = text;
+
+    // Invalidate existing chunks - they're for old content
+    state.chunksValid = false;
+    state.currentChunkIndex = 0;
+    state.currentChunkStartTime = 0;
+  }
+
+  if (dom.lowerWindow) {
+    dom.lowerWindow.appendChild(div);
   }
 
   // Scroll to show the TOP of new text
@@ -83,8 +192,8 @@ export function addGameText(text, isCommand = false) {
  * Clear all game output
  */
 export function clearGameOutput() {
-  if (dom.gameOutputInner) {
-    dom.gameOutputInner.innerHTML = '';
+  if (dom.lowerWindow) {
+    dom.lowerWindow.innerHTML = '';
   }
   resetNarrationState();
 }

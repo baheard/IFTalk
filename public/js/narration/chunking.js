@@ -15,28 +15,27 @@ import { processTextForTTS, splitIntoSentences } from '../utils/text-processing.
 export function insertTemporaryMarkers(html) {
   if (!html) return html;
 
-  console.log('[Markers] Original HTML length:', html.length);
-
   let markerCount = 0;
   let markedHTML = html;
 
-  // First, mark paragraph breaks (<br><br>) since they become ". " during processing
+  // Normalize ellipses (...) to a single ellipsis character
+  markedHTML = markedHTML.replace(/\.{3,}/g, '…');
+
+  // Mark paragraph breaks (<br><br>)
   markedHTML = markedHTML.replace(/<br\s*\/?>\s*<br\s*\/?>/gi, (match) => {
-    const marker = `⚐${markerCount}⚐`;
-    markerCount++;
-    return marker + match;  // Marker BEFORE <br><br>
+    return `⚐${markerCount++}⚐${match}`;
   });
 
-  // Then, mark regular punctuation followed by space/tag/end
-  // BUT skip periods that are part of single-letter initials (H.P., U.S., etc.)
-  // Use negative lookbehind to exclude periods preceded by uppercase letters
-  markedHTML = markedHTML.replace(/(?<![A-Z])([.!?])(?=\s|<|$)/g, (match, punct) => {
-    const marker = `⚐${markerCount}⚐`;
-    markerCount++;
-    return punct + marker;  // Marker AFTER punctuation
+  // Mark single <br> after sentences
+  markedHTML = markedHTML.replace(/([.!?])\s*<br\s*\/?>/gi, (match, punct) => {
+    return `${punct}⚐${markerCount++}⚐${match.substring(punct.length)}`;
   });
 
-  console.log('[Markers] Inserted', markerCount, 'temporary markers');
+  // Mark regular punctuation (skip initials like H.P.)
+  markedHTML = markedHTML.replace(/(?<![A-Z.])([.!?…])(?=\s|<|$)/g, (match, punct) => {
+    return `${punct}⚐${markerCount++}⚐`;
+  });
+
   return markedHTML;
 }
 
@@ -52,9 +51,9 @@ export function createNarrationChunks(html) {
   // Process HTML to plain text (keeps ⚐N⚐ markers)
   const tempDiv = document.createElement('div');
   let htmlForText = html
-    .replace(/<br\s*\/?>\s*<br\s*\/?>/gi, '. ')  // Paragraph breaks -> sentence break
-    .replace(/<br\s*\/?>/gi, ' ')                 // Single line breaks -> space
-    .replace(/<span class="soft-break"><\/span>/gi, ' ');  // Soft breaks -> space
+    .replace(/<br\s*\/?>\s*<br\s*\/?>/gi, '. ')
+    .replace(/<br\s*\/?>/gi, ' ')
+    .replace(/<span class="soft-break"><\/span>/gi, ' ');
   tempDiv.innerHTML = htmlForText;
   const plainText = (tempDiv.textContent || tempDiv.innerText || '').trim();
 
@@ -64,48 +63,34 @@ export function createNarrationChunks(html) {
   // Split into sentences
   const sentences = splitIntoSentences(processedText);
 
-  console.log('[TTS] Split into', sentences.length, 'chunks');
-
   // Extract marker ID from end of each chunk
   const markerRegex = /⚐(\d+)⚐/;
-  return sentences.map((sentence, index) => {
+  const chunks = sentences.map((sentence, index) => {
     const match = sentence.match(markerRegex);
     const markerID = match ? parseInt(match[1]) : null;
-
-    // Remove marker from text for TTS playback
     const cleanText = sentence.replace(/⚐\d+⚐/g, '').trim();
 
-    console.log(`[Markers] Chunk ${index}: marker ${markerID !== null ? markerID : 'none (last chunk)'}`);
-    console.log(`[Markers]   Clean: "${cleanText.substring(0, 80)}..."`);
-
     return {
-      text: cleanText,       // For TTS playback
-      markerID: markerID,    // For inserting DOM markers
+      text: cleanText,
+      markerID: markerID,
       index
     };
   });
+
+  return chunks;
 }
 
 /**
  * Insert real <span> markers at positions marked by temp markers
  * @param {HTMLElement} container - Container element
  * @param {number[]} markerIDs - Array of marker IDs that survived chunking
+ * @param {number} chunkOffset - Offset to add to chunk indices (for multi-container scenarios)
  */
-export function insertRealMarkersAtIDs(container, markerIDs) {
-  if (!markerIDs || markerIDs.length === 0) {
-    console.log('[Markers] No marker IDs to insert');
-    return;
-  }
-
-  console.log('[Markers] Inserting real markers for IDs:', markerIDs);
+export function insertRealMarkersAtIDs(container, markerIDs, chunkOffset = 0) {
+  if (!markerIDs || markerIDs.length === 0) return;
 
   // Walk through all text nodes to find temporary markers
-  const walker = document.createTreeWalker(
-    container,
-    NodeFilter.SHOW_TEXT,
-    null
-  );
-
+  const walker = document.createTreeWalker(container, NodeFilter.SHOW_TEXT, null);
   const nodesToProcess = [];
   let node;
   while (node = walker.nextNode()) {
@@ -114,8 +99,8 @@ export function insertRealMarkersAtIDs(container, markerIDs) {
 
   // Process in reverse to avoid position shifts
   for (let i = nodesToProcess.length - 1; i >= 0; i--) {
-    const textNode = nodesToProcess[i];
-    const text = textNode.textContent;
+    let textNode = nodesToProcess[i];
+    let text = textNode.textContent;
 
     // Find all markers in this text node
     const markerRegex = /⚐(\d+)⚐/g;
@@ -137,6 +122,7 @@ export function insertRealMarkersAtIDs(container, markerIDs) {
     for (let j = matches.length - 1; j >= 0; j--) {
       const markerMatch = matches[j];
       const chunkIndex = markerIDs.indexOf(markerMatch.id);
+      const finalChunkIndex = chunkOffset + chunkIndex;
 
       try {
         // Split text node at marker position
@@ -150,29 +136,30 @@ export function insertRealMarkersAtIDs(container, markerIDs) {
         // Create real marker spans
         const endMarker = document.createElement('span');
         endMarker.className = 'chunk-marker-end';
-        endMarker.dataset.chunk = chunkIndex;
+        endMarker.dataset.chunk = finalChunkIndex;
         endMarker.style.cssText = 'display: none; position: absolute;';
 
         const startMarker = document.createElement('span');
         startMarker.className = 'chunk-marker-start';
-        startMarker.dataset.chunk = chunkIndex + 1;
+        startMarker.dataset.chunk = finalChunkIndex + 1;
         startMarker.style.cssText = 'display: none; position: absolute;';
 
         // Replace text node with: before + endMarker + startMarker + after
         const parent = textNode.parentNode;
-        if (!parent) {
-          console.warn(`[Markers] Skipping ID ${markerMatch.id}: text node has no parent`);
-          continue;
-        }
+        if (!parent) continue;
+
         parent.insertBefore(beforeNode, textNode);
         parent.insertBefore(endMarker, textNode);
         parent.insertBefore(startMarker, textNode);
         parent.insertBefore(afterNode, textNode);
         parent.removeChild(textNode);
 
-        console.log(`[Markers] Inserted real markers for ID ${markerMatch.id} (chunk ${chunkIndex})`);
+        // Update textNode for next iteration
+        textNode = afterNode;
+        text = afterNode.textContent;
+
       } catch (e) {
-        console.warn(`[Markers] Failed to insert markers for ID ${markerMatch.id}:`, e);
+        console.error('[Markers] Failed to insert marker:', e.message);
       }
     }
   }
@@ -207,6 +194,4 @@ export function removeTemporaryMarkers(container, chunks) {
   for (let i = 0; i < chunks.length; i++) {
     chunks[i] = chunks[i].replace(/⚐\d+⚐/g, '');
   }
-
-  console.log('[Markers] Removed all temporary markers');
 }

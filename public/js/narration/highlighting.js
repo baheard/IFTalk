@@ -39,8 +39,6 @@ export function highlightUsingMarkers(chunkIndex) {
     return false;
   }
 
-  console.log('[Highlight] Chunk', chunkIndex, 'in', containerEl?.id || containerEl?.className);
-
   try {
     // Create main range between markers (or to end of container if last chunk)
     const mainRange = new Range();
@@ -51,14 +49,19 @@ export function highlightUsingMarkers(chunkIndex) {
       mainRange.setEndAfter(containerEl.lastChild);
     }
 
+    // Debug collapsed ranges (indicates marker positioning issue)
+    if (mainRange.collapsed) {
+      console.warn('[Highlight] Collapsed range for chunk', chunkIndex, '- markers at same position');
+      return false;
+    }
+
     // Use TreeWalker to create individual text node ranges (skips excessive whitespace)
     const textRanges = [];
     const walker = document.createTreeWalker(
-      containerEl,  // Walk the specific container, not commonAncestor
+      containerEl,
       NodeFilter.SHOW_TEXT,
       {
         acceptNode: function(node) {
-          // Only accept text nodes that are within our range
           if (mainRange.intersectsNode(node)) {
             return NodeFilter.FILTER_ACCEPT;
           }
@@ -70,15 +73,10 @@ export function highlightUsingMarkers(chunkIndex) {
     let textNode;
     while (textNode = walker.nextNode()) {
       const text = textNode.textContent;
-
-      // Skip empty text nodes
-      if (!text.trim()) {
-        continue;
-      }
+      if (!text.trim()) continue;
 
       // Find content boundaries (exclude leading/trailing whitespace)
-      // Solves: "                     A N C H O R H E A D" would highlight all leading spaces
-      const startOffset = text.search(/\S/);  // First non-whitespace char
+      const startOffset = text.search(/\S/);
       const endOffset = text.length - (text.match(/\s*$/)?.[0].length || 0);
 
       // Create range covering only the content
@@ -86,27 +84,17 @@ export function highlightUsingMarkers(chunkIndex) {
       range.setStart(textNode, startOffset);
       range.setEnd(textNode, endOffset);
       textRanges.push(range);
-
-      if (console.log) {
-        const content = text.substring(startOffset, endOffset);
-        console.log('[Highlight]   Including:', JSON.stringify(content.substring(0, 50)));
-      }
     }
-
-    console.log(`[Highlight]   Created ${textRanges.length} text node ranges`);
 
     // Apply CSS Highlight API with multiple ranges
     if (CSS.highlights) {
       const highlight = new Highlight(...textRanges);
       CSS.highlights.set('speaking', highlight);
-      console.log('[Highlight]   ✓ CSS Highlight set with', textRanges.length, 'ranges');
       return true;
-    } else {
-      console.warn('[Highlight]   ✗ CSS.highlights API not available');
-      return false;
     }
+    return false;
   } catch (e) {
-    console.error('[Highlight]   ✗ Exception:', e.message, e.stack);
+    console.error('[Highlight] Error for chunk', chunkIndex, ':', e.message);
     return false;
   }
 }
