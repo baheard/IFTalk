@@ -49,10 +49,10 @@ export function splitIntoSentences(processedText) {
   if (!processedText) return [];
 
   // Split after markers OR after punctuation (when no marker present)
-  // Pattern 1: Split after marker+space → keeps marker in chunk
+  // Pattern 1: Split after marker (with or without space) → keeps marker in chunk
   // Pattern 2: Split after punctuation+space when NOT followed by marker
   const chunks = processedText
-    .split(/(?<=⚐\d+⚐)\s+|(?<=[.!?])(?!⚐)\s+/)
+    .split(/(?<=⚐\d+⚐)\s*|(?<=[.!?])(?!⚐)\s+/)
     .map(chunk => chunk.trim())
     .filter(chunk => chunk.length > 0);
 
