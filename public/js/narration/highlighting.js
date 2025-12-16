@@ -104,6 +104,7 @@ export function highlightUsingMarkers(chunkIndex) {
  */
 export function removeHighlight() {
   if (CSS.highlights) {
+    console.log('[RemoveHighlight] Called. Stack:', new Error().stack);
     CSS.highlights.delete('speaking');
   }
 }
@@ -123,6 +124,9 @@ export function updateTextHighlight(chunkIndex) {
 
   if (!success) {
     removeHighlight();
+  } else {
+    // Scroll to the highlighted text
+    scrollToHighlightedText(chunkIndex);
   }
 
   // Dispatch custom event for debugging/testing
@@ -135,4 +139,68 @@ export function updateTextHighlight(chunkIndex) {
     }
   });
   window.dispatchEvent(event);
+}
+
+/**
+ * Scroll to the currently highlighted text
+ * @param {number} chunkIndex - Chunk index to scroll to
+ */
+function scrollToHighlightedText(chunkIndex) {
+  console.log('[Scroll] Attempting to scroll to chunk', chunkIndex);
+
+  // Find the start marker for this chunk
+  const containers = [
+    window.currentStatusBarElement || document.getElementById('statusBar'),
+    document.getElementById('upperWindow'),
+    state.currentGameTextElement
+  ];
+
+  const startSelector = `.chunk-marker-start[data-chunk="${chunkIndex}"]`;
+  console.log('[Scroll] Looking for marker:', startSelector);
+
+  let markerFound = false;
+  for (const container of containers) {
+    if (!container) continue;
+    const startMarker = container.querySelector(startSelector);
+    if (startMarker) {
+      markerFound = true;
+      console.log('[Scroll] ✓ Found marker in container:', container.id || container.className);
+
+      // Get the scrollable container (the main .container element, not #gameOutput)
+      const scrollContainer = document.querySelector('.container');
+      if (!scrollContainer) {
+        console.error('[Scroll] ✗ Scroll container (.container) not found!');
+        break;
+      }
+
+      console.log('[Scroll] ✓ Scroll container found');
+      console.log('[Scroll] Current scrollTop:', scrollContainer.scrollTop);
+
+      // Get positions
+      const markerRect = startMarker.getBoundingClientRect();
+      const containerRect = scrollContainer.getBoundingClientRect();
+
+      console.log('[Scroll] Marker position - top:', markerRect.top, 'bottom:', markerRect.bottom);
+      console.log('[Scroll] Container position - top:', containerRect.top, 'bottom:', containerRect.bottom, 'height:', containerRect.height);
+
+      // Calculate scroll position to center the marker
+      const relativeTop = markerRect.top - containerRect.top;
+      const targetScroll = scrollContainer.scrollTop + relativeTop - (containerRect.height / 2);
+
+      console.log('[Scroll] Relative top:', relativeTop);
+      console.log('[Scroll] Target scroll:', targetScroll);
+
+      // Smooth scroll to target position
+      scrollContainer.scrollTo({
+        top: targetScroll,
+        behavior: 'smooth'
+      });
+      console.log('[Scroll] ✓ scrollTo() called with target:', targetScroll);
+      break;
+    }
+  }
+
+  if (!markerFound) {
+    console.warn('[Scroll] ✗ No marker found for chunk', chunkIndex);
+  }
 }

@@ -272,27 +272,30 @@ export async function speakTextChunked(text, startFromIndex = 0) {
   }
 
   // Finished all chunks
+  // Only clean up if this is still the current session (not superseded)
+  if (currentSessionId === state.narrationSessionId) {
+    if (state.currentChunkIndex >= totalChunks - 1 && state.narrationEnabled && !state.isPaused) {
 
-  if (state.currentChunkIndex >= totalChunks - 1 && state.narrationEnabled && !state.isPaused) {
+      state.currentChunkIndex = totalChunks;
+      state.narrationEnabled = false;
+      state.isPaused = true;
+      state.isNarrating = false;
 
-    state.currentChunkIndex = totalChunks;
-    state.narrationEnabled = false;
-    state.isPaused = true;
-    state.isNarrating = false;
+      removeHighlight();
 
-    removeHighlight();
+      // Scroll to bottom
+      if (dom.gameOutput) {
+        dom.gameOutput.scrollTop = dom.gameOutput.scrollHeight;
+      }
 
-    // Scroll to bottom
-    if (dom.gameOutput) {
-      dom.gameOutput.scrollTop = dom.gameOutput.scrollHeight;
+      updateStatus('Ready');
+      updateNavButtons();
+    } else {
+      removeHighlight();
+      updateNavButtons();
     }
-
-    updateStatus('Ready');
-    updateNavButtons();
-  } else {
-    removeHighlight();
-    updateNavButtons();
   }
+  // If session was superseded, don't remove highlight - new session will manage it
 }
 
 /**
