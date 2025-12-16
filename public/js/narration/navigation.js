@@ -28,10 +28,10 @@ export function skipToChunk(offset, speakTextChunked) {
   if (offset === -1 && state.currentChunkIndex >= state.narrationChunks.length) {
     targetIndex = state.narrationChunks.length - 1;
   }
-  // Smart back button: if going back and within 500ms, go to previous chunk
+  // Smart back button: if going back and within 3 seconds, go to previous chunk
   else if (offset === -1) {
     const timeSinceStart = Date.now() - state.currentChunkStartTime;
-    if (timeSinceStart < 500 && state.currentChunkIndex > 0) {
+    if (timeSinceStart < 3000 && state.currentChunkIndex > 0) {
       targetIndex = state.currentChunkIndex - 1;
     } else {
       targetIndex = state.currentChunkIndex;
@@ -48,15 +48,15 @@ export function skipToChunk(offset, speakTextChunked) {
   // Check if narration is ACTIVELY PLAYING (not just enabled)
   const wasPlaying = state.isNarrating;
 
-  // Stop current playback immediately
-  stopNarration();
+  // Stop current playback but preserve highlighting (we'll update it next)
+  stopNarration(true);
   state.currentChunkIndex = targetIndex;
 
   // Small delay to prevent rapid navigation loops
   setTimeout(() => {
     state.isNavigating = false;
 
-    // Update highlighting
+    // Update highlighting to new chunk
     updateTextHighlight(targetIndex);
 
     // Auto-resume ONLY if narration was actively playing
@@ -87,7 +87,8 @@ export function skipToStart(speakTextChunked) {
   // Check if narration is ACTIVELY PLAYING (not just enabled)
   const wasPlaying = state.isNarrating;
 
-  stopNarration();
+  // Stop but preserve highlighting (we'll update it next)
+  stopNarration(true);
   state.currentChunkIndex = 0;
 
   setTimeout(() => {
