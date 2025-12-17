@@ -46,6 +46,10 @@ cd /e/Project/IFTalk && npm start
 
 **Architecture:** Browser-based ZVM + GlkOte (runs entirely in browser)
 
+## Working with Claude
+
+**Context Management:** Claude will warn when context usage reaches 85% (15% remaining). Use `/context` to check current usage.
+
 ## Third-Party Libraries
 
 ### ifvms.js (Z-Machine Interpreter)
