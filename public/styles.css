@@ -2174,8 +2174,17 @@ body {
   width: 100%;
 }
 
+/* Hide chunk delimiters (used only for TTS chunking) */
+.chunk-delimiter {
+  display: none;
+}
+
 .status-left {
   text-align: left;
+}
+
+.status-center {
+  text-align: center;
 }
 
 .status-right {

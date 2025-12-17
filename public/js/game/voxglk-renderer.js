@@ -218,7 +218,9 @@ function processStyledContent(contentArray) {
 
         // Add to current line (with white-space: pre-wrap to preserve spaces but allow wrapping)
         if (escapedText) {
-          currentLine += `<span class="${cssClass}" style="white-space: pre-wrap;">${escapedText}</span>`;
+          // Mark input-style text to use app voice instead of narrator
+          const voiceAttr = cssClass === 'glk-input' ? ' data-voice="app"' : '';
+          currentLine += `<span class="${cssClass}" style="white-space: pre-wrap;"${voiceAttr}>${escapedText}</span>`;
         }
 
         // If this is not the last segment, we hit a newline - push current line
@@ -294,12 +296,14 @@ function processStyledContent(contentArray) {
 
         // Add to HTML
         if (escapedText) {
+          // Mark input-style text to use app voice instead of narrator
+          const voiceAttr = cssClass === 'glk-input' ? ' data-voice="app"' : '';
           if (customStyle) {
             // Custom colors override - use both class and inline style
-            currentLine += `<span class="${cssClass}" style="${customStyle}">${escapedText}</span>`;
+            currentLine += `<span class="${cssClass}" style="${customStyle}"${voiceAttr}>${escapedText}</span>`;
           } else {
             // Standard style - just use class
-            currentLine += `<span class="${cssClass}">${escapedText}</span>`;
+            currentLine += `<span class="${cssClass}"${voiceAttr}>${escapedText}</span>`;
           }
         }
 
@@ -430,26 +434,49 @@ function renderStatusBar(content) {
     });
   }
 
-  // Split into left and right parts
-  // Z-machine status bars typically have lots of spaces in the middle
-  // Find the longest sequence of spaces (2+ spaces) and split there
-  const parts = fullText.split(/\s{2,}/);
+  console.log('[StatusBar] Raw fullText:', JSON.stringify(fullText));
+  console.log('[StatusBar] Length:', fullText.length);
 
-  let leftText = '';
-  let rightText = '';
+  // Split into parts by 2+ spaces
+  // Z-machine status bars typically have lots of spaces between parts
+  const parts = fullText.split(/\s{2,}/).filter(p => p.trim()); // Filter out empty parts
 
-  if (parts.length >= 2) {
-    leftText = parts[0].trim();
-    rightText = parts[parts.length - 1].trim();
-  } else {
-    leftText = fullText.trim();
+  console.log('[StatusBar] Split parts:', parts);
+
+  if (parts.length === 0) {
+    return '';
   }
 
-  // Build simple HTML with flexbox layout
-  return `<div class="status-bar-line">
-    <span class="status-left">${escapeHtml(leftText)}</span>
-    <span class="status-right">${escapeHtml(rightText)}</span>
-  </div>`;
+  // Build HTML with appropriate classes based on number of parts
+  // Use chunk-delimiter spans to create TTS pauses (hidden with CSS)
+  const delimiter = '<span class="chunk-delimiter">. </span>';
+  let html = '<div class="status-bar-line">';
+
+  if (parts.length === 1) {
+    // Only left part
+    html += `<span class="status-left">${escapeHtml(parts[0].trim())}</span>`;
+  } else if (parts.length === 2) {
+    // Left and right parts
+    html += `<span class="status-left">${escapeHtml(parts[0].trim())}</span>`;
+    html += delimiter;
+    html += `<span class="status-right">${escapeHtml(parts[1].trim())}</span>`;
+  } else {
+    // 3+ parts: left, center(s), right
+    html += `<span class="status-left">${escapeHtml(parts[0].trim())}</span>`;
+    html += delimiter;
+    // Middle parts get center class
+    for (let i = 1; i < parts.length - 1; i++) {
+      html += `<span class="status-center">${escapeHtml(parts[i].trim())}</span>`;
+      html += delimiter;
+    }
+    html += `<span class="status-right">${escapeHtml(parts[parts.length - 1].trim())}</span>`;
+  }
+
+  html += '</div>';
+
+  console.log('[StatusBar] Final HTML:', html);
+
+  return html;
 }
 
 /**

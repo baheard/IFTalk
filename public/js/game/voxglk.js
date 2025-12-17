@@ -197,8 +197,15 @@ export function createVoxGlk(textOutputCallback) {
         if (arg.content) {
           const { statusBarHTML, statusBarText, upperWindowHTML, upperWindowText, mainWindowHTML, plainText } = renderUpdate(arg, windows);
 
+          console.log('[VoxGlk] Status bar check:');
+          console.log('  Current HTML:', statusBarHTML);
+          console.log('  Last HTML:', lastStatusLine);
+          console.log('  Are equal:', statusBarHTML === lastStatusLine);
+
           // Detect scene change (status bar changed = new location)
           const statusBarChanged = statusBarHTML !== lastStatusLine;
+          console.log('  statusBarChanged:', statusBarChanged);
+
           const isSceneChange = statusBarHTML && lastStatusLine && statusBarChanged;
           const shouldClearScreen = isSceneChange ||
                                    arg.content.some(c => c.clear);
@@ -217,15 +224,9 @@ export function createVoxGlk(textOutputCallback) {
               window.currentStatusBarElement = statusBarEl;
             }
             lastStatusLine = statusBarHTML;
-          } else {
-            // Clear and hide status bar when game sends empty/no status bar
-            if (statusBarEl) {
-              statusBarEl.innerHTML = '';
-              statusBarEl.style.display = 'none'; // Hide status bar
-              window.currentStatusBarElement = null;
-            }
-            lastStatusLine = '';
           }
+          // NOTE: Don't clear status bar if not in update - preserve it
+          // The game doesn't send status bar on every update
 
           // Render upper window (multi-line quotes, maps, etc.)
           const upperWindowEl = document.getElementById('upperWindow');
@@ -250,8 +251,19 @@ export function createVoxGlk(textOutputCallback) {
           // Send plain text to TTS callback
           // IMPORTANT: Only include status bar if it CHANGED (don't re-read same status)
           let textForTTS = '';
+          console.log('[VoxGlk] TTS decision:');
+          console.log('  statusBarText:', statusBarText);
+          console.log('  statusBarChanged:', statusBarChanged);
+
           if (statusBarText && statusBarText.trim() && statusBarChanged) {
+            console.log('  ✓ Including status bar in TTS');
             textForTTS = statusBarText + '\n\n';
+            // Mark that status bar should be included in chunks
+            window.includeStatusBarInChunks = true;
+          } else {
+            console.log('  ✗ Skipping status bar (unchanged)');
+            // Don't include status bar in chunks
+            window.includeStatusBarInChunks = false;
           }
           // Add upper window text if present
           if (upperWindowText && upperWindowText.trim()) {
@@ -260,6 +272,8 @@ export function createVoxGlk(textOutputCallback) {
           if (plainText.trim()) {
             textForTTS += plainText;
           }
+
+          console.log('[VoxGlk] Final TTS text length:', textForTTS.length);
 
           if (textForTTS.trim() && onTextOutput) {
             onTextOutput(textForTTS);
