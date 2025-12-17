@@ -36,14 +36,18 @@ export function insertTemporaryMarkers(html) {
     return match;
   });
 
-  // Mark paragraph breaks (<br><br>)
-  markedHTML = markedHTML.replace(/<br\s*\/?>\s*<br\s*\/?>/gi, (match) => {
+  // Mark ALL line breaks - both <br> tags and </div> tags create chunk boundaries
+  // GlkOte uses <div> wrappers instead of <br> tags
+  // This creates chunks at every line break, making narration more granular
+
+  // Mark <br> tags (if present)
+  markedHTML = markedHTML.replace(/<br\s*\/?>/gi, (match) => {
     return `⚐${markerCount++}⚐${match}`;
   });
 
-  // Mark single <br> after sentences
-  markedHTML = markedHTML.replace(/([.!?])\s*<br\s*\/?>/gi, (match, punct) => {
-    return `${punct}⚐${markerCount++}⚐${match.substring(punct.length)}`;
+  // Mark </div> tags (GlkOte line breaks)
+  markedHTML = markedHTML.replace(/<\/div>/gi, (match) => {
+    return `⚐${markerCount++}⚐${match}`;
   });
 
   // Mark regular punctuation (skip initials like H.P.)
@@ -63,11 +67,21 @@ export function insertTemporaryMarkers(html) {
 export function createNarrationChunks(html) {
   if (!html) return [];
 
-  // Process HTML to plain text (keeps ⚐N⚐ markers)
+  // Mark app voice spans before converting to plain text
+  // Add ⚑APP⚑ markers around text that should use app voice
+  let markedHTML = html.replace(/<span([^>]*data-voice="app"[^>]*)>(.*?)<\/span>/gi, (match, attrs, content) => {
+    return `⚑APP⚑${content}⚑APP⚑`;
+  });
+
+  // Process HTML to plain text (keeps ⚐N⚐ markers and ⚑APP⚑ markers)
   const tempDiv = document.createElement('div');
-  let htmlForText = html
+  let htmlForText = markedHTML
+    // Replace paragraph breaks with period+space
     .replace(/<br\s*\/?>\s*<br\s*\/?>/gi, '. ')
+    // Replace single <br> with space
     .replace(/<br\s*\/?>/gi, ' ')
+    // Replace </div> with space (GlkOte uses div wrappers for lines)
+    .replace(/<\/div>/gi, ' ')
     .replace(/<span class="soft-break"><\/span>/gi, ' ');
   tempDiv.innerHTML = htmlForText;
   const plainText = (tempDiv.textContent || tempDiv.innerText || '').trim();
@@ -76,17 +90,20 @@ export function createNarrationChunks(html) {
   // Markers move with the text during processing
   const sentences = processAndSplitText(plainText);
 
-  // Extract marker ID from end of each chunk
+  // Extract marker ID and voice type from each chunk
   const markerRegex = /⚐(\d+)⚐/;
+  const appVoiceRegex = /⚑APP⚑/;
   const chunks = sentences.map((sentence, index) => {
     const match = sentence.match(markerRegex);
     const markerID = match ? parseInt(match[1]) : null;
-    const cleanText = sentence.replace(/⚐\d+⚐/g, '').trim();
+    const useAppVoice = appVoiceRegex.test(sentence);
+    const cleanText = sentence.replace(/⚐\d+⚐/g, '').replace(/⚑APP⚑/g, '').trim();
 
     return {
       text: cleanText,
       markerID: markerID,
-      index
+      index,
+      voice: useAppVoice ? 'app' : 'narrator'
     };
   });
 
@@ -179,12 +196,12 @@ export function insertRealMarkersAtIDs(container, markerIDs, chunkOffset = 0) {
 }
 
 /**
- * Remove all temporary markers (⚐N⚐) from DOM and text array
+ * Remove all temporary markers (⚐N⚐ and ⚑APP⚑) from DOM and text array
  * @param {HTMLElement} container - Container element
- * @param {string[]} chunks - Array of chunk texts to clean
+ * @param {Array} chunks - Array of chunk objects or strings to clean
  */
 export function removeTemporaryMarkers(container, chunks) {
-  const markerRegex = /⚐\d+⚐/g;
+  const markerRegex = /⚐\d+⚐|⚑APP⚑/g;
 
   // Remove from DOM text nodes (process inline)
   const walker = document.createTreeWalker(container, NodeFilter.SHOW_TEXT, null);
@@ -198,6 +215,10 @@ export function removeTemporaryMarkers(container, chunks) {
 
   // Remove from chunks array (in place)
   for (let i = 0; i < chunks.length; i++) {
-    chunks[i] = chunks[i].replace(markerRegex, '');
+    if (typeof chunks[i] === 'string') {
+      chunks[i] = chunks[i].replace(markerRegex, '');
+    } else if (chunks[i]?.text) {
+      chunks[i].text = chunks[i].text.replace(markerRegex, '');
+    }
   }
 }

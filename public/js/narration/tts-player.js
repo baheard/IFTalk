@@ -74,11 +74,10 @@ export async function playAudio(audioDataOrText) {
 /**
  * Play using browser's built-in TTS
  * @param {string} text - Text to speak
+ * @param {string} voiceType - Voice type: 'narrator' or 'app'
  * @returns {Promise<void>} Resolves when speech finishes
  */
-export async function playWithBrowserTTS(text) {
-  console.log('[Browser TTS] Attempting to speak:', text?.substring(0, 50) + '...');
-
+export async function playWithBrowserTTS(text, voiceType = 'narrator') {
   if (!('speechSynthesis' in window)) {
     console.error('[Browser TTS] Not supported - speechSynthesis API not available');
     state.isNarrating = false;
@@ -87,33 +86,26 @@ export async function playWithBrowserTTS(text) {
 
   // Fix pronunciation issues before speaking
   const fixedText = fixPronunciation(text);
-  console.log('[Browser TTS] Text after pronunciation fixes:', fixedText?.substring(0, 50) + '...');
 
   return new Promise((resolve) => {
     const utterance = new SpeechSynthesisUtterance(fixedText);
 
-    // Find configured voice
+    // Find configured voice based on voice type
     const voices = speechSynthesis.getVoices();
-    console.log('[Browser TTS] Available voices:', voices.length);
-    console.log('[Browser TTS] Looking for voice:', state.browserVoiceConfig?.voice);
-
-    const selectedVoice = voices.find(v => v.name === state.browserVoiceConfig?.voice);
+    const voiceName = voiceType === 'app'
+      ? state.browserVoiceConfig?.appVoice
+      : state.browserVoiceConfig?.voice;
+    const selectedVoice = voices.find(v => v.name === voiceName);
 
     if (selectedVoice) {
       utterance.voice = selectedVoice;
-      console.log('[Browser TTS] Using selected voice:', selectedVoice.name);
-    } else {
-      console.warn('[Browser TTS] Voice not found, using default. Config:', state.browserVoiceConfig);
     }
 
     utterance.rate = state.browserVoiceConfig?.rate || 1.1;
     utterance.pitch = state.browserVoiceConfig?.pitch || 1.0;
     utterance.volume = 1.0;
 
-    console.log('[Browser TTS] Voice settings - rate:', utterance.rate, 'pitch:', utterance.pitch, 'volume:', utterance.volume);
-
     utterance.onend = () => {
-      console.log('[Browser TTS] Speech ended successfully');
       // Don't set isNarrating = false here - let speakTextChunked manage it
       state.ttsIsSpeaking = false;
       // Resume recognition if listening was enabled
@@ -128,11 +120,9 @@ export async function playWithBrowserTTS(text) {
     };
 
     utterance.onerror = (err) => {
-      // Silently ignore 'interrupted' errors (happens when we stop narration)
-      if (err.error === 'interrupted') {
-        console.log('[Browser TTS] Speech interrupted (normal during stop)');
-      } else {
-        console.error('[Browser TTS] Error occurred:', err.error, 'Full error:', err);
+      // Only log non-interrupted errors
+      if (err.error !== 'interrupted') {
+        console.error('[Browser TTS] Error:', err.error);
         updateStatus('TTS error: ' + err.error);
       }
       // Don't set isNarrating = false here - let speakTextChunked or stopNarration manage it
@@ -146,10 +136,6 @@ export async function playWithBrowserTTS(text) {
         }
       }
       resolve();
-    };
-
-    utterance.onstart = () => {
-      console.log('[Browser TTS] Speech started');
     };
 
     // Stop any current speech
@@ -167,9 +153,7 @@ export async function playWithBrowserTTS(text) {
 
     // Speak
     recordSpokenChunk(text);  // Record for echo detection BEFORE speaking
-    console.log('[Browser TTS] Calling speechSynthesis.speak()');
     speechSynthesis.speak(utterance);
-    console.log('[Browser TTS] speechSynthesis.speak() called, waiting for events...');
   });
 }
 
@@ -179,26 +163,21 @@ export async function playWithBrowserTTS(text) {
  * @param {number} startFromIndex - Chunk index to start from
  */
 export async function speakTextChunked(text, startFromIndex = 0) {
-  console.log('[TTS Chunked] Starting narration from chunk', startFromIndex);
-
   // Import ensureChunksReady dynamically to avoid circular dependency
   const { ensureChunksReady } = await import('../ui/game-output.js');
 
   // Check if narration is enabled at the very start
   if (!state.narrationEnabled) {
-    console.log('[TTS Chunked] Narration not enabled, aborting');
     return;
   }
 
   // Wait for app voice to finish before starting narration
   if (state.appVoicePromise) {
-    console.log('[TTS Chunked] Waiting for app voice to finish');
     await state.appVoicePromise;
   }
 
   // Stop any currently playing narration to prevent double voices
   if (state.isNarrating) {
-    console.log('[TTS Chunked] Stopping previous narration');
     await stopNarration();
     // Give the old loop time to fully exit
     await new Promise(resolve => setTimeout(resolve, 50));
@@ -207,15 +186,12 @@ export async function speakTextChunked(text, startFromIndex = 0) {
   // Increment session ID to invalidate any old loops
   state.narrationSessionId++;
   const currentSessionId = state.narrationSessionId;
-  console.log('[TTS Chunked] New session ID:', currentSessionId);
 
   // LAZY CHUNKING: Create chunks on-demand if needed
   if (!ensureChunksReady()) {
-    console.warn('[TTS Chunked] Failed to prepare chunks for narration');
+    console.warn('[TTS] Failed to prepare chunks for narration');
     return;
   }
-
-  console.log('[TTS Chunked] Chunks ready, total:', state.narrationChunks.length);
 
 
   state.currentChunkIndex = startFromIndex;
@@ -257,12 +233,14 @@ export async function speakTextChunked(text, startFromIndex = 0) {
     // Update nav buttons for current position
     updateNavButtons();
 
-    const chunkText = state.narrationChunks[i];
+    const chunk = state.narrationChunks[i];
+    const chunkText = typeof chunk === 'string' ? chunk : chunk.text;
+    const voiceType = typeof chunk === 'object' ? chunk.voice : 'narrator';
 
     // Use browser TTS directly (no server round-trip needed)
     // Mark when this chunk started playing
     state.currentChunkStartTime = Date.now();
-    await playWithBrowserTTS(chunkText);
+    await playWithBrowserTTS(chunkText, voiceType);
 
     // Check if we should still continue
     if (!state.narrationEnabled || state.isPaused) {

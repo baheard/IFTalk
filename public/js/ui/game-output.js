@@ -13,15 +13,19 @@ import { stopNarration } from '../narration/tts-player.js';
 
 /**
  * Extract chunks and marker IDs in a single pass
- * @param {Array} chunksWithMarkers - Array of {text, markerID, index} objects
- * @returns {{chunks: string[], markerIDs: number[]}} Extracted chunks and marker IDs
+ * @param {Array} chunksWithMarkers - Array of {text, markerID, index, voice} objects
+ * @returns {{chunks: Array, markerIDs: number[]}} Extracted chunks (with voice info) and marker IDs
  */
 function extractChunksAndMarkers(chunksWithMarkers) {
   const chunks = [];
   const markerIDs = [];
 
   for (const item of chunksWithMarkers) {
-    chunks.push(item.text);
+    // Preserve full chunk object (including voice type)
+    chunks.push({
+      text: item.text,
+      voice: item.voice || 'narrator'
+    });
     if (item.markerID !== null) {
       markerIDs.push(item.markerID);
     }
@@ -62,14 +66,14 @@ export function ensureChunksReady() {
   let allChunks = [];
   let chunkOffset = 0;
 
-  // Process status line first (if exists)
-  if (hasStatus && statusEl) {
-    console.log('[EnsureChunks] Status bar HTML:', statusHTML);
-    console.log('[EnsureChunks] Status bar text:', statusEl.textContent);
+  // Check if status bar should be included (set by voxglk when status bar changes)
+  const shouldIncludeStatus = window.includeStatusBarInChunks !== false; // Default true for first load
+  console.log('[EnsureChunks] Should include status bar:', shouldIncludeStatus);
+
+  // Process status line first (if exists AND should be included)
+  if (hasStatus && statusEl && shouldIncludeStatus) {
     const statusMarkedHTML = insertTemporaryMarkers(statusHTML);
-    console.log('[EnsureChunks] Status bar marked HTML:', statusMarkedHTML);
     const statusChunksWithMarkers = createNarrationChunks(statusMarkedHTML);
-    console.log('[EnsureChunks] Status bar chunks:', statusChunksWithMarkers);
     const { chunks: statusChunks, markerIDs: statusMarkerIDs } =
       extractChunksAndMarkers(statusChunksWithMarkers);
 
@@ -90,6 +94,8 @@ export function ensureChunksReady() {
 
     allChunks = allChunks.concat(statusChunks);
     chunkOffset = statusChunks.length;
+  } else if (hasStatus && statusEl && !shouldIncludeStatus) {
+    console.log('[EnsureChunks] Skipping status bar (unchanged)');
   }
 
   // Process upper window second (if exists) - for quotes, formatted text, etc.
@@ -118,16 +124,19 @@ export function ensureChunksReady() {
 
     allChunks = allChunks.concat(upperChunks);
     chunkOffset += upperChunks.length;
-
-    console.log('[EnsureChunks] Added', upperChunks.length, 'chunks from upper window');
   }
 
   // Process main content third (if exists)
   if (hasMain && mainEl) {
+    console.log('[CHUNK DEBUG] Main HTML:', mainHTML);
     let mainMarkedHTML = insertTemporaryMarkers(mainHTML);
+    console.log('[CHUNK DEBUG] Marked HTML:', mainMarkedHTML);
     const mainChunksWithMarkers = createNarrationChunks(mainMarkedHTML);
+    console.log('[CHUNK DEBUG] Chunks with markers:', mainChunksWithMarkers);
     const { chunks: mainChunks, markerIDs: mainMarkerIDs } =
       extractChunksAndMarkers(mainChunksWithMarkers);
+    console.log('[CHUNK DEBUG] Final chunks:', mainChunks);
+    console.log('[CHUNK DEBUG] Marker IDs:', mainMarkerIDs);
 
     // Apply markers to main element (NO renumbering - keep original marker IDs!)
     mainEl.innerHTML = mainMarkedHTML;

@@ -84,7 +84,7 @@ export function processAndSplitText(text) {
     return match.charAt(0) + match.slice(1).toLowerCase();
   });
 
-  // Split into sentences - CRITICAL: Preserve this exact regex (line 55 logic)
+  // Split into sentences
   // Pattern 1: Split after marker (with or without space) → keeps marker in chunk
   // Pattern 2: Split after punctuation+space when NOT followed by marker
   const chunks = processed
@@ -92,8 +92,23 @@ export function processAndSplitText(text) {
     .map(chunk => chunk.trim())
     .filter(chunk => chunk.length > 0);
 
-  // If no chunks found, use whole text
-  return chunks.length > 0 ? chunks : [processed];
+  // Filter out metadata chunks individually (not the entire text block)
+  const metadataPatterns = [
+    /Release\s+\d+/i,
+    /Serial\s+number\s+\d+/i,
+    /Inform\s+v[\d.]+/i,
+    /Library\s+[\d/]+/i,
+    /Interpreter\s+[\d.]+/i
+  ];
+
+  const filteredChunks = chunks.filter(chunk => {
+    // Remove marker for metadata check
+    const cleanChunk = chunk.replace(/⚐\d+⚐/g, '').trim();
+    return !metadataPatterns.some(pattern => pattern.test(cleanChunk));
+  });
+
+  // If no chunks left after filtering, return original chunks
+  return filteredChunks.length > 0 ? filteredChunks : chunks;
 }
 
 /**
