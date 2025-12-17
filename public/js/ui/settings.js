@@ -235,6 +235,13 @@ export async function loadBrowserVoiceConfig() {
   } catch (error) {
   }
 
+  // Load narrator voice from localStorage
+  const savedNarratorVoice = localStorage.getItem('narratorVoice');
+  if (savedNarratorVoice) {
+    if (!state.browserVoiceConfig) state.browserVoiceConfig = {};
+    state.browserVoiceConfig.voice = savedNarratorVoice;
+  }
+
   // Load app voice from localStorage
   const savedAppVoice = localStorage.getItem('appVoice');
   if (savedAppVoice) {
@@ -258,6 +265,7 @@ export function initVoiceSelection() {
     dom.voiceSelect.addEventListener('change', (e) => {
       if (!state.browserVoiceConfig) state.browserVoiceConfig = {};
       state.browserVoiceConfig.voice = e.target.value;
+      localStorage.setItem('narratorVoice', e.target.value);
       updateStatus(`Voice changed to: ${e.target.value}`);
     });
   }
