@@ -28,7 +28,7 @@ import { initHistoryButtons } from './ui/history.js';
 
 // Game modules
 import { sendCommand, sendCommandDirect } from './game/commands.js';
-import { initSaveHandlers, restoreLatest, restoreFromSlot } from './game/saves.js';
+import { initSaveHandlers } from './game/save-manager.js';
 import { initGameSelection } from './game/game-loader.js';
 
 // Voice command handlers
@@ -76,9 +76,7 @@ const voiceCommandHandlers = {
     updateStatus('Microphone muted');
     updateNavButtons();
   },
-  sendCommandDirect: (cmd) => sendCommandDirect(cmd),
-  restoreLatest: () => restoreLatest(),
-  restoreSlot: (slot) => restoreFromSlot(slot)
+  sendCommandDirect: (cmd) => sendCommandDirect(cmd)
 };
 
 // Handle game output from GlkOte
@@ -165,6 +163,7 @@ async function initApp() {
   initVoiceSelection();
   initHistoryButtons();
   initSaveHandlers();
+  initQuickSave();
 
   // Initialize mute button state to match default (muted)
   if (dom.muteBtn) {
