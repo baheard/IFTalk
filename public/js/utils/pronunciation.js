@@ -42,6 +42,8 @@ export function fixPronunciation(text) {
   // Remove formatting characters that shouldn't be spoken
   // Remove asterisks (used for emphasis/headings)
   fixed = fixed.replace(/\*/g, '');
+  // Remove prompt characters (">") - display only, never spoken
+  fixed = fixed.replace(/>/g, '');
   // Clean up multiple spaces
   fixed = fixed.replace(/\s+/g, ' ').trim();
 
