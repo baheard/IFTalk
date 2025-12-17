@@ -306,13 +306,19 @@ async function initApp() {
   const gameOutput = document.querySelector('.game-output');
   if (gameOutput) {
     gameOutput.addEventListener('click', (e) => {
+      // Don't interfere with text selection
       const selection = window.getSelection();
       if (selection && selection.toString().length > 0) {
         return;
       }
 
-      const gameText = e.target.closest('.game-text');
-      if (gameText && dom.userInput) {
+      // Don't interfere with button clicks
+      if (e.target.closest('button')) {
+        return;
+      }
+
+      // Focus input on any click within game output
+      if (dom.userInput) {
         dom.userInput.focus();
       }
     });

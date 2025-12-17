@@ -93,19 +93,22 @@ export function createNarrationChunks(html) {
   // Extract marker ID and voice type from each chunk
   const markerRegex = /⚐(\d+)⚐/;
   const appVoiceRegex = /⚑APP⚑/;
-  const chunks = sentences.map((sentence, index) => {
-    const match = sentence.match(markerRegex);
-    const markerID = match ? parseInt(match[1]) : null;
-    const useAppVoice = appVoiceRegex.test(sentence);
-    const cleanText = sentence.replace(/⚐\d+⚐/g, '').replace(/⚑APP⚑/g, '').trim();
+  const chunks = sentences
+    .map((sentence, index) => {
+      const match = sentence.match(markerRegex);
+      const markerID = match ? parseInt(match[1]) : null;
+      const useAppVoice = appVoiceRegex.test(sentence);
+      const cleanText = sentence.replace(/⚐\d+⚐/g, '').replace(/⚑APP⚑/g, '').trim();
 
-    return {
-      text: cleanText,
-      markerID: markerID,
-      index,
-      voice: useAppVoice ? 'app' : 'narrator'
-    };
-  });
+      return {
+        text: cleanText,
+        markerID: markerID,
+        index,
+        voice: useAppVoice ? 'app' : 'narrator'
+      };
+    })
+    // Filter out app voice chunks - user commands are displayed but never narrated
+    .filter(chunk => chunk.voice !== 'app');
 
   return chunks;
 }
