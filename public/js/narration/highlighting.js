@@ -176,15 +176,30 @@ function scrollToHighlightedText(chunkIndex) {
       console.log('[Scroll] ✓ Scroll container found');
       console.log('[Scroll] Current scrollTop:', scrollContainer.scrollTop);
 
-      // Get positions
-      const markerRect = startMarker.getBoundingClientRect();
+      // Find the next visible element or text node after the marker
+      // (marker itself is invisible with display:none)
+      let targetElement = startMarker.nextSibling;
+      while (targetElement && targetElement.nodeType === Node.TEXT_NODE && !targetElement.textContent.trim()) {
+        targetElement = targetElement.nextSibling;
+      }
+
+      if (!targetElement) {
+        console.warn('[Scroll] No visible element found after marker');
+        break;
+      }
+
+      console.log('[Scroll] Target element:', targetElement);
+
+      // Get positions - use the visible element, not the invisible marker
+      const targetRect = targetElement.getBoundingClientRect ? targetElement.getBoundingClientRect() :
+                         targetElement.parentElement.getBoundingClientRect();
       const containerRect = scrollContainer.getBoundingClientRect();
 
-      console.log('[Scroll] Marker position - top:', markerRect.top, 'bottom:', markerRect.bottom);
+      console.log('[Scroll] Target position - top:', targetRect.top, 'bottom:', targetRect.bottom);
       console.log('[Scroll] Container position - top:', containerRect.top, 'bottom:', containerRect.bottom, 'height:', containerRect.height);
 
-      // Calculate scroll position to center the marker
-      const relativeTop = markerRect.top - containerRect.top;
+      // Calculate scroll position to center the target
+      const relativeTop = targetRect.top - containerRect.top;
       const targetScroll = scrollContainer.scrollTop + relativeTop - (containerRect.height / 2);
 
       console.log('[Scroll] Relative top:', relativeTop);

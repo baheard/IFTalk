@@ -213,11 +213,16 @@ async function initApp() {
         console.log('[Play Button] Pausing narration');
         state.narrationEnabled = false;
         state.isPaused = true;
-        stopNarration();
+        stopNarration(true);  // Preserve highlight when pausing
         updateStatus('Narration paused');
         updateNavButtons();
       } else if (state.narrationChunks.length > 0) {
         // Play/Resume
+        // If at the end, replay the last chunk
+        if (state.currentChunkIndex >= state.narrationChunks.length) {
+          console.log('[Play Button] At end, replaying last chunk');
+          state.currentChunkIndex = state.narrationChunks.length - 1;
+        }
         console.log('[Play Button] Starting/Resuming narration from chunk', state.currentChunkIndex);
         state.narrationEnabled = true;
         state.isPaused = false;
@@ -353,6 +358,20 @@ async function initApp() {
       if (state.wasMutedBeforePTT) {
         voiceCommandHandlers.mute();
       }
+    }
+  });
+
+  // Stop narration immediately when navigating away from page
+  window.addEventListener('beforeunload', () => {
+    if ('speechSynthesis' in window) {
+      speechSynthesis.cancel();
+    }
+  });
+
+  // Also handle page hide (for iOS and some mobile browsers)
+  window.addEventListener('pagehide', () => {
+    if ('speechSynthesis' in window) {
+      speechSynthesis.cancel();
     }
   });
 

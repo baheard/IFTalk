@@ -64,8 +64,12 @@ export function ensureChunksReady() {
 
   // Process status line first (if exists)
   if (hasStatus && statusEl) {
+    console.log('[EnsureChunks] Status bar HTML:', statusHTML);
+    console.log('[EnsureChunks] Status bar text:', statusEl.textContent);
     const statusMarkedHTML = insertTemporaryMarkers(statusHTML);
+    console.log('[EnsureChunks] Status bar marked HTML:', statusMarkedHTML);
     const statusChunksWithMarkers = createNarrationChunks(statusMarkedHTML);
+    console.log('[EnsureChunks] Status bar chunks:', statusChunksWithMarkers);
     const { chunks: statusChunks, markerIDs: statusMarkerIDs } =
       extractChunksAndMarkers(statusChunksWithMarkers);
 

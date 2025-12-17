@@ -17,7 +17,7 @@ export function initSettings() {
   if (dom.settingsBtn) {
     dom.settingsBtn.addEventListener('click', () => {
       if (dom.settingsPanel) {
-        dom.settingsPanel.classList.toggle('hidden');
+        dom.settingsPanel.classList.toggle('open');
       }
     });
   }
@@ -26,7 +26,7 @@ export function initSettings() {
   if (dom.closeSettingsBtn) {
     dom.closeSettingsBtn.addEventListener('click', () => {
       if (dom.settingsPanel) {
-        dom.settingsPanel.classList.add('hidden');
+        dom.settingsPanel.classList.remove('open');
       }
     });
   }
@@ -52,6 +52,45 @@ export function initSettings() {
           updateStatus(`Added pronunciation: ${word} → ${pronunciation}`);
         }
       }
+    });
+  }
+
+  // Collapsible sections
+  const collapsibleSections = document.querySelectorAll('.settings-section.collapsible');
+  collapsibleSections.forEach(section => {
+    const header = section.querySelector('.section-header');
+    if (header) {
+      header.addEventListener('click', () => {
+        section.classList.toggle('collapsed');
+      });
+    }
+  });
+
+  // Speech rate slider
+  const speechRateSlider = document.getElementById('speechRate');
+  const speechRateValue = document.getElementById('speechRateValue');
+  if (speechRateSlider && speechRateValue) {
+    // Load saved speech rate
+    const savedRate = localStorage.getItem('speechRate');
+    if (savedRate) {
+      speechRateSlider.value = savedRate;
+      speechRateValue.textContent = parseFloat(savedRate).toFixed(1) + 'x';
+      if (state.browserVoiceConfig) {
+        state.browserVoiceConfig.rate = parseFloat(savedRate);
+      }
+    }
+
+    speechRateSlider.addEventListener('input', (e) => {
+      const rate = parseFloat(e.target.value);
+      speechRateValue.textContent = rate.toFixed(1) + 'x';
+
+      // Update voice config
+      if (state.browserVoiceConfig) {
+        state.browserVoiceConfig.rate = rate;
+      }
+
+      // Save to localStorage
+      localStorage.setItem('speechRate', rate);
     });
   }
 }

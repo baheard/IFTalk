@@ -93,7 +93,7 @@ For detailed technical information, see the `reference/` folder:
 
 ## Recent Fixes (December 2024)
 
-### Critical Bug Fixes
+### December 15, 2024 - Core Fixes
 1. **TTS/Narration Fixed** - Removed Socket.IO dependency, now uses browser `speechSynthesis` directly
    - File: `public/js/narration/tts-player.js`
    - TTS no longer hangs on Socket.IO promises
@@ -119,20 +119,87 @@ For detailed technical information, see the `reference/` folder:
    - Use `requestAnimationFrame` instead of `setTimeout`
    - Prevents "Cannot read properties of null" error
 
-6. **ifvms.js Updated to 1.1.6** - Upgraded from 2017 version (December 15, 2024)
+6. **ifvms.js Updated to 1.1.6** - Upgraded from 2017 version
    - File: `public/lib/zvm.js`
    - Fixes read opcode handling in Z-Machine v3-4
    - Better game compatibility (upper window input, screen height measurement)
    - Performance improvements and bug fixes
    - Previous version backed up as `zvm.js.backup.2017`
 
+### December 16, 2024 - UX & Feature Improvements
+1. **Comprehensive TTS Logging** - Added detailed logging throughout TTS pipeline
+   - Files: `public/js/narration/tts-player.js`, `public/js/app.js`, `public/js/ui/game-output.js`
+   - Logs speech synthesis events, chunk creation, voice configuration
+   - Easier debugging of narration issues
+
+2. **Microphone Muted by Default** - Changed default mic state
+   - File: `public/js/core/state.js:24`
+   - `isMuted: true` - mic starts muted, user must enable
+   - Prevents accidental voice input on page load
+
+3. **Upper Window Text Narration** - Fixed missing quote/formatted text narration
+   - File: `public/js/ui/game-output.js:84-107`
+   - Now includes upper window content (quotes, ASCII art) in narration chunks
+   - Narration order: Status bar → Upper window → Main content
+
+4. **Autoplay Fixes** - Fixed autoplay not respecting off state
+   - Files: `public/js/narration/navigation.js`, `public/js/app.js`, `public/js/core/state.js`
+   - Fixed restart button auto-starting when autoplay off
+   - Fixed new page auto-starting when autoplay off
+   - Added state tracking with logging for debugging
+   - Navigation only resumes if actively playing, not just based on autoplay
+
+5. **Settings Panel Fixed** - Fixed settings button not opening panel
+   - Files: `public/js/ui/settings.js:20,29`, `public/index.html:22`
+   - Changed from `hidden` class to `open` class to match CSS
+   - Panel now slides in/out smoothly from right
+
+6. **Speech Speed Control** - Added adjustable speech rate slider
+   - Files: `public/index.html:74-81`, `public/styles.css:304-362`, `public/js/ui/settings.js:69-95`
+   - Range: 0.5x - 1.5x speed (default 1.0x)
+   - Slider with real-time preview
+   - Saved to localStorage
+
+7. **Collapsible Settings Sections** - Made all settings sections expandable
+   - Files: `public/index.html`, `public/styles.css:264-302`, `public/js/ui/settings.js:58-67`
+   - All sections start collapsed
+   - Click header to expand/collapse
+   - Smooth animations with arrow indicators
+   - Minimal 4px spacing between sections
+
+8. **Push-to-Talk Key Changed** - Changed from Alt to Ctrl
+   - Files: `public/js/app.js:323,355`, `public/index.html:61`
+   - Alt key caused browser menu focus issues
+   - Ctrl key works without interfering with browser
+
+9. **Voice Commands Cleanup** - Removed AI translation reference
+   - File: `public/index.html:54`
+   - Removed outdated "Any other speech - AI translates to command" line
+
+10. **Auto-scroll to Highlight** - Screen scrolls to currently highlighted text
+   - File: `public/js/narration/highlighting.js:148-221`
+   - Finds next visible element after invisible marker
+   - Centers highlighted text in viewport
+   - Smooth scroll animation
+
+11. **Title Chunking** - Asterisk-wrapped titles split into separate chunks
+   - File: `public/js/narration/chunking.js:24-27`
+   - Regex detects `* TITLE *` patterns
+   - Creates chunk boundaries before and after titles
+   - Enables separate narration of section headers
+
 ### What Works Now
 - ✅ Game selection and loading
 - ✅ Browser-based ZVM game engine
-- ✅ Text-to-speech narration (browser-based)
+- ✅ Text-to-speech narration (browser-based) with speed control
+- ✅ Upper window (quotes/formatting) narration
+- ✅ Text highlighting with auto-scroll during narration
+- ✅ Title chunking for asterisk-wrapped section headers
 - ✅ Command input and processing
-- ✅ Navigation controls
-- ✅ Voice recognition
+- ✅ Navigation controls (with proper autoplay handling)
+- ✅ Voice recognition with Ctrl push-to-talk
+- ✅ Settings panel with collapsible sections
+- ✅ Speech rate adjustment (0.5x - 1.5x)
 - ✅ Fully offline-capable
 
 ## Current Status

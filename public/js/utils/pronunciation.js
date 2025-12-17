@@ -38,6 +38,14 @@ export function fixPronunciation(text) {
   const pronunciationMap = getPronunciationMap();
 
   let fixed = text;
+
+  // Remove formatting characters that shouldn't be spoken
+  // Remove asterisks (used for emphasis/headings)
+  fixed = fixed.replace(/\*/g, '');
+  // Clean up multiple spaces
+  fixed = fixed.replace(/\s+/g, ' ').trim();
+
+  // Apply word-specific pronunciation fixes
   for (const [word, pronunciation] of Object.entries(pronunciationMap)) {
     // Use word boundaries to avoid partial matches
     const regex = new RegExp(`\\b${word}\\b`, 'gi');

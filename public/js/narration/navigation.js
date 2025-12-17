@@ -29,9 +29,11 @@ export function skipToChunk(offset, speakTextChunked) {
     targetIndex = state.narrationChunks.length - 1;
   }
   // Smart back button: if going back and within 3 seconds, go to previous chunk
+  // When paused, always go to previous chunk (don't replay current)
   else if (offset === -1) {
     const timeSinceStart = Date.now() - state.currentChunkStartTime;
-    if (timeSinceStart < 3000 && state.currentChunkIndex > 0) {
+    // If paused OR within 3 seconds of start, go to previous chunk
+    if ((state.isPaused || timeSinceStart < 3000) && state.currentChunkIndex > 0) {
       targetIndex = state.currentChunkIndex - 1;
     } else {
       targetIndex = state.currentChunkIndex;

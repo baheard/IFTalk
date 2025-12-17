@@ -21,6 +21,21 @@ export function insertTemporaryMarkers(html) {
   // Normalize ellipses (...) to a single ellipsis character
   markedHTML = markedHTML.replace(/\.{3,}/g, '…');
 
+  // Mark titles wrapped in asterisks (* TITLE *)
+  markedHTML = markedHTML.replace(/(\*\s*[^*]+\s*\*)/g, (match) => {
+    return `⚐${markerCount++}⚐${match}⚐${markerCount++}⚐`;
+  });
+
+  // Mark all-caps titles followed by line breaks (e.g., "THE FIRST DAY<br>")
+  markedHTML = markedHTML.replace(/([A-Z][A-Z\s,.'"-]{7,}?)<br\s*\/?>/g, (match, title) => {
+    // Verify it's actually mostly uppercase (not just starting with a cap)
+    const alphaOnly = title.replace(/[^A-Za-z]/g, '');
+    if (alphaOnly.length >= 5 && alphaOnly === alphaOnly.toUpperCase()) {
+      return `⚐${markerCount++}⚐${title}⚐${markerCount++}⚐<br>`;
+    }
+    return match;
+  });
+
   // Mark paragraph breaks (<br><br>)
   markedHTML = markedHTML.replace(/<br\s*\/?>\s*<br\s*\/?>/gi, (match) => {
     return `⚐${markerCount++}⚐${match}`;

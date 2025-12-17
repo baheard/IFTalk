@@ -37,6 +37,7 @@ const _state = {
   isPaused: false,
   narrationSessionId: 0,
   currentChunkStartTime: 0,
+  lastStatusBarText: null,  // Track previous status bar text to avoid re-reading
 
   // Talk mode state
   talkModeActive: false,

@@ -1,72 +1,45 @@
 # IFTalk TODO
 
-## 🐛 Current Issue: TTS Marker Insertion Failure
+## ✅ Recent Completions (December 16, 2024)
 
-**Problem:** Text-to-speech chunk markers fail to insert into the DOM, causing the warning:
-```
-[Markers] Skipping ID N: text node has no parent
-```
+### Major Fixes
+- ✅ **TTS/Narration** - Working with browser speechSynthesis
+- ✅ **Upper Window Narration** - Quotes and formatted text now narrated
+- ✅ **Autoplay Behavior** - Fixed restart/navigation auto-start issues
+- ✅ **Settings Panel** - Fixed button not opening panel (class mismatch)
+- ✅ **Microphone Default** - Now starts muted by default
+- ✅ **Push-to-Talk** - Changed Alt → Ctrl (fixes browser menu focus issue)
 
-### Root Cause Analysis (2024-12-15)
+### Features Added
+- ✅ **Speech Speed Slider** - Adjustable 0.5x - 1.5x with localStorage persistence
+- ✅ **Collapsible Settings** - All sections expandable with smooth animations
+- ✅ **Comprehensive Logging** - TTS pipeline fully instrumented for debugging
+- ✅ **State Tracking** - Autoplay state changes logged with stack traces
+- ✅ **Auto-scroll to Highlight** - Screen scrolls to currently highlighted text during narration
+- ✅ **Title Chunking** - Asterisk-wrapped titles (* TITLE *) split into separate narration chunks
 
-**The Issue:**
-GlkOte splits content into **multiple style runs with the same style name**. For example, Anchorhead's opening screen has a single line with 3 separate "normal" runs:
-
-```javascript
-Line 3: [
-  "normal", "                         ",  // Run 1: 25 spaces
-  "normal", "                                               ",  // Run 2: 47 spaces
-  "normal", "                            "   // Run 3: 28 spaces
-]
-```
-
-**Current Processing:**
-1. `voxglk-renderer.js` flattens all runs into a single HTML string (line 165-188):
-   ```javascript
-   for (let i = 0; i < contentArray.length; i += 2) {
-     currentLine += `<span style="...">${text}</span>`;  // Creates separate <span> for each run
-   }
-   ```
-
-2. `chunking.js` inserts temporary markers (⚐N⚐) into the HTML at sentence boundaries
-
-3. When we try to find markers in the DOM, they may be split across multiple `<span>` boundaries:
-   - Span 1 ends with: `"...text⚐"`
-   - Span 2 starts with: `"12⚐more..."`
-   - Result: Marker `⚐12⚐` is split, can't be found in any single text node
-
-**Impact:**
-- Most markers fail to insert (only 2-3 out of 14 succeed)
-- Text highlighting during narration doesn't work properly
-- Sentence boundaries lost
-
-**Next Steps:**
-1. Update ifvms.js to latest version (may change data format)
-2. Re-evaluate marker insertion strategy after update
-3. Consider alternative approaches:
-   - Insert markers before GlkOte rendering
-   - Track run boundaries during flattening
-   - Use DOM positions instead of text markers
+### Library Updates
+- ✅ **ifvms.js 1.1.6** - Updated from 2017 version (Dec 15, 2024)
 
 ---
 
 ## 📋 Current Tasks
 
 ### High Priority
-- [ ] **Update ifvms.js** to latest version
-- [ ] **Re-test TTS marker system** after ifvms update
-- [ ] **Fix marker insertion** if issue persists after update
+- [ ] Test TTS narration thoroughly across all 4 games
+- [ ] Verify upper window content narration (quotes, ASCII art)
+- [ ] Test autoplay behavior edge cases
 
 ### Medium Priority
-- [ ] Test TTS narration with all games
-- [ ] Verify responsive layout on mobile devices
-- [ ] Review and update voice recognition accuracy
+- [ ] Verify responsive layout on mobile devices (768px, 480px breakpoints)
+- [ ] Review voice recognition accuracy with different accents
+- [ ] Performance testing with longer game sessions
 
 ### Low Priority
-- [ ] Loading states styling
-- [ ] Error message styling
-- [ ] Focus states and accessibility improvements
-- [ ] Add transitions and animations
+- [ ] Improve loading states visual feedback
+- [ ] Polish error message styling
+- [ ] Enhance focus states for keyboard navigation
+- [ ] Consider upgrading GlkOte from 2.2.5 → 2.3.7
 
 ---
 
@@ -105,20 +78,32 @@ TTS narration with highlighting
 
 ## What Works ✅
 
-- Game loading and playback (all 4 games tested)
-- Character input (single keypress)
-- Line input (command entry)
-- Voice recognition
-- Basic TTS narration
-- Responsive mobile layout
-- Status line rendering
-- Generation counter sync
+### Core Functionality
+- ✅ Game loading and playback (all 4 games: Anchorhead, Photopia, Dungeon, Lost Pig)
+- ✅ Character input (single keypress)
+- ✅ Line input (command entry)
+- ✅ Voice recognition with Ctrl push-to-talk
+- ✅ TTS narration with browser speechSynthesis
+- ✅ Text highlighting during narration
+- ✅ Responsive mobile layout (768px, 480px breakpoints)
+- ✅ Status line rendering
+- ✅ Upper window rendering (quotes, formatted text)
+- ✅ Generation counter sync
 
-## What's Broken ❌
+### UI Features
+- ✅ Settings panel (slide-in from right)
+- ✅ Collapsible settings sections
+- ✅ Speech speed control (0.5x - 1.5x)
+- ✅ Voice selection (narration + app voices)
+- ✅ Pronunciation dictionary
+- ✅ Navigation controls (play/pause, skip, restart)
+- ✅ Autoplay toggle
+- ✅ Microphone mute toggle
 
-- TTS marker insertion (12/14 markers fail)
-- Text highlighting during narration
-- Sentence boundary detection in multi-run content
+### Voice Control
+- ✅ Navigation commands (restart, back, stop, pause, play, skip, skip all)
+- ✅ Game commands (next, enter, more, print [text])
+- ✅ Keyboard shortcuts (←/→ nav, M mute, Ctrl push-to-talk, Esc stop)
 
 ---
 
@@ -141,6 +126,13 @@ cd /e/Project/IFTalk && npm start
 3. **v3 (current):** Browser-based ifvms.js + VoxGlk custom renderer
 
 **Current Libraries:**
-- ifvms.js: Copyright 2017 (version unknown) - **needs update to 1.1.6**
+- ifvms.js: 1.1.6 (updated Dec 15, 2024) ✅
 - GlkOte: 2.2.5 (latest: 2.3.7)
 - jQuery: 3.7.1
+
+**Key Settings:**
+- Speech Rate: 0.5x - 1.5x (default 1.0x)
+- Microphone: Muted by default
+- Push-to-Talk: Ctrl key
+- Autoplay: Toggle in settings
+- Settings Sections: Collapsible (start collapsed)

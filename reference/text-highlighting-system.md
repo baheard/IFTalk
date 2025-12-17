@@ -511,6 +511,127 @@ text = beforeNode.textContent;
 
 ---
 
+---
+
+### Fix #8 - Navigation Controls (December 16, 2024)
+
+**Problem:** Back button behavior was inconsistent - 500ms threshold was too short.
+
+**Solution:** Changed smart back button threshold from 500ms to 3 seconds:
+- **Within 3 seconds** of chunk start → go to **previous chunk**
+- **After 3 seconds** → **restart current chunk**
+
+**File:** `public/js/narration/navigation.js` line 34
+
+---
+
+### Fix #9 - Highlighting Disappearing During Navigation (December 16, 2024) 🔥 CRITICAL
+
+**Problem:** When using back/forward buttons, the highlight would flash then disappear.
+
+**Root Cause:** `stopNarration()` was removing highlights by default when navigation stopped the current playback.
+
+**Solution:** Pass `preserveHighlight: true` to `stopNarration()` in navigation functions:
+
+```javascript
+// Stop current playback but preserve highlighting (we'll update it next)
+stopNarration(true);
+state.currentChunkIndex = targetIndex;
+
+// Update highlighting to new chunk
+updateTextHighlight(targetIndex);
+```
+
+**Files:** `public/js/narration/navigation.js` (skipToChunk, skipToStart)
+
+**Result:** ✅ Highlights persist smoothly during navigation
+
+---
+
+### Fix #10 - Chunk 0 Not Highlighted on New Page (December 16, 2024) 🔥 CRITICAL
+
+**Problem:** When skipping forward during narration, chunk 0 on the new page wouldn't highlight (but chunk 1+ would).
+
+**Root Cause:** Double-stop race condition
+1. `addGameText()` stops narration → `isNarrating = false`
+2. `handleGameOutput()` stops narration AGAIN (redundant)
+3. `speakTextChunked()` checks `if (isNarrating)` → FALSE
+4. Skips the 50ms delay meant to let old session exit cleanly
+5. New session starts while old session still running
+6. Old session interferes with chunk 0 highlighting
+
+**Solution:** Remove redundant `stopNarration()` call from `handleGameOutput()`:
+
+```javascript
+// Don't stop narration here - speakTextChunked() handles stopping the old session
+// properly with a 50ms delay to let the old loop exit cleanly
+state.pendingNarrationText = text;
+
+// speakTextChunked() will detect isNarrating and stop cleanly
+```
+
+**File:** `public/js/app.js` line 92-94
+
+**Result:** ✅ Chunk 0 now highlights correctly
+
+---
+
+### Fix #11 - Session Supersession Cleanup (December 16, 2024) 🔥 CRITICAL
+
+**Problem:** Even after Fix #10, chunk 0 would highlight briefly then disappear.
+
+**Root Cause:** When old session was superseded:
+1. Loop breaks cleanly (doesn't remove highlight) ✓
+2. Falls through to cleanup code (lines 276-295)
+3. Cleanup calls `removeHighlight()` unconditionally ❌
+4. This removes the **new session's** highlight!
+
+**Solution:** Only allow current session to clean up highlights:
+
+```javascript
+// Only clean up if this is still the current session (not superseded)
+if (currentSessionId === state.narrationSessionId) {
+  if (/* finished successfully */) {
+    removeHighlight();
+    // ... other cleanup
+  } else {
+    removeHighlight();
+    updateNavButtons();
+  }
+}
+// If session was superseded, exit silently - new session will manage it
+```
+
+**File:** `public/js/narration/tts-player.js` line 276-298
+
+**Result:** ✅ Old sessions exit cleanly without touching highlights
+
+---
+
+### Fix #12 - Chunk 0 Visual Highlighting Timing (December 16, 2024)
+
+**Problem:** Chunk 0 markers were found and CSS Highlight API called successfully (logs confirmed), but highlight didn't render visually on screen.
+
+**Root Cause:** DOM layout timing - markers were created but DOM hadn't finished laying out when highlight was applied.
+
+**Solution:** Add double `requestAnimationFrame` delay before highlighting chunk 0:
+
+```javascript
+// For chunk 0, add RAF delay to ensure DOM is fully rendered
+if (i === 0) {
+  await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+}
+updateTextHighlight(i);
+```
+
+**File:** `public/js/narration/tts-player.js` line 252-254
+
+**Why it works:** Same technique used for VM start timing fix - ensures DOM is fully laid out before applying CSS highlights.
+
+**Result:** ✅ Chunk 0 now highlights visually and persists during playback
+
+---
+
 ## Known Issues (December 2024)
 
 **Status:** ✅ **RESOLVED** - All major bugs fixed as of December 16, 2024
@@ -520,8 +641,11 @@ Previous issues have been resolved:
 - ✅ Whitespace in highlights
 - ✅ Chunking split regex
 - ✅ Marker insertion in multi-marker nodes
+- ✅ Navigation highlighting persistence
+- ✅ Chunk 0 highlighting on new pages
+- ✅ Session interference during page transitions
 
-The system now works reliably across all container types and game text variations.
+The system now works reliably across all container types, game text variations, and navigation scenarios.
 
 ---
 
@@ -557,6 +681,10 @@ The temporary marker system successfully solves the highlighting problem by:
 - Fix #5: Leading/trailing whitespace in highlights (character-offset ranges)
 - Fix #6: Chunking split regex (changed `\s+` to `\s*`)
 - Fix #7: Marker insertion reverse loop (changed `afterNode` to `beforeNode`)
+- Fix #9: Navigation highlighting persistence (preserveHighlight parameter)
+- Fix #10: Chunk 0 on new page (removed double-stop race condition)
+- Fix #11: Session supersession cleanup (session ID check)
+- Fix #12: Chunk 0 visual timing (double RAF delay)
 
 **Architecture evolution:** The system has been refactored from a monolithic `app.js` into focused ES6 modules, improving maintainability and enabling new features like lazy chunking.
 
