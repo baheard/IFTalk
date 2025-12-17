@@ -13,6 +13,11 @@ export const dom = {
   upperWindow: null,
   lowerWindow: null,
 
+  // Command input
+  userInput: null,
+  commandLine: null,
+  voiceIndicator: null,
+
   // Select game button
   selectGameBtn: null,
 
@@ -78,6 +83,11 @@ export function initDOM() {
   dom.statusBar = document.getElementById('statusBar');
   dom.upperWindow = document.getElementById('upperWindow');
   dom.lowerWindow = document.getElementById('lowerWindow');
+
+  // Command input
+  dom.userInput = document.getElementById('commandText');
+  dom.commandLine = document.getElementById('commandLine');
+  dom.voiceIndicator = document.getElementById('voiceIndicator');
 
   // Select game button
   dom.selectGameBtn = document.getElementById('selectGameBtn');

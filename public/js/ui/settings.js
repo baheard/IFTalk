@@ -66,35 +66,62 @@ export function initSettings() {
     }
   });
 
-  // Quick Save button
-  const quickSaveBtn = document.getElementById('quickSaveBtn');
-  if (quickSaveBtn) {
-    quickSaveBtn.addEventListener('click', () => {
-      // Import sendCommandDirect to send SAVE command
-      import('../game/commands.js').then(({ sendCommandDirect }) => {
-        sendCommandDirect('SAVE');
-        updateStatus('Sending SAVE command to game...');
-        // Close settings panel
-        if (dom.settingsPanel) {
-          dom.settingsPanel.classList.remove('open');
-        }
-      });
-    });
-  }
+  // Note: Quick Save/Restore button handlers are in save-manager.js
+  // to avoid duplicate handlers
 
-  // Quick Restore button
-  const quickRestoreBtn = document.getElementById('quickRestoreBtn');
-  if (quickRestoreBtn) {
-    quickRestoreBtn.addEventListener('click', () => {
-      // Import sendCommandDirect to send RESTORE command
-      import('../game/commands.js').then(({ sendCommandDirect }) => {
-        sendCommandDirect('RESTORE');
-        updateStatus('Sending RESTORE command to game...');
-        // Close settings panel
-        if (dom.settingsPanel) {
-          dom.settingsPanel.classList.remove('open');
+  // Clear All Data button
+  const clearAllDataBtn = document.getElementById('clearAllDataBtn');
+  if (clearAllDataBtn) {
+    clearAllDataBtn.addEventListener('click', () => {
+      // Show confirmation dialog
+      const confirmed = confirm(
+        '⚠️ WARNING: This will permanently delete ALL saved games for ALL interactive fiction games.\n\n' +
+        'This includes:\n' +
+        '• Quick saves\n' +
+        '• In-game saves\n' +
+        '• All game progress\n\n' +
+        'This action cannot be undone!\n\n' +
+        'Are you sure you want to continue?'
+      );
+
+      if (confirmed) {
+        try {
+          // Get all localStorage keys
+          const keysToRemove = [];
+          for (let i = 0; i < localStorage.length; i++) {
+            const key = localStorage.key(i);
+            // Remove IFTalk saves and Glkote/ZVM saves
+            if (key.startsWith('iftalk_quicksave_') ||
+                key.startsWith('glkote_quetzal_') ||
+                key.startsWith('zvm_autosave_')) {
+              keysToRemove.push(key);
+            }
+          }
+
+          // Remove all save data keys
+          keysToRemove.forEach(key => localStorage.removeItem(key));
+
+          // Show success message
+          const count = keysToRemove.length;
+          updateStatus(`✓ Cleared ${count} save file${count !== 1 ? 's' : ''}`);
+          console.log('[Settings] Cleared save data:', keysToRemove);
+
+          // Close settings panel
+          if (dom.settingsPanel) {
+            dom.settingsPanel.classList.remove('open');
+          }
+
+          // Show alert confirming deletion
+          alert(`Successfully deleted ${count} save file${count !== 1 ? 's' : ''}.\n\nAll game progress has been cleared.`);
+
+        } catch (error) {
+          console.error('[Settings] Failed to clear data:', error);
+          updateStatus('Error clearing data');
+          alert('Failed to clear save data: ' + error.message);
         }
-      });
+      } else {
+        updateStatus('Clear data cancelled');
+      }
     });
   }
 

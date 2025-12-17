@@ -36,6 +36,9 @@ export async function sendCommandDirect(cmd, isVoiceCommand = null) {
   // Add to command history (show [ENTER] for empty commands)
   addToCommandHistory(input || '[ENTER]', null, null, isVoiceCommand);
 
+  // Track for echo detection
+  window.lastCommandWasVoice = isVoiceCommand;
+
   // Send to ZVM
   sendCommandToGame(input);
 

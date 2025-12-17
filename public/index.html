@@ -18,6 +18,9 @@
 </head>
 <body>
 
+  <!-- Loading Overlay -->
+  <div class="loading-overlay" id="loadingOverlay"></div>
+
   <!-- Settings Panel -->
   <div class="settings-panel" id="settingsPanel">
     <div class="settings-header">
@@ -42,6 +45,13 @@
             </button>
           </div>
 
+          <!-- Restart Game -->
+          <div class="game-actions">
+            <button class="btn btn-warning btn-full-width" id="restartGameBtn">
+              <span class="material-icons">replay</span> Restart Current Game
+            </button>
+          </div>
+
           <!-- Save/Restore Instructions -->
           <div class="save-restore-info">
             <h4>💾 Save & Restore</h4>
@@ -55,11 +65,36 @@
 
           <!-- Quick Save/Restore Buttons -->
           <div class="game-actions">
-            <button class="btn btn-primary btn-half-width" id="quickSaveBtn">
+            <button class="btn btn-primary btn-half-width" id="quickSaveBtn" title="F5">
               <span class="material-icons">save</span> Quick Save
             </button>
-            <button class="btn btn-primary btn-half-width" id="quickRestoreBtn">
+            <button class="btn btn-primary btn-half-width" id="quickRestoreBtn" title="F9">
               <span class="material-icons">restore</span> Quick Restore
+            </button>
+          </div>
+
+          <!-- Export/Import to File -->
+          <div class="save-restore-info">
+            <h4>💾 Backup to Hard Drive</h4>
+            <p>Export your save to a file for backup or to transfer between devices:</p>
+          </div>
+          <div class="game-actions">
+            <button class="btn btn-secondary btn-half-width" id="exportSaveBtn">
+              <span class="material-icons">download</span> Export Save
+            </button>
+            <button class="btn btn-secondary btn-half-width" id="importSaveBtn">
+              <span class="material-icons">upload</span> Import Save
+            </button>
+          </div>
+
+          <!-- Clear All Data -->
+          <div class="save-restore-info">
+            <h4>⚠️ Danger Zone</h4>
+            <p>Permanently delete all saved games for all IF games:</p>
+          </div>
+          <div class="game-actions">
+            <button class="btn btn-danger btn-full-width" id="clearAllDataBtn">
+              <span class="material-icons">delete_forever</span> Clear All Save Data
             </button>
           </div>
         </div>
@@ -110,6 +145,9 @@
               <li><code>"Play"</code> - ▶ Resume/Start</li>
               <li><code>"Skip"</code> - ➡️ Next sentence</li>
               <li><code>"Skip All"</code> - ⏩ Skip to end</li>
+              <li><code>"Status"</code> - 📊 Read status bar</li>
+              <li><code>"Quick Save"</code> - 💾 Quick save (F5)</li>
+              <li><code>"Quick Load"</code> - 📂 Quick load (F9)</li>
             </ul>
           </div>
           <div class="help-section">
@@ -126,6 +164,8 @@
               <li><code>M</code> - Mute toggle</li>
               <li><code>Ctrl (hold)</code> - Push-to-talk</li>
               <li><code>Esc</code> - Stop talk mode</li>
+              <li><code>F5</code> - Quick Save</li>
+              <li><code>F9</code> - Quick Load</li>
             </ul>
           </div>
         </div>
@@ -151,7 +191,7 @@
     <!-- Welcome Screen -->
     <div class="welcome" id="welcome">
       <h2>Welcome to IF Talk</h2>
-      <p>Play interactive fiction with voice control and natural language commands.</p>
+      <p>Play interactive fiction with voice control.</p>
 
       <div class="game-list">
         <h3>Available Games:</h3>
@@ -184,6 +224,9 @@
         <div class="command-line" id="commandLine" style="display: none;">
           <span class="command-prompt">&gt;</span>
           <input type="text" class="command-text" id="commandText" autocomplete="off" spellcheck="false">
+          <span class="voice-indicator" id="voiceIndicator" title="Voice command">
+            <span class="material-icons">mic</span>
+          </span>
         </div>
       </div>
     </div>
@@ -192,14 +235,13 @@
   <!-- Single-line Controls -->
   <div class="controls-wrapper">
     <div class="controls hidden" id="controls">
-      <button id="skipToStartBtn" class="btn-nav" title="Restart"><span class="material-icons">skip_previous</span></button>
-      <button id="prevChunkBtn" class="btn-nav" title="Back"><span class="material-icons">fast_rewind</span></button>
-      <button id="pausePlayBtn" class="btn-nav" title="Play"><span class="material-icons">play_arrow</span></button>
-      <button id="nextChunkBtn" class="btn-nav" title="Skip"><span class="material-icons">fast_forward</span></button>
-      <button id="skipToEndBtn" class="btn-nav" title="Skip All"><span class="material-icons">skip_next</span></button>
+      <button id="skipToStartBtn" class="btn-nav" title="&quot;Restart&quot;"><span class="material-icons">skip_previous</span></button>
+      <button id="prevChunkBtn" class="btn-nav" title="&quot;Back&quot;"><span class="material-icons">fast_rewind</span></button>
+      <button id="pausePlayBtn" class="btn-nav" title="&quot;Play&quot;"><span class="material-icons">play_arrow</span></button>
+      <button id="nextChunkBtn" class="btn-nav" title="&quot;Skip&quot;"><span class="material-icons">fast_forward</span></button>
+      <button id="skipToEndBtn" class="btn-nav" title="&quot;Skip All&quot;"><span class="material-icons">skip_next</span></button>
       <div class="controls-spacer"></div>
       <button id="settingsBtn" class="btn-nav btn-settings" title="Settings"><span class="material-icons">settings</span></button>
-      <button id="talkModeBtn" class="btn-nav btn-talk-mode" title="Talk Mode"><span class="material-icons">record_voice_over</span></button>
       <button id="muteBtn" class="btn-mic" title="Toggle voice input"><span class="material-icons">mic</span></button>
     </div>
   </div>

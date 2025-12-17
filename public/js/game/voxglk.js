@@ -17,7 +17,7 @@ let windows = new Map();
 let onTextOutput = null; // Callback for TTS
 let acceptCallback = null; // Callback to send input back to Glk
 let inputEnabled = false; // Is input currently enabled?
-let inputType = 'line'; // Type of input requested: 'line' or 'char'
+let inputType = null; // Type of input requested: 'line' or 'char' (null until game requests)
 let inputWindowId = null; // Window ID for the current input request
 let lastStatusLine = ''; // Track status line for scene change detection
 let resizeTimeout = null; // Debounce resize events
@@ -254,6 +254,8 @@ export function createVoxGlk(textOutputCallback) {
 
           // Render upper window (multi-line quotes, maps, etc.)
           const upperWindowEl = document.getElementById('upperWindow');
+          const hasMainContent = mainWindowHTML && mainWindowHTML.trim();
+
           if (hasUpperWindowContent) {
             // Upper window was mentioned in this update - update it (even if empty)
             if (upperWindowHTML && upperWindowEl) {
@@ -271,8 +273,13 @@ export function createVoxGlk(textOutputCallback) {
             console.log('[VoxGlk] Clearing upper window (screen clear)');
             upperWindowEl.innerHTML = '';
             upperWindowEl.style.display = 'none';
+          } else if (hasMainContent && upperWindowEl && !hasUpperWindowContent) {
+            // New main content arrived without upper window update - clear stale upper window
+            console.log('[VoxGlk] Clearing upper window (new page without upper content)');
+            upperWindowEl.innerHTML = '';
+            upperWindowEl.style.display = 'none';
           }
-          // NOTE: If upper window wasn't mentioned and no clear requested, preserve existing content (resize responses)
+          // NOTE: If no main content and upper window wasn't mentioned, preserve existing content (resize responses)
 
           // Render lower window (main scrolling text)
           if (mainWindowHTML && mainWindowHTML.trim()) {
@@ -327,6 +334,51 @@ export function createVoxGlk(textOutputCallback) {
 
           console.log('[VoxGlk] Input type set to:', inputType);
           // Note: Command line visibility is handled automatically by keyboard.js polling
+
+          // Try to autoload on input requests (game is ready)
+          let shouldSkipAutosave = false;
+          if (window.attemptAutoload) {
+            console.log('[VoxGlk] Triggering autoload attempt');
+            const autoloadResult = await window.attemptAutoload();
+            console.log('[VoxGlk] Autoload result:', autoloadResult, 'type:', typeof autoloadResult);
+
+            // If autoload happened, skip autosave (don't overwrite what we just loaded)
+            if (autoloadResult === 'loaded') {
+              console.log('[VoxGlk] Autoload succeeded, skipping autosave');
+              shouldSkipAutosave = true;
+            } else {
+              console.log('[VoxGlk] Autoload result was not "loaded", will autosave. Result was:', autoloadResult);
+            }
+
+            // If this is the first char input (press any key prompt), auto-send a key
+            if (autoloadResult === true && inputType === 'char') {
+              console.log('[VoxGlk] Auto-sending space key to skip intro prompt');
+              setTimeout(() => {
+                // Send space character
+                if (acceptCallback) {
+                  acceptCallback({
+                    type: 'char',
+                    gen: generation,
+                    window: inputWindowId,
+                    value: 32 // space character code
+                  });
+                }
+              }, 100);
+            }
+          }
+
+          // Auto-save after each turn (skip if we just autoloaded)
+          if (!shouldSkipAutosave) {
+            setTimeout(async () => {
+              try {
+                const { autoSave } = await import('./save-manager.js');
+                await autoSave();
+                console.log('[VoxGlk] Autosaved after input request');
+              } catch (error) {
+                console.error('[VoxGlk] Auto-save failed:', error);
+              }
+            }, 100);
+          }
         }
 
       } catch (error) {

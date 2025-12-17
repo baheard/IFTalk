@@ -28,7 +28,7 @@ import { initHistoryButtons } from './ui/history.js';
 
 // Game modules
 import { sendCommand, sendCommandDirect } from './game/commands.js';
-import { initSaveHandlers } from './game/save-manager.js';
+import { initSaveHandlers, quickSave, quickLoad } from './game/save-manager.js';
 import { initGameSelection } from './game/game-loader.js';
 
 // Voice command handlers
@@ -54,17 +54,46 @@ const voiceCommandHandlers = {
   },
   skip: () => skipToChunk(1, () => speakTextChunked(null, state.currentChunkIndex)),
   skipToEnd: () => skipToEnd(),
+  status: () => {
+    // Read status bar content
+    const statusText = dom.statusBar?.textContent?.trim();
+    if (statusText) {
+      speakAppMessage(statusText);
+      updateStatus('Reading status');
+    } else {
+      speakAppMessage('No status presently shown');
+      updateStatus('No status to read');
+    }
+  },
+  quickSave: () => {
+    quickSave();
+  },
+  quickLoad: () => {
+    quickLoad();
+  },
   unmute: () => {
     state.isMuted = false;
+    state.listeningEnabled = true;
     const icon = dom.muteBtn?.querySelector('.material-icons');
     if (icon) icon.textContent = 'mic';
     if (dom.muteBtn) dom.muteBtn.classList.remove('muted');
     startVoiceMeter();
-    updateStatus('Microphone unmuted');
+    updateStatus('Microphone unmuted - Listening...');
     updateNavButtons();
+
+    // Start voice recognition
+    if (state.recognition && !state.isRecognitionActive) {
+      try {
+        state.recognition.start();
+        console.log('[Voice] Recognition started');
+      } catch (err) {
+        console.error('[Voice] Failed to start recognition:', err);
+      }
+    }
   },
   mute: () => {
     state.isMuted = true;
+    state.listeningEnabled = false;
     const icon = dom.muteBtn?.querySelector('.material-icons');
     if (icon) icon.textContent = 'mic_off';
     if (dom.muteBtn) {
@@ -75,6 +104,16 @@ const voiceCommandHandlers = {
     stopVoiceMeter();
     updateStatus('Microphone muted');
     updateNavButtons();
+
+    // Stop voice recognition
+    if (state.recognition && state.isRecognitionActive) {
+      try {
+        state.recognition.stop();
+        console.log('[Voice] Recognition stopped');
+      } catch (err) {
+        console.error('[Voice] Failed to stop recognition:', err);
+      }
+    }
   },
   sendCommandDirect: (cmd) => sendCommandDirect(cmd)
 };
@@ -156,14 +195,19 @@ async function initApp() {
   state.recognition = initVoiceRecognition(processVoice);
 
   // Make sendCommand available globally for recognition module
-  window._sendCommand = () => sendCommand();
+  window._sendCommand = () => {
+    const cmd = dom.userInput ? dom.userInput.value.trim() : '';
+    if (cmd) {
+      sendCommandDirect(cmd, true); // true = isVoiceCommand
+      if (dom.userInput) dom.userInput.value = '';
+    }
+  };
 
   // Initialize UI components
   initSettings();
   initVoiceSelection();
   initHistoryButtons();
   initSaveHandlers();
-  initQuickSave();
 
   // Initialize mute button state to match default (muted)
   if (dom.muteBtn) {
@@ -173,7 +217,9 @@ async function initApp() {
   }
 
   // Initialize game selection with output callback and talk mode starter
+  console.log('[App] Initializing game selection...');
   initGameSelection(handleGameOutput, window.startTalkMode);
+  console.log('[App] Game selection initialized');
 
   // Navigation button handlers
   const skipToStartBtn = document.getElementById('skipToStartBtn');
@@ -250,40 +296,10 @@ async function initApp() {
     skipToEndBtn.addEventListener('click', () => skipToEnd());
   }
 
-  // Talk Mode button (toggles auto-narration + voice input)
-  const talkModeBtn = document.getElementById('talkModeBtn');
-  if (talkModeBtn) {
-    talkModeBtn.addEventListener('click', () => {
-      state.talkModeActive = !state.talkModeActive;
-
-      if (state.talkModeActive) {
-        // Turn ON talk mode: enable autoplay + unmute mic + enable narration
-        state.autoplayEnabled = true;
-        state.narrationEnabled = true;
-        state.listeningEnabled = true;
-        state.isMuted = false; // Unmute mic by default
-
-        // Update mute button UI
-        if (dom.muteBtn) {
-          dom.muteBtn.classList.remove('active');
-          const icon = dom.muteBtn.querySelector('.material-icons');
-          if (icon) icon.textContent = 'mic';
-        }
-
-        updateStatus('Talk mode enabled');
-        console.log('[Talk Mode] ON - autoplay + mic enabled');
-      } else {
-        // Turn OFF talk mode: disable autoplay (keep narration available for manual play)
-        state.autoplayEnabled = false;
-        state.listeningEnabled = false;
-
-        updateStatus('Talk mode disabled');
-        console.log('[Talk Mode] OFF - autoplay disabled');
-      }
-
-      talkModeBtn.classList.toggle('active', state.talkModeActive);
-    });
-  }
+  // Talk Mode button - REMOVED
+  // Talk mode functionality integrated into play button
+  // const talkModeBtn = document.getElementById('talkModeBtn');
+  // if (talkModeBtn) { ... }
 
   // Mute button
   if (dom.muteBtn) {

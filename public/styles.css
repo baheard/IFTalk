@@ -56,6 +56,24 @@ body {
   overflow: hidden;
 }
 
+/* Loading Overlay */
+.loading-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: var(--bg-primary);
+  z-index: 9999;
+  opacity: 1;
+  transition: opacity 0.8s ease-out;
+  pointer-events: none;
+}
+
+.loading-overlay.fade-out {
+  opacity: 0;
+}
+
 /* Header */
 .header {
   background: var(--bg-surface);
@@ -257,11 +275,15 @@ body {
 }
 
 .settings-section {
-  margin-bottom: 4px;
+  margin-bottom: 12px;
+  border-radius: 8px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  transition: all 0.3s ease;
 }
 
 .settings-section h3 {
-  margin: 0 0 10px 0;
+  margin: 0;
   font-size: var(--font-l);
   color: var(--accent-warm);
 }
@@ -276,9 +298,8 @@ body {
 .settings-section.collapsible .section-header {
   cursor: pointer;
   user-select: none;
-  padding: 10px;
-  margin: -10px -10px 10px -10px;
-  border-radius: 6px;
+  padding: 14px 16px;
+  border-radius: 8px;
   transition: background-color 0.2s;
   position: relative;
 }
@@ -290,7 +311,7 @@ body {
 .settings-section.collapsible .section-header::after {
   content: '▼';
   position: absolute;
-  right: 10px;
+  right: 16px;
   font-size: 12px;
   transition: transform 0.3s;
   opacity: 0.6;
@@ -303,13 +324,23 @@ body {
 .settings-section.collapsible .section-content {
   max-height: 1000px;
   overflow: hidden;
-  transition: max-height 0.3s ease, opacity 0.3s ease;
+  transition: max-height 0.3s ease, opacity 0.3s ease, padding 0.3s ease;
   opacity: 1;
+  padding: 16px;
+  background: rgba(0, 0, 0, 0.15);
+  border-radius: 0 0 8px 8px;
 }
 
 .settings-section.collapsible.collapsed .section-content {
   max-height: 0;
   opacity: 0;
+  padding: 0 16px;
+}
+
+/* Add visual separation when expanded */
+.settings-section.collapsible:not(.collapsed) {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  border-color: var(--border-accent);
 }
 
 /* Speech speed slider */
@@ -668,6 +699,32 @@ body {
   border-color: var(--accent-muted);
 }
 
+.btn-danger {
+  background: rgba(220, 80, 80, 0.12);
+  color: #e88888;
+  border: 1px solid rgba(220, 80, 80, 0.3);
+}
+
+.btn-danger:hover {
+  background: rgba(220, 80, 80, 0.2);
+  border-color: rgba(220, 80, 80, 0.5);
+  color: #ff9999;
+  box-shadow: 0 2px 8px rgba(220, 80, 80, 0.3);
+}
+
+.btn-warning {
+  background: rgba(255, 165, 0, 0.12);
+  color: #ffb347;
+  border: 1px solid rgba(255, 165, 0, 0.3);
+}
+
+.btn-warning:hover {
+  background: rgba(255, 165, 0, 0.2);
+  border-color: rgba(255, 165, 0, 0.5);
+  color: #ffc266;
+  box-shadow: 0 2px 8px rgba(255, 165, 0, 0.3);
+}
+
 /* Container */
 .container {
   flex: 1;
@@ -887,6 +944,25 @@ body {
 .btn-nav:disabled {
   opacity: 0.3;
   cursor: not-allowed;
+}
+
+/* Quick Save/Load buttons */
+.btn-save {
+  color: var(--accent-warm) !important;
+}
+
+.btn-save:hover {
+  background: rgba(196, 163, 90, 0.2) !important;
+  border-color: var(--accent-warm) !important;
+}
+
+.btn-load {
+  color: var(--accent-primary) !important;
+}
+
+.btn-load:hover {
+  background: rgba(139, 157, 195, 0.2) !important;
+  border-color: var(--accent-primary) !important;
 }
 
 /* Mic button */
@@ -1802,11 +1878,6 @@ body {
     font-size: 17px;
   }
 
-  .game-list {
-    grid-template-columns: 1fr;
-    gap: 12px;
-  }
-
   .game-card {
     padding: 16px;
   }
@@ -2145,7 +2216,8 @@ body {
 }
 
 .glk-input::before {
-  content: "> ";
+  content: ">";
+  padding-right: 2px;
 }
 
 .glk-user1 {
@@ -2261,12 +2333,11 @@ body {
 /* Inline command input */
 .command-line {
   color: var(--text-primary);
-  padding: 8px 0 0 0;
   display: none; /* Hidden by default, shown only when game requests line input */
   align-items: flex-start;
   background: transparent;
   flex-shrink: 0;
-  min-height: 1.5em;
+  min-height: 1.4rem;
   position: relative;
 }
 
@@ -2276,9 +2347,10 @@ body {
 
 .command-prompt {
   color: var(--text-primary);
+  font-size: var(--font-m);
   position: absolute;
   left: 0;
-  top: 8px;
+  top: 0;
   pointer-events: none;
 }
 
@@ -2287,14 +2359,33 @@ body {
   color: var(--accent-primary);
   font-family: var(--font-mono);
   font-size: var(--font-m);
+  height: 100%;
   border: none;
   outline: none;
   background: transparent;
   margin: 0;
   width: 100%;
   flex: 1;
-  font-size: var(--font-m);
-  padding-left: 1.3rem;
+  padding-left: .75rem;
+}
+
+.voice-indicator {
+  display: none;
+  align-items: center;
+  color: var(--accent-warm);
+  font-size: 16px;
+  margin-left: 8px;
+  opacity: 0.7;
+  animation: pulse 2s ease-in-out infinite;
+}
+
+.voice-indicator.active {
+  display: flex;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 0.7; }
+  50% { opacity: 1; }
 }
 
 .cursor {

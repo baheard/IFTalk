@@ -77,6 +77,11 @@ export function ensureChunksReady() {
     const { chunks: statusChunks, markerIDs: statusMarkerIDs } =
       extractChunksAndMarkers(statusChunksWithMarkers);
 
+    // Prefix first status chunk with "Status: " for clarity
+    if (statusChunks.length > 0 && statusChunks[0].text.trim()) {
+      statusChunks[0].text = 'Status: ' + statusChunks[0].text;
+    }
+
     // Apply markers to status element
     statusEl.innerHTML = statusMarkedHTML;
     insertRealMarkersAtIDs(statusEl, statusMarkerIDs);
@@ -233,6 +238,28 @@ export function addGameText(text, isCommand = false, isVoiceCommand = false) {
     // Chunks will be created on-demand when narration is requested
     div.innerHTML = text;
 
+    // Add mic icon to glk-input spans if they were voice commands
+    if (window.lastCommandWasVoice && window.lastSentCommand) {
+      const glkInputs = div.querySelectorAll('span.glk-input');
+      const lastCmd = window.lastSentCommand.trim().toLowerCase();
+
+      glkInputs.forEach(span => {
+        const spanText = span.textContent.trim().toLowerCase();
+        // Check if this glk-input matches the last voice command
+        if (spanText === lastCmd || spanText === `>${lastCmd}` || spanText === `> ${lastCmd}`) {
+          // Add mic icon before the text
+          const micIcon = document.createElement('span');
+          micIcon.className = 'voice-command-icon';
+          micIcon.textContent = '🎤 ';
+          micIcon.style.cssText = 'opacity: 0.7; margin-right: 0.3em;';
+          span.insertBefore(micIcon, span.firstChild);
+
+          // Clear the flag so we don't keep adding icons
+          window.lastCommandWasVoice = false;
+        }
+      });
+    }
+
     // Invalidate existing chunks - they're for old content
     state.chunksValid = false;
     state.narrationChunks = []; // Clear old chunks to prevent reading stale data
@@ -295,6 +322,21 @@ export function addGameText(text, isCommand = false, isVoiceCommand = false) {
   }
 
   scrollToFirstText(div);
+
+  // After new game text is added, ensure command line stays in view
+  // Use requestAnimationFrame to wait for DOM updates and layout
+  if (!isCommand) {
+    requestAnimationFrame(() => {
+      const commandLine = document.getElementById('commandLine');
+      const lowerWindow = dom.lowerWindow;
+
+      // If command line is visible, scroll to bottom to keep it in view
+      if (commandLine && commandLine.style.display === 'flex' && lowerWindow) {
+        // Scroll the lower window to the bottom
+        lowerWindow.scrollTop = lowerWindow.scrollHeight;
+      }
+    });
+  }
 
   // Track for highlighting (only for game text, not commands)
   if (!isCommand) {

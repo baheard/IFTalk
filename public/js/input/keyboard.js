@@ -52,8 +52,8 @@ export function initKeyboardInput() {
     });
   }
 
-  // Listen for input type changes (poll periodically)
-  setInterval(updateCaretVisibility, 100);
+  // Listen for input type changes (poll periodically - check every 500ms)
+  setInterval(updateCaretVisibility, 500);
 }
 
 /**
@@ -147,7 +147,6 @@ function updateDisplay() {
 function updateCaretVisibility() {
   const inputType = getInputType();
   const isVisible = commandLineEl?.style.display === 'flex';
-  console.log('[Keyboard] updateCaretVisibility - inputType:', inputType, 'commandLineEl visible:', isVisible);
 
   // Show command line only in line mode, hide in char mode or when no input requested
   if (commandLineEl) {

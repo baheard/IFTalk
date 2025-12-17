@@ -118,6 +118,25 @@ export function processVoiceKeywords(transcript, handlers) {
     return false;
   }
 
+  if (lower === 'status') {
+    markCommandProcessed();
+    handlers.status();
+    return false;
+  }
+
+  // Quick Save/Load Commands
+  if (lower === 'quick save' || lower === 'quicksave') {
+    markCommandProcessed();
+    if (handlers.quickSave) handlers.quickSave();
+    return false;
+  }
+
+  if (lower === 'quick load' || lower === 'quickload' || lower === 'quick restore' || lower === 'quickrestore') {
+    markCommandProcessed();
+    if (handlers.quickLoad) handlers.quickLoad();
+    return false;
+  }
+
   // SAVE/RESTORE Commands
   if (lower === 'load game' || lower === 'restore game' || lower === 'load' || lower === 'restore') {
     markCommandProcessed();

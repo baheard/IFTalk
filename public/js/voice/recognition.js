@@ -153,24 +153,35 @@ export function initVoiceRecognition(processVoiceKeywords) {
       // Show as confirmed
       showConfirmedTranscript(finalTranscript, isNavCommand);
 
-      if (processed !== false && dom.userInput) {
-        dom.userInput.value = processed;
-        dom.userInput.classList.add('voice-command');
+      if (processed !== false) {
+        // Voice command processed - populate input and show indicator
+        if (dom.userInput) {
+          dom.userInput.value = processed;
+        }
+        if (dom.voiceIndicator) {
+          dom.voiceIndicator.classList.add('active');
+        }
+
         state.hasManualTyping = false;
         updateStatus('Recognized: ' + finalTranscript);
 
-        // Remove voice-command class after a short delay or when user types
+        // Auto-submit after brief delay to show user what was recognized
         setTimeout(() => {
-          if (dom.userInput && !state.hasManualTyping) {
-            dom.userInput.classList.remove('voice-command');
-          }
-        }, 3000);
+          // Import and call sendCommandDirect
+          import('../game/commands.js').then(({ sendCommandDirect }) => {
+            sendCommandDirect(processed, true); // true = is voice command
+
+            // Clear input and hide indicator after sending
+            if (dom.userInput) {
+              dom.userInput.value = '';
+            }
+            if (dom.voiceIndicator) {
+              dom.voiceIndicator.classList.remove('active');
+            }
+          });
+        }, 500); // 500ms delay to show the recognized command
       } else {
-        // Command was handled, clear input
-        if (dom.userInput) {
-          dom.userInput.value = '';
-          dom.userInput.classList.remove('voice-command');
-        }
+        // Navigation command was handled
         state.hasManualTyping = false;
       }
     }
@@ -195,15 +206,8 @@ export function initVoiceRecognition(processVoiceKeywords) {
     state.isListening = false;
     state.isRecognitionActive = false;
 
-    // Only auto-send if appropriate
-    const hasInput = dom.userInput && dom.userInput.value && dom.userInput.value.trim();
-    const canSendDuringNarration = state.pausedForSound;
-
-    if (hasInput && (!state.isNarrating || canSendDuringNarration) && !state.hasProcessedResult && !state.hasManualTyping) {
-      state.hasProcessedResult = true;
-      // Call sendCommand from handlers
-      if (window._sendCommand) window._sendCommand();
-    }
+    // Voice commands are now sent immediately in onresult handler
+    // No need to check for input field or auto-send here
 
     // Always restart listening if continuous mode enabled
     if (state.listeningEnabled && !state.ttsIsSpeaking) {

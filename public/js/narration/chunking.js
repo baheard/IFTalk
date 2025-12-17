@@ -37,19 +37,20 @@ export function insertTemporaryMarkers(html, skipLineBreaks = false) {
     return match;
   });
 
-  // Mark ALL line breaks - both <br> tags and </div> tags create chunk boundaries
-  // GlkOte uses <div> wrappers instead of <br> tags
-  // This creates chunks at every line break, making narration more granular
+  // Mark line breaks UNLESS skipLineBreaks is true
+  // This allows upper window content (quotes, formatted text) to be chunked by sentences only
+  // Main content gets chunks at every line break for more granular narration control
+  if (!skipLineBreaks) {
+    // Mark <br> tags (if present)
+    markedHTML = markedHTML.replace(/<br\s*\/?>/gi, (match) => {
+      return `⚐${markerCount++}⚐${match}`;
+    });
 
-  // Mark <br> tags (if present)
-  markedHTML = markedHTML.replace(/<br\s*\/?>/gi, (match) => {
-    return `⚐${markerCount++}⚐${match}`;
-  });
-
-  // Mark </div> tags (GlkOte line breaks)
-  markedHTML = markedHTML.replace(/<\/div>/gi, (match) => {
-    return `⚐${markerCount++}⚐${match}`;
-  });
+    // Mark </div> tags (GlkOte line breaks)
+    markedHTML = markedHTML.replace(/<\/div>/gi, (match) => {
+      return `⚐${markerCount++}⚐${match}`;
+    });
+  }
 
   // Mark regular punctuation (skip initials like H.P.)
   markedHTML = markedHTML.replace(/(?<![A-Z.])([.!?…])(?=\s|<|$)/g, (match, punct) => {
