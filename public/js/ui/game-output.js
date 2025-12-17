@@ -100,7 +100,7 @@ export function ensureChunksReady() {
 
   // Process upper window second (if exists) - for quotes, formatted text, etc.
   if (hasUpper && upperEl) {
-    const upperMarkedHTML = insertTemporaryMarkers(upperHTML);
+    const upperMarkedHTML = insertTemporaryMarkers(upperHTML, true); // Skip line breaks for formatting
     const upperChunksWithMarkers = createNarrationChunks(upperMarkedHTML);
     const { chunks: upperChunks, markerIDs: upperMarkerIDs } =
       extractChunksAndMarkers(upperChunksWithMarkers);
@@ -201,6 +201,7 @@ export function addGameText(text, isCommand = false, isVoiceCommand = false) {
 
     // Invalidate existing chunks - they're for old content
     state.chunksValid = false;
+    state.narrationChunks = []; // Clear old chunks to prevent reading stale data
     state.currentChunkIndex = 0;
     state.currentChunkStartTime = 0;
   }

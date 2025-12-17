@@ -216,8 +216,11 @@ function processStyledContent(contentArray) {
         const lineText = textLines[lineIdx];
         const escapedText = escapeHtml(lineText);
 
+        // Filter standalone ">" prompt (waiting for input) but keep ">command" echoes
+        const isStandalonePrompt = lineText.trim() === '>' || escapedText.trim() === '&gt;';
+
         // Add to current line (with white-space: pre-wrap to preserve spaces but allow wrapping)
-        if (escapedText) {
+        if (escapedText && !isStandalonePrompt) {
           // Mark input-style text to use app voice instead of narrator
           const voiceAttr = cssClass === 'glk-input' ? ' data-voice="app"' : '';
           currentLine += `<span class="${cssClass}" style="white-space: pre-wrap;"${voiceAttr}>${escapedText}</span>`;
@@ -294,8 +297,11 @@ function processStyledContent(contentArray) {
         const lineText = textLines[lineIdx];
         const escapedText = escapeHtml(lineText);
 
+        // Filter standalone ">" prompt (waiting for input) but keep ">command" echoes
+        const isStandalonePrompt = lineText.trim() === '>' || escapedText.trim() === '&gt;';
+
         // Add to HTML
-        if (escapedText) {
+        if (escapedText && !isStandalonePrompt) {
           // Mark input-style text to use app voice instead of narrator
           const voiceAttr = cssClass === 'glk-input' ? ' data-voice="app"' : '';
           if (customStyle) {
@@ -449,7 +455,8 @@ function renderStatusBar(content) {
 
   // Build HTML with appropriate classes based on number of parts
   // Use chunk-delimiter spans to create TTS pauses (hidden with CSS)
-  const delimiter = '<span class="chunk-delimiter">. </span>';
+  // Comma creates shorter pause than period
+  const delimiter = '<span class="chunk-delimiter">, </span>';
   let html = '<div class="status-bar-line">';
 
   if (parts.length === 1) {

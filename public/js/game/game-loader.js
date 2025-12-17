@@ -88,8 +88,7 @@ export async function startGame(gamePath, onOutput, startTalkMode) {
     resetNarrationState();
     updateNavButtons();
 
-    // Auto-start talk mode
-    if (startTalkMode) startTalkMode();
+    // Don't auto-start talk mode - user clicks the talk mode button to enable
     if (dom.userInput) dom.userInput.focus();
 
     // Stop any existing narration

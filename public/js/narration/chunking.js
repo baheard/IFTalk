@@ -10,9 +10,10 @@ import { processAndSplitText } from '../utils/text-processing.js';
  * Insert temporary markers (⚐N⚐) BEFORE EVERY delimiter in HTML
  * These markers help track where sentence boundaries should be
  * @param {string} html - HTML content
+ * @param {boolean} skipLineBreaks - If true, don't create chunks at <br> or </div> (for upper window)
  * @returns {string} HTML with temporary markers inserted
  */
-export function insertTemporaryMarkers(html) {
+export function insertTemporaryMarkers(html, skipLineBreaks = false) {
   if (!html) return html;
 
   let markerCount = 0;

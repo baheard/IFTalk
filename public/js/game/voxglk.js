@@ -202,15 +202,15 @@ export function createVoxGlk(textOutputCallback) {
           console.log('  Last HTML:', lastStatusLine);
           console.log('  Are equal:', statusBarHTML === lastStatusLine);
 
-          // Detect scene change (status bar changed = new location)
+          // Track status bar changes for TTS (but don't auto-clear screen)
           const statusBarChanged = statusBarHTML !== lastStatusLine;
           console.log('  statusBarChanged:', statusBarChanged);
 
-          const isSceneChange = statusBarHTML && lastStatusLine && statusBarChanged;
-          const shouldClearScreen = isSceneChange ||
-                                   arg.content.some(c => c.clear);
+          // Only clear screen when game explicitly requests it
+          const shouldClearScreen = arg.content.some(c => c.clear);
 
           if (shouldClearScreen) {
+            console.log('[VoxGlk] Game requested screen clear');
             clearGameOutput();
           }
 

@@ -37,10 +37,13 @@ export async function sendCommandDirect(cmd, isVoiceCommand = null) {
 
   updateStatus('Sending...', 'processing');
 
+  // Display command on screen with prompt
+  addGameText(input || '[ENTER]', true, isVoiceCommand);
+
   // Add to command history (show [ENTER] for empty commands)
   addToCommandHistory(input || '[ENTER]', null, null, isVoiceCommand);
 
-  // Send to ZVM (game engine will echo the command)
+  // Send to ZVM
   sendCommandToGame(input);
 
   // Reset status after a brief delay

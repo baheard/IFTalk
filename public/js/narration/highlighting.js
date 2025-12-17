@@ -128,10 +128,12 @@ export function updateTextHighlight(chunkIndex) {
   }
 
   // Dispatch custom event for debugging/testing
+  const chunk = state.narrationChunks[chunkIndex];
+  const chunkText = typeof chunk === 'string' ? chunk : chunk?.text || '';
   const event = new CustomEvent('chunkHighlighted', {
     detail: {
       chunkIndex,
-      chunkText: state.narrationChunks[chunkIndex],
+      chunkText,
       totalChunks: state.narrationChunks.length,
       success
     }

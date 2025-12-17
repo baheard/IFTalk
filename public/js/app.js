@@ -256,14 +256,38 @@ async function initApp() {
     skipToEndBtn.addEventListener('click', () => skipToEnd());
   }
 
-  // Autoplay button
-  const autoplayBtn = document.getElementById('autoplayBtn');
-  if (autoplayBtn) {
-    autoplayBtn.addEventListener('click', () => {
-      state.autoplayEnabled = !state.autoplayEnabled;
-      autoplayBtn.classList.toggle('active', state.autoplayEnabled);
-      console.log('[Autoplay Button] Toggled to:', state.autoplayEnabled);
-      updateStatus(state.autoplayEnabled ? 'Autoplay enabled' : 'Autoplay disabled');
+  // Talk Mode button (toggles auto-narration + voice input)
+  const talkModeBtn = document.getElementById('talkModeBtn');
+  if (talkModeBtn) {
+    talkModeBtn.addEventListener('click', () => {
+      state.talkModeActive = !state.talkModeActive;
+
+      if (state.talkModeActive) {
+        // Turn ON talk mode: enable autoplay + unmute mic + enable narration
+        state.autoplayEnabled = true;
+        state.narrationEnabled = true;
+        state.listeningEnabled = true;
+        state.isMuted = false; // Unmute mic by default
+
+        // Update mute button UI
+        if (dom.muteBtn) {
+          dom.muteBtn.classList.remove('active');
+          const icon = dom.muteBtn.querySelector('.material-icons');
+          if (icon) icon.textContent = 'mic';
+        }
+
+        updateStatus('Talk mode enabled');
+        console.log('[Talk Mode] ON - autoplay + mic enabled');
+      } else {
+        // Turn OFF talk mode: disable autoplay (keep narration available for manual play)
+        state.autoplayEnabled = false;
+        state.listeningEnabled = false;
+
+        updateStatus('Talk mode disabled');
+        console.log('[Talk Mode] OFF - autoplay disabled');
+      }
+
+      talkModeBtn.classList.toggle('active', state.talkModeActive);
     });
   }
 
@@ -391,8 +415,7 @@ window.startTalkMode = function() {
   state.talkModeActive = true;
   state.listeningEnabled = true;
   state.narrationEnabled = true;
-  state.autoplayEnabled = true;
-  console.log('[StartTalkMode] Autoplay ENABLED (forced on by talk mode)');
+  // autoplayEnabled stays at default (false) - user can enable if desired
 
   // Set initial placeholder based on mute state
   if (dom.userInput) {
