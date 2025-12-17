@@ -173,6 +173,40 @@ export function ensureChunksReady() {
  * @returns {HTMLElement} The created element
  */
 export function addGameText(text, isCommand = false, isVoiceCommand = false) {
+  // Skip if this is the game echoing our last command via glk-input style
+  if (!isCommand) {
+    // Check if this is ONLY a glk-input echo (no other content)
+    const glkInputMatch = text.match(/<span class="glk-input"[^>]*>(.*?)<\/span>/);
+    if (glkInputMatch && text.replace(/<[^>]*>/g, '').trim() === glkInputMatch[1].trim()) {
+      console.log('[Game Output] ✓ Skipping glk-input echo:', glkInputMatch[1]);
+      return null;
+    }
+
+    // Also check against last sent command
+    if (window.lastSentCommand) {
+      const plainText = text.replace(/<[^>]*>/g, '').trim().toLowerCase();
+      const lastCmd = window.lastSentCommand.trim().toLowerCase();
+
+      console.log('[Game Output] Checking for echo - plainText:', plainText, 'lastCmd:', lastCmd);
+
+      // Check various echo patterns
+      const isEcho =
+        plainText === lastCmd ||
+        plainText === `>${lastCmd}` ||
+        plainText === `> ${lastCmd}` ||
+        plainText.startsWith(`>${lastCmd}\n`) ||
+        plainText.startsWith(`> ${lastCmd}\n`) ||
+        // Check if it's ONLY the command (not followed by other text)
+        (plainText.split('\n')[0].trim() === lastCmd && plainText.split('\n').length === 1);
+
+      if (isEcho) {
+        console.log('[Game Output] ✓ Skipping command echo:', lastCmd);
+        window.lastSentCommand = null; // Clear so we don't skip future legitimate text
+        return null;
+      }
+    }
+  }
+
   const div = document.createElement('div');
 
   if (isCommand) {
@@ -207,11 +241,60 @@ export function addGameText(text, isCommand = false, isVoiceCommand = false) {
   }
 
   if (dom.lowerWindow) {
-    dom.lowerWindow.appendChild(div);
+    // Append new content before the command line (keep command line at bottom)
+    const commandLine = document.getElementById('commandLine');
+    if (commandLine && commandLine.parentElement === dom.lowerWindow) {
+      dom.lowerWindow.insertBefore(div, commandLine);
+    } else {
+      dom.lowerWindow.appendChild(div);
+    }
   }
 
-  // Scroll to show the TOP of new text
-  div.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  // Smart scroll: skip blank lines and scroll to first actual text
+  function scrollToFirstText(container) {
+    if (!container) return;
+
+    // Find first descendant (not just direct child) with visible text
+    const walker = document.createTreeWalker(
+      container,
+      NodeFilter.SHOW_ELEMENT,
+      {
+        acceptNode: (node) => {
+          // Skip spacer divs
+          if (node.classList?.contains('blank-line-spacer')) {
+            return NodeFilter.FILTER_SKIP;
+          }
+          // Check if this element has visible text
+          const text = node.textContent?.trim();
+          if (text && text.length > 0) {
+            return NodeFilter.FILTER_ACCEPT;
+          }
+          return NodeFilter.FILTER_SKIP;
+        }
+      }
+    );
+
+    const firstTextElement = walker.nextNode();
+    const scrollTarget = firstTextElement || container;
+    // Check if element is already visible in viewport
+    const rect = scrollTarget.getBoundingClientRect();
+    const gameOutput = document.getElementById('gameOutput');
+    if (!gameOutput) return;
+
+    const containerRect = gameOutput.getBoundingClientRect();
+    const isVisible = (
+      rect.top >= containerRect.top &&
+      rect.bottom <= containerRect.bottom
+    );
+
+    // Only scroll if not already visible
+    // Use 'nearest' to preserve existing scroll position and margins
+    if (!isVisible) {
+      scrollTarget.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+  }
+
+  scrollToFirstText(div);
 
   // Track for highlighting (only for game text, not commands)
   if (!isCommand) {
@@ -222,11 +305,20 @@ export function addGameText(text, isCommand = false, isVoiceCommand = false) {
 }
 
 /**
- * Clear all game output
+ * Clear all game output (but preserve command line)
  */
 export function clearGameOutput() {
   if (dom.lowerWindow) {
+    // Extract command line first (it might be nested inside a game-text div)
+    const commandLine = document.getElementById('commandLine');
+
+    // Clear everything
     dom.lowerWindow.innerHTML = '';
+
+    // Re-append command line directly to lowerWindow
+    if (commandLine) {
+      dom.lowerWindow.appendChild(commandLine);
+    }
   }
   resetNarrationState();
 }

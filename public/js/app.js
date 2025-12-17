@@ -59,7 +59,6 @@ const voiceCommandHandlers = {
     const icon = dom.muteBtn?.querySelector('.material-icons');
     if (icon) icon.textContent = 'mic';
     if (dom.muteBtn) dom.muteBtn.classList.remove('muted');
-    if (dom.userInput) dom.userInput.placeholder = '🎤 Say something...';
     startVoiceMeter();
     updateStatus('Microphone unmuted');
     updateNavButtons();
@@ -73,7 +72,6 @@ const voiceCommandHandlers = {
       dom.muteBtn.classList.remove('listening');
       dom.muteBtn.style.setProperty('--mic-intensity', '0');
     }
-    if (dom.userInput) dom.userInput.placeholder = 'Type something...';
     stopVoiceMeter();
     updateStatus('Microphone muted');
     updateNavButtons();
@@ -173,9 +171,6 @@ async function initApp() {
     const icon = dom.muteBtn.querySelector('.material-icons');
     if (icon) icon.textContent = 'mic_off';
     dom.muteBtn.classList.add('muted');
-  }
-  if (dom.userInput) {
-    dom.userInput.placeholder = 'Type something...';
   }
 
   // Initialize game selection with output callback and talk mode starter
@@ -302,51 +297,6 @@ async function initApp() {
     });
   }
 
-  // Send button
-  if (dom.sendBtn) {
-    dom.sendBtn.addEventListener('click', () => {
-      // Mark as manual input (user clicked button, not voice)
-      state.hasManualTyping = true;
-      sendCommand();
-    });
-  }
-
-  // Enter key
-  if (dom.userInput) {
-    dom.userInput.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter') {
-        e.preventDefault();
-        // Mark as manual input (user pressed Enter, not voice)
-        state.hasManualTyping = true;
-        sendCommand();
-      } else {
-        // Any other key = manual typing
-        state.hasManualTyping = true;
-      }
-    });
-  }
-
-  // Click on game output focuses input (but not when selecting text)
-  const gameOutput = document.querySelector('.game-output');
-  if (gameOutput) {
-    gameOutput.addEventListener('click', (e) => {
-      // Don't interfere with text selection
-      const selection = window.getSelection();
-      if (selection && selection.toString().length > 0) {
-        return;
-      }
-
-      // Don't interfere with button clicks
-      if (e.target.closest('button')) {
-        return;
-      }
-
-      // Focus input on any click within game output
-      if (dom.userInput) {
-        dom.userInput.focus();
-      }
-    });
-  }
 
   // Keyboard shortcuts
   document.addEventListener('keydown', (e) => {
@@ -405,6 +355,33 @@ async function initApp() {
     }
   });
 
+  // Smart scroll on window resize to keep content visible
+  window.addEventListener('resize', () => {
+    if (state.currentGameTextElement) {
+      // Use the same smart scroll logic as addGameText
+      const walker = document.createTreeWalker(
+        state.currentGameTextElement,
+        NodeFilter.SHOW_ELEMENT,
+        {
+          acceptNode: (node) => {
+            if (node.classList?.contains('blank-line-spacer')) {
+              return NodeFilter.FILTER_SKIP;
+            }
+            const text = node.textContent?.trim();
+            if (text && text.length > 0) {
+              return NodeFilter.FILTER_ACCEPT;
+            }
+            return NodeFilter.FILTER_SKIP;
+          }
+        }
+      );
+
+      const firstTextElement = walker.nextNode();
+      const scrollTarget = firstTextElement || state.currentGameTextElement;
+      scrollTarget.scrollIntoView({ behavior: 'auto', block: 'start' });
+    }
+  });
+
 }
 
 // Start talk mode (voice recognition + auto-narration)
@@ -416,11 +393,6 @@ window.startTalkMode = function() {
   state.listeningEnabled = true;
   state.narrationEnabled = true;
   // autoplayEnabled stays at default (false) - user can enable if desired
-
-  // Set initial placeholder based on mute state
-  if (dom.userInput) {
-    dom.userInput.placeholder = state.isMuted ? 'Type something...' : '🎤 Say something...';
-  }
 
   // Update autoplay button UI to reflect forced-on state
   const autoplayBtn = document.getElementById('autoplayBtn');

@@ -13,10 +13,7 @@ export const dom = {
   upperWindow: null,
   lowerWindow: null,
 
-  // Input area
-  inputArea: null,
-  userInput: null,
-  sendBtn: null,
+  // Select game button
   selectGameBtn: null,
 
   // Status and controls
@@ -39,7 +36,6 @@ export const dom = {
 
   // History buttons
   voiceHistoryBtn: null,
-  commandHistoryBtn: null,
 
   // Navigation controls
   backBtn: null,
@@ -83,10 +79,7 @@ export function initDOM() {
   dom.upperWindow = document.getElementById('upperWindow');
   dom.lowerWindow = document.getElementById('lowerWindow');
 
-  // Input area
-  dom.inputArea = document.getElementById('inputArea');
-  dom.userInput = document.getElementById('userInput');
-  dom.sendBtn = document.getElementById('sendBtn');
+  // Select game button
   dom.selectGameBtn = document.getElementById('selectGameBtn');
 
   // Status and controls
@@ -109,7 +102,6 @@ export function initDOM() {
 
   // History buttons
   dom.voiceHistoryBtn = document.getElementById('voiceHistoryBtn');
-  dom.commandHistoryBtn = document.getElementById('commandHistoryBtn');
 
   // Navigation controls
   dom.backBtn = document.getElementById('backBtn');
@@ -154,9 +146,7 @@ function validateDOM() {
     'statusBar',
     'upperWindow',
     'lowerWindow',
-    'userInput',
-    'status',
-    'sendBtn'
+    'status'
   ];
 
   for (const elementName of required) {

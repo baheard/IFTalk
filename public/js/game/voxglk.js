@@ -20,7 +20,6 @@ let inputEnabled = false; // Is input currently enabled?
 let inputType = 'line'; // Type of input requested: 'line' or 'char'
 let inputWindowId = null; // Window ID for the current input request
 let lastStatusLine = ''; // Track status line for scene change detection
-let charInputListener = null; // Keydown listener for character input
 let resizeTimeout = null; // Debounce resize events
 
 /**
@@ -135,9 +134,6 @@ export function createVoxGlk(textOutputCallback) {
       inputType = 'line';
       inputWindowId = null;
 
-      // Remove any existing char input listener
-      removeCharInputListener();
-
       // Store the accept callback - we'll use it to send input later
       acceptCallback = options.accept;
 
@@ -155,7 +151,16 @@ export function createVoxGlk(textOutputCallback) {
         upperWindow.style.display = 'none'; // Start hidden
       }
       if (lowerWindow) {
+        // Extract command line first (it might be nested)
+        const commandLine = document.getElementById('commandLine');
+
+        // Clear everything
         lowerWindow.innerHTML = '';
+
+        // Re-append command line
+        if (commandLine) {
+          lowerWindow.appendChild(commandLine);
+        }
       }
 
       // Set up window resize listener
@@ -178,8 +183,10 @@ export function createVoxGlk(textOutputCallback) {
      * Called by Glk when the game has output
      * This is where VoxGlk renders the game data to beautiful HTML
      */
-    update: function(arg) {
+    update: async function(arg) {
       try {
+        console.log('[VoxGlk] Update called, type:', arg.type, 'has content:', !!arg.content);
+
         // Track generation (Glk uses this to prevent old input)
         // Always update generation from Glk - this is the current turn number
         if (arg.gen !== undefined) {
@@ -196,6 +203,22 @@ export function createVoxGlk(textOutputCallback) {
         // Use VoxGlk renderer to convert to frotz HTML
         if (arg.content) {
           const { statusBarHTML, statusBarText, upperWindowHTML, upperWindowText, mainWindowHTML, plainText } = renderUpdate(arg, windows);
+
+          // Check if upper window was explicitly mentioned in this update
+          const hasUpperWindowContent = arg.content.some(c => {
+            const win = windows.get(c.id);
+            return win && win.type === 'grid' && c.lines && c.lines.length > 1;
+          });
+
+          // Log all grid windows for debugging
+          console.log('[VoxGlk] Grid windows in update:');
+          arg.content.forEach(c => {
+            const win = windows.get(c.id);
+            if (win && win.type === 'grid') {
+              console.log('  Window ID:', c.id, 'lines:', c.lines ? c.lines.length : 0);
+            }
+          });
+          console.log('[VoxGlk] hasUpperWindowContent:', hasUpperWindowContent);
 
           console.log('[VoxGlk] Status bar check:');
           console.log('  Current HTML:', statusBarHTML);
@@ -218,6 +241,7 @@ export function createVoxGlk(textOutputCallback) {
           const statusBarEl = document.getElementById('statusBar');
           if (statusBarHTML) {
             if (statusBarEl) {
+              console.log('[VoxGlk] Adding status bar HTML:', statusBarHTML);
               statusBarEl.innerHTML = statusBarHTML;
               statusBarEl.style.display = ''; // Show status bar
               // Store reference for chunking
@@ -230,21 +254,29 @@ export function createVoxGlk(textOutputCallback) {
 
           // Render upper window (multi-line quotes, maps, etc.)
           const upperWindowEl = document.getElementById('upperWindow');
-          if (upperWindowHTML) {
-            if (upperWindowEl) {
+          if (hasUpperWindowContent) {
+            // Upper window was mentioned in this update - update it (even if empty)
+            if (upperWindowHTML && upperWindowEl) {
+              console.log('[VoxGlk] Adding upper window HTML:', upperWindowHTML);
               upperWindowEl.innerHTML = upperWindowHTML;
               upperWindowEl.style.display = ''; // Show upper window
-            }
-          } else {
-            // Clear and hide upper window when not in use
-            if (upperWindowEl) {
+            } else if (upperWindowEl) {
+              // Explicitly clear upper window
+              console.log('[VoxGlk] Clearing upper window (no HTML)');
               upperWindowEl.innerHTML = '';
-              upperWindowEl.style.display = 'none'; // Hide upper window
+              upperWindowEl.style.display = 'none';
             }
+          } else if (shouldClearScreen && upperWindowEl) {
+            // Game requested screen clear - clear upper window too
+            console.log('[VoxGlk] Clearing upper window (screen clear)');
+            upperWindowEl.innerHTML = '';
+            upperWindowEl.style.display = 'none';
           }
+          // NOTE: If upper window wasn't mentioned and no clear requested, preserve existing content (resize responses)
 
           // Render lower window (main scrolling text)
           if (mainWindowHTML && mainWindowHTML.trim()) {
+            console.log('[VoxGlk] Adding main window HTML:', mainWindowHTML);
             addGameText(mainWindowHTML, false); // false = not a command
           }
 
@@ -293,32 +325,8 @@ export function createVoxGlk(textOutputCallback) {
             inputWindowId = arg.input[0].id;
           }
 
-          const inputField = document.getElementById('userInput');
-
-          if (inputType === 'char') {
-            // Character input - wait for single keypress
-            if (inputField) {
-              inputField.disabled = false;
-              // Respect mute state when setting placeholder
-              inputField.placeholder = state.isMuted ? 'Send any key...' : '🎤 Send any key...';
-              inputField.value = ''; // Clear any existing text
-              inputField.focus();
-            }
-
-            // Set up keydown listener for char input
-            setupCharInputListener();
-          } else {
-            // Line input - normal command entry
-            if (inputField) {
-              inputField.disabled = false;
-              // Respect mute state when setting placeholder
-              inputField.placeholder = state.isMuted ? 'Type something...' : '🎤 Say something...';
-              inputField.focus();
-            }
-
-            // Remove char input listener if it exists
-            removeCharInputListener();
-          }
+          console.log('[VoxGlk] Input type set to:', inputType);
+          // Note: Command line visibility is handled automatically by keyboard.js polling
         }
 
       } catch (error) {
@@ -410,71 +418,8 @@ export function sendInput(text, type = 'line') {
 
   // Disable input until next request
   inputEnabled = false;
-
-  // Remove char input listener if it exists
-  removeCharInputListener();
 }
 
-/**
- * Set up keydown listener for character input
- */
-function setupCharInputListener() {
-  // Remove existing listener if any
-  removeCharInputListener();
-
-  const inputField = document.getElementById('userInput');
-  if (!inputField) {
-    console.warn('[VoxGlk] Cannot set up char input listener - input field not found');
-    return;
-  }
-
-  charInputListener = function(event) {
-    // Ignore modifier keys alone
-    if (event.key === 'Shift' || event.key === 'Control' ||
-        event.key === 'Alt' || event.key === 'Meta') {
-      return;
-    }
-
-    // Prevent default behavior
-    event.preventDefault();
-    event.stopPropagation();
-
-    // Get the character
-    let char = event.key;
-
-    // For special keys, map to single characters
-    if (char === 'Enter') char = '\n';
-    else if (char === 'Escape') char = '\x1b';
-    else if (char === 'Backspace') char = '\x08';
-    else if (char === 'Tab') char = '\t';
-    else if (char.length > 1) {
-      // For other special keys (ArrowLeft, F1, etc), use first char of name
-      char = char.charAt(0).toLowerCase();
-    }
-
-    // Clear the input field
-    inputField.value = '';
-
-    // Send as character input
-    sendInput(char, 'char');
-  };
-
-  // Add listener to input field
-  inputField.addEventListener('keydown', charInputListener, true);
-}
-
-/**
- * Remove keydown listener for character input
- */
-function removeCharInputListener() {
-  if (charInputListener) {
-    const inputField = document.getElementById('userInput');
-    if (inputField) {
-      inputField.removeEventListener('keydown', charInputListener, true);
-    }
-    charInputListener = null;
-  }
-}
 
 /**
  * Get current generation (for debugging)

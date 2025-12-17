@@ -219,10 +219,17 @@ function processStyledContent(contentArray) {
         // Filter standalone ">" prompt (waiting for input) but keep ">command" echoes
         const isStandalonePrompt = lineText.trim() === '>' || escapedText.trim() === '&gt;';
 
+        if (isStandalonePrompt) {
+          console.log('[VoxGlkRenderer] Filtered standalone prompt:', JSON.stringify(lineText));
+        }
+
         // Add to current line (with white-space: pre-wrap to preserve spaces but allow wrapping)
         if (escapedText && !isStandalonePrompt) {
           // Mark input-style text to use app voice instead of narrator
           const voiceAttr = cssClass === 'glk-input' ? ' data-voice="app"' : '';
+          if (cssClass === 'glk-input') {
+            console.log('[VoxGlkRenderer] FOUND glk-input class! Text:', JSON.stringify(escapedText));
+          }
           currentLine += `<span class="${cssClass}" style="white-space: pre-wrap;"${voiceAttr}>${escapedText}</span>`;
         }
 
@@ -300,10 +307,17 @@ function processStyledContent(contentArray) {
         // Filter standalone ">" prompt (waiting for input) but keep ">command" echoes
         const isStandalonePrompt = lineText.trim() === '>' || escapedText.trim() === '&gt;';
 
+        if (isStandalonePrompt) {
+          console.log('[VoxGlkRenderer] Filtered standalone prompt (run path):', JSON.stringify(lineText));
+        }
+
         // Add to HTML
         if (escapedText && !isStandalonePrompt) {
           // Mark input-style text to use app voice instead of narrator
           const voiceAttr = cssClass === 'glk-input' ? ' data-voice="app"' : '';
+          if (cssClass === 'glk-input') {
+            console.log('[VoxGlkRenderer] FOUND glk-input class (run path)! Text:', JSON.stringify(escapedText));
+          }
           if (customStyle) {
             // Custom colors override - use both class and inline style
             currentLine += `<span class="${cssClass}" style="${customStyle}"${voiceAttr}>${escapedText}</span>`;
