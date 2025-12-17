@@ -17,7 +17,7 @@ import { sendCommandToGame } from './game-loader.js';
  * @param {boolean} isVoiceCommand - Whether this is a voice command (optional, auto-detected if not provided)
  */
 export async function sendCommandDirect(cmd, isVoiceCommand = null) {
-  const input = cmd !== undefined ? cmd : (dom.userInput ? dom.userInput.value : '');
+  const input = cmd !== undefined ? cmd : '';
 
   // Detect if this is a voice command (not manually typed)
   // Use provided value if given, otherwise auto-detect
@@ -29,10 +29,6 @@ export async function sendCommandDirect(cmd, isVoiceCommand = null) {
   state.pendingCommandProcessed = true;
   state.pausedForSound = false;
 
-  // Clear input immediately
-  if (dom.userInput) {
-    dom.userInput.value = '';
-  }
   state.hasManualTyping = false;
 
   updateStatus('Sending...', 'processing');
@@ -50,25 +46,10 @@ export async function sendCommandDirect(cmd, isVoiceCommand = null) {
 }
 
 /**
- * Send command (called from Enter key or send button)
+ * Send command (legacy function - no longer used with inline keyboard input)
  */
 export async function sendCommand() {
-  const input = dom.userInput ? dom.userInput.value : '';
-
-  // Capture whether this was manually typed BEFORE resetting the flag
-  const wasManuallyTyped = state.hasManualTyping;
-
-  // Mark that a command is being processed
-  state.pendingCommandProcessed = true;
-  state.pausedForSound = false;
-
-  // Clear input immediately to prevent double-send
-  if (dom.userInput) {
-    dom.userInput.value = '';
-  }
-  state.hasManualTyping = false;
-
-  // Send directly without AI translation
-  // Pass false for isVoiceCommand if it was manually typed
-  sendCommandDirect(input || '', !wasManuallyTyped);
+  // This function is kept for compatibility but is no longer used
+  // Commands are now sent directly from keyboard.js via sendCommandDirect
+  console.warn('[Commands] sendCommand() called but is deprecated - use sendCommandDirect() instead');
 }

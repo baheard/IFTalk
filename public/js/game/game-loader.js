@@ -95,6 +95,10 @@ export async function startGame(gamePath, onOutput, startTalkMode) {
 
     updateStatus('Ready - Game loaded');
 
+    // Save as last played game for auto-resume
+    localStorage.setItem('iftalk_last_game', gamePath);
+    console.log('[Game] Saved as last played game:', gamePath);
+
     // Reset narration state
     resetNarrationState();
     updateNavButtons();
@@ -112,10 +116,10 @@ export async function startGame(gamePath, onOutput, startTalkMode) {
 
 /**
  * Send command to the game
- * @param {string} cmd - Command to send (optional, uses input field if not provided)
+ * @param {string} cmd - Command to send
  */
 export function sendCommandToGame(cmd) {
-  const input = cmd !== undefined ? cmd : (dom.userInput ? dom.userInput.value : '');
+  const input = cmd !== undefined ? cmd : '';
 
   // Get the current input type from VoxGlk (game may want 'char' or 'line')
   const type = getInputType();
@@ -125,11 +129,6 @@ export function sendCommandToGame(cmd) {
 
   // Send through our custom display layer with correct type
   sendInput(text, type);
-
-  // Clear the input field
-  if (dom.userInput) {
-    dom.userInput.value = '';
-  }
 }
 
 /**
@@ -151,5 +150,15 @@ export function initGameSelection(onOutput, startTalkMode) {
     dom.selectGameBtn.addEventListener('click', () => {
       location.reload();
     });
+  }
+
+  // Auto-load last played game if it exists
+  const lastGame = localStorage.getItem('iftalk_last_game');
+  if (lastGame) {
+    console.log('[Game] Auto-loading last played game:', lastGame);
+    // Use setTimeout to ensure DOM is ready
+    setTimeout(() => {
+      startGame(lastGame, onOutput, startTalkMode);
+    }, 100);
   }
 }
