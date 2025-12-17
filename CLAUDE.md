@@ -192,18 +192,70 @@ For detailed technical information, see the `reference/` folder:
    - Creates chunk boundaries before and after titles
    - Enables separate narration of section headers
 
+### December 17, 2024 - Keyboard Input System Overhaul
+1. **Removed Old Input System** - Eliminated placeholder input/textarea UI
+   - Files: `public/js/app.js`, `public/js/core/dom.js`, `public/js/game/game-loader.js`
+   - Removed: `userInput`, `sendBtn`, `inputArea`, `commandHistoryBtn` elements
+   - Removed event listeners for old input elements
+   - Cleaned up focus and placeholder manipulation code
+
+2. **New Inline Keyboard Input** - Real text input with styled prompt
+   - Files: `public/js/input/keyboard.js`, `public/index.html`, `public/styles.css`
+   - Text input field with `>` prompt positioned as visual decoration
+   - Native browser cursor for editing
+   - Click anywhere in game area to focus input
+   - Auto-focus when input becomes visible
+   - Supports full text editing (click, select, arrow keys, etc.)
+
+3. **Input Mode Detection** - Different behavior for line vs char input
+   - File: `public/js/input/keyboard.js`
+   - **Line mode**: Shows input field with `>` prompt for typing commands
+   - **Char mode**: Hides input entirely, any key advances from anywhere
+   - Polls input type every 100ms to update visibility
+   - Prevents flash on mode transitions
+
+4. **Echo Suppression** - Detects and skips game command echoes
+   - File: `public/js/ui/game-output.js`
+   - Detects `glk-input` styled echoes (blue command text)
+   - Skips display of echoed commands from game
+   - User sees command in input field, not duplicated in output
+   - Comprehensive pattern matching for various echo formats
+
+5. **Command Display Cleanup** - Removed manual command echo
+   - File: `public/js/game/commands.js`
+   - No longer displays user commands with `addGameText()`
+   - Commands saved to history only
+   - Game handles all output display
+
+6. **Focus Behavior** - Improved keyboard accessibility
+   - File: `public/js/input/keyboard.js`
+   - Input auto-focuses when visible (line mode)
+   - Clicking game content focuses input (unless selecting text)
+   - Typing anywhere focuses input automatically
+   - No focus flash or jarring transitions
+
+7. **Styling** - Clean visual integration
+   - File: `public/styles.css`
+   - `>` prompt positioned absolutely inside input area
+   - Transparent input background blends with game text
+   - Monospace font matches game output
+   - 0.5ch spacing between `>` and text
+   - No visible borders or outlines
+
 ### What Works Now
 - ✅ Game selection and loading
 - ✅ Browser-based ZVM game engine
+- ✅ Inline keyboard input with mode detection (line/char)
 - ✅ Text-to-speech narration (browser-based) with speed control
 - ✅ Upper window (quotes/formatting) narration
 - ✅ Text highlighting with auto-scroll during narration
 - ✅ Title chunking for asterisk-wrapped section headers
-- ✅ Command input and processing
+- ✅ Command input and processing with echo suppression
 - ✅ Navigation controls (with proper autoplay handling)
 - ✅ Voice recognition with Ctrl push-to-talk
 - ✅ Settings panel with collapsible sections
 - ✅ Speech rate adjustment (0.5x - 1.5x)
+- ✅ Auto-focus and click-to-focus behavior
 - ✅ Fully offline-capable
 
 ## Current Status

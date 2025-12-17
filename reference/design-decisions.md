@@ -1,5 +1,34 @@
 # Critical Design Decisions
 
+## Keyboard Input System (December 17, 2024)
+
+1. **Inline Text Input**: Real `<input type="text">` field integrated into game output
+   - Positioned at bottom of `lowerWindow` as last child
+   - `>` prompt positioned absolutely as visual decoration (not editable)
+   - Transparent background, monospace font matches game text
+   - Native browser cursor for full editing capabilities
+
+2. **Input Mode Detection**: Polls `getInputType()` every 100ms
+   - **Line mode**: Shows input with `>` prompt, accepts text commands
+   - **Char mode**: Hides input entirely, any keypress sends immediately
+   - Prevents flash on transitions by starting hidden
+
+3. **Echo Suppression**: Detects and skips game command echoes
+   - Pattern matching for `glk-input` styled spans (blue echo text)
+   - Compares plaintext against `window.lastSentCommand`
+   - Skips display if content is ONLY an echo (not mixed with response)
+
+4. **Focus Management**:
+   - Auto-focus when input becomes visible (char → line transition)
+   - Click anywhere in game area focuses input (unless selecting text)
+   - Typing anywhere focuses input automatically
+   - No focus manipulation in char mode (input hidden)
+
+5. **No Manual Command Display**: Commands saved to history only, not echoed to output
+   - User sees command in input field while typing
+   - Game handles all output display (including echoed commands if applicable)
+   - Cleaner separation of input vs output
+
 ## Text Processing Pipeline
 
 1. **Chunk Creation Always Happens**: `createNarrationChunks()` is called for ALL new game text, regardless of whether narration auto-starts
@@ -57,29 +86,13 @@
 - **Force stop critical**: `skipToEnd()` MUST set `narrationEnabled = false` FIRST before stopping audio, otherwise async loop continues to next chunk
 - Voice commands: "skip all", "skip to end", "end" all trigger force stop (line 369)
 
-## AI Translation with Confidence Scoring
+## ~~AI Translation with Confidence Scoring~~ (DEPRECATED - Removed December 2024)
 
-- **Server** (server.js lines 188-258): Returns JSON `{command, confidence, reasoning}`
-- **Client** (app.js lines 1327-1359): Handles both old string format and new JSON (backward compatible)
-- **Visual feedback**: Voice transcript shows "🤖 Translating..." with pulsing purple background while AI processes (lines 1466-1468, 1481-1482)
-- **Confidence levels**:
-  - 90-100: High (no indicator shown)
-  - 70-89: Medium (shows percentage)
-  - <70: Low (shows ⚠️ warning with reasoning)
-- **Context-aware**: Server includes last room description (600 chars) in AI prompt for spatial awareness
-- **Temperature**: 0.1 for deterministic translations
-- **Object preservation**: Prompt explicitly instructs to preserve objects in "look at X" / "examine X" commands (lines 201-202, 212-214)
-  - "look at alley" → "EXAMINE ALLEY" (NOT just "LOOK")
-  - "look around" → "LOOK" (no object specified)
+_AI translation has been removed. Commands are now sent directly to the game parser._
 
-## Unified Mode Toggle System
+## ~~Unified Mode Toggle System~~ (DEPRECATED - Removed December 2024)
 
-- **Single toggle** in Text Input panel header controls BOTH text and voice input (lines 1463-1468)
-- **AI Mode** (checked/default): Commands translated by AI before sending
-- **Direct Mode** (unchecked): Commands sent directly to game parser
-- **Voice readback**: App Voice reads back recognized command before executing (line 407, 412)
-- **Navigation commands**: back, skip, pause, play, stop, restart always work regardless of mode (lines 306-373)
-- **Special commands**: "next", "enter", "more" always send empty string (press Enter); "print [text]" always direct
+_AI mode toggle has been removed. All commands go directly to the game._
 
 ## Text Processing Split Architecture
 
@@ -107,22 +120,15 @@
 - **Confirmed**: Purple background, bold, lingers 2 seconds
 - **History**: Moves to scrolling history above, shows last 3 with fading opacity
 
-## Two-Panel Input Layout (index.html lines 131-163)
+## ~~Two-Panel Input Layout~~ (DEPRECATED - Removed December 17, 2024)
 
-- **Left panel (Voice)**: Only visible when talk mode is active
-  - Voice input with meter + live transcript
-  - Voice command history: Shows last 3 by default, expands to 20 with "Show More"
-  - Expand/collapse state saved to localStorage
-  - Navigation commands (stop, play, back, skip) highlighted in orange
-- **Right panel (Text)**: Always visible
-  - Text input + command history (last 10) with translation display
-  - Command history shows: `"go north" → N` when AI translates
-- Voice history separate from command history
-- **Voice history management** (lines 67-125):
-  - Stores up to 20 items with metadata `{text, isNavCommand}`
-  - Compact view: Shows last 3 with aging classes (old, older)
-  - Expanded view: Shows up to 20 items without aging effects
-  - Auto-hides expand button if ≤3 items
+_Old two-panel input system has been removed. Now uses inline keyboard input at bottom of game output._
+
+**Current Input System**:
+- Single inline text input field at bottom of `lowerWindow`
+- No separate input panels or areas
+- Command history accessible via history button
+- Voice commands work via keyboard shortcuts and voice recognition
 
 ## Pronunciation Dictionary System
 

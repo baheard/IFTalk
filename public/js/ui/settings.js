@@ -66,6 +66,38 @@ export function initSettings() {
     }
   });
 
+  // Quick Save button
+  const quickSaveBtn = document.getElementById('quickSaveBtn');
+  if (quickSaveBtn) {
+    quickSaveBtn.addEventListener('click', () => {
+      // Import sendCommandDirect to send SAVE command
+      import('../game/commands.js').then(({ sendCommandDirect }) => {
+        sendCommandDirect('SAVE');
+        updateStatus('Sending SAVE command to game...');
+        // Close settings panel
+        if (dom.settingsPanel) {
+          dom.settingsPanel.classList.remove('open');
+        }
+      });
+    });
+  }
+
+  // Quick Restore button
+  const quickRestoreBtn = document.getElementById('quickRestoreBtn');
+  if (quickRestoreBtn) {
+    quickRestoreBtn.addEventListener('click', () => {
+      // Import sendCommandDirect to send RESTORE command
+      import('../game/commands.js').then(({ sendCommandDirect }) => {
+        sendCommandDirect('RESTORE');
+        updateStatus('Sending RESTORE command to game...');
+        // Close settings panel
+        if (dom.settingsPanel) {
+          dom.settingsPanel.classList.remove('open');
+        }
+      });
+    });
+  }
+
   // Speech rate slider
   const speechRateSlider = document.getElementById('speechRate');
   const speechRateValue = document.getElementById('speechRateValue');
@@ -92,6 +124,22 @@ export function initSettings() {
       // Save to localStorage
       localStorage.setItem('speechRate', rate);
     });
+  }
+}
+
+/**
+ * Update current game name display in settings
+ * @param {string} gameName - Name of the current game
+ */
+export function updateCurrentGameDisplay(gameName) {
+  const currentGameNameEl = document.getElementById('currentGameName');
+  if (currentGameNameEl) {
+    // Format game name nicely (capitalize, remove extension)
+    const formattedName = gameName
+      .replace(/\.[^.]+$/, '') // Remove extension
+      .replace(/([A-Z])/g, ' $1') // Add space before capitals
+      .trim();
+    currentGameNameEl.textContent = formattedName;
   }
 }
 

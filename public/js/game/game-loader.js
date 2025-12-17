@@ -10,6 +10,7 @@ import { updateStatus } from '../utils/status.js';
 import { updateNavButtons } from '../ui/nav-buttons.js';
 import { stopNarration } from '../narration/tts-player.js';
 import { createVoxGlk, sendInput, getInputType } from './voxglk.js';
+import { updateCurrentGameDisplay } from '../ui/settings.js';
 
 /**
  * Start a game using browser-based ZVM
@@ -23,13 +24,23 @@ export async function startGame(gamePath, onOutput, startTalkMode) {
     // Set game name for save/restore
     state.currentGameName = gamePath.split('/').pop().replace(/\.[^.]+$/, '').toLowerCase();
 
+    // Update game name display in settings
+    updateCurrentGameDisplay(gamePath.split('/').pop());
+
     updateStatus('Starting game...', 'processing');
 
-    // Hide welcome, show game output and input
+    // Hide welcome, show game output and controls
     if (dom.welcome) dom.welcome.classList.add('hidden');
     const gameOutput = document.getElementById('gameOutput');
     if (gameOutput) gameOutput.classList.remove('hidden');
-    if (dom.inputArea) dom.inputArea.classList.remove('hidden');
+
+    // Show controls
+    const controls = document.getElementById('controls');
+    if (controls) controls.classList.remove('hidden');
+
+    // Initialize keyboard input
+    const { initKeyboardInput } = await import('../input/keyboard.js');
+    initKeyboardInput();
 
     // Verify ZVM is loaded
     if (typeof window.ZVM === 'undefined') {
@@ -89,7 +100,6 @@ export async function startGame(gamePath, onOutput, startTalkMode) {
     updateNavButtons();
 
     // Don't auto-start talk mode - user clicks the talk mode button to enable
-    if (dom.userInput) dom.userInput.focus();
 
     // Stop any existing narration
     stopNarration();

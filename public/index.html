@@ -25,9 +25,44 @@
       <button id="closeSettingsBtn" class="close-settings-btn">✕</button>
     </div>
     <div class="settings-content">
-      <!-- Quick Actions -->
-      <div class="settings-section settings-actions">
-        <button class="btn btn-secondary" id="selectGameBtn"><span class="material-icons">folder_open</span> Select Game</button>
+      <!-- Game Settings -->
+      <div class="settings-section collapsible collapsed">
+        <h3 class="section-header">🎮 Game</h3>
+        <div class="section-content">
+          <!-- Current Game Display -->
+          <div class="current-game-display" id="currentGameDisplay">
+            <span class="current-game-label">Currently playing:</span>
+            <span class="current-game-name" id="currentGameName">No game loaded</span>
+          </div>
+
+          <!-- Return to Game Select -->
+          <div class="game-actions">
+            <button class="btn btn-secondary btn-full-width" id="selectGameBtn">
+              <span class="material-icons">folder_open</span> Select Different Game
+            </button>
+          </div>
+
+          <!-- Save/Restore Instructions -->
+          <div class="save-restore-info">
+            <h4>💾 Save & Restore</h4>
+            <p>This browser-based interpreter uses the game's native save system:</p>
+            <ul>
+              <li>Type <code>SAVE</code> in the game to save your progress</li>
+              <li>Type <code>RESTORE</code> to load a saved game</li>
+              <li>Saves are stored in your browser's local storage</li>
+            </ul>
+          </div>
+
+          <!-- Quick Save/Restore Buttons -->
+          <div class="game-actions">
+            <button class="btn btn-primary btn-half-width" id="quickSaveBtn">
+              <span class="material-icons">save</span> Quick Save
+            </button>
+            <button class="btn btn-primary btn-half-width" id="quickRestoreBtn">
+              <span class="material-icons">restore</span> Quick Restore
+            </button>
+          </div>
+        </div>
       </div>
 
       <!-- Voice Settings -->
@@ -144,31 +179,27 @@
       <!-- Three-primitive Z-machine window model -->
       <div class="status-bar" id="statusBar"></div>
       <div class="upper-window" id="upperWindow"></div>
-      <div class="lower-window" id="lowerWindow"></div>
+      <div class="lower-window" id="lowerWindow">
+        <!-- Inline command input (hidden by default) -->
+        <div class="command-line" id="commandLine" style="display: none;">
+          <span class="command-prompt">&gt;</span>
+          <input type="text" class="command-text" id="commandText" autocomplete="off" spellcheck="false">
+        </div>
+      </div>
     </div>
   </div>
 
-  <div class="input-wrapper">
-    <div class="input-area hidden" id="inputArea">
-      <div class="controls">
-        <div class="controls-left">
-          <button id="skipToStartBtn" class="btn-nav" title='"Restart"'><span class="material-icons">skip_previous</span></button>
-          <button id="prevChunkBtn" class="btn-nav" title='"Back"'><span class="material-icons">fast_rewind</span></button>
-          <button id="pausePlayBtn" class="btn-nav" title="Play"><span class="material-icons">play_arrow</span></button>
-          <button id="nextChunkBtn" class="btn-nav" title='"Skip"'><span class="material-icons">fast_forward</span></button>
-          <button id="skipToEndBtn" class="btn-nav" title='"Skip All"'><span class="material-icons">skip_next</span></button>
-        </div>
-        <div class="controls-right">
-          <button id="settingsBtn" class="btn-nav btn-settings" title="Settings"><span class="material-icons">settings</span></button>
-          <button id="talkModeBtn" class="btn-nav btn-talk-mode" title="Talk Mode (auto-narration + voice)"><span class="material-icons">record_voice_over</span></button>
-        </div>
-      </div>
-
-    <!-- Unified Input -->
-    <div class="unified-input">
-      <input type="text" id="userInput" placeholder="Type something..." autocomplete="off" />
-      <button id="sendBtn" class="btn-icon-input" title="Send command"><span class="material-icons">send</span></button>
-      <button class="btn-icon-input" id="commandHistoryBtn" title="Command History"><span class="material-icons">history</span></button>
+  <!-- Single-line Controls -->
+  <div class="controls-wrapper">
+    <div class="controls hidden" id="controls">
+      <button id="skipToStartBtn" class="btn-nav" title="Restart"><span class="material-icons">skip_previous</span></button>
+      <button id="prevChunkBtn" class="btn-nav" title="Back"><span class="material-icons">fast_rewind</span></button>
+      <button id="pausePlayBtn" class="btn-nav" title="Play"><span class="material-icons">play_arrow</span></button>
+      <button id="nextChunkBtn" class="btn-nav" title="Skip"><span class="material-icons">fast_forward</span></button>
+      <button id="skipToEndBtn" class="btn-nav" title="Skip All"><span class="material-icons">skip_next</span></button>
+      <div class="controls-spacer"></div>
+      <button id="settingsBtn" class="btn-nav btn-settings" title="Settings"><span class="material-icons">settings</span></button>
+      <button id="talkModeBtn" class="btn-nav btn-talk-mode" title="Talk Mode"><span class="material-icons">record_voice_over</span></button>
       <button id="muteBtn" class="btn-mic" title="Toggle voice input"><span class="material-icons">mic</span></button>
     </div>
   </div>

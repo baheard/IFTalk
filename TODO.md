@@ -1,16 +1,21 @@
 # IFTalk TODO
 
-## ✅ Recent Completions (December 16, 2024)
+## ✅ Recent Completions
 
-### Major Fixes
+### December 17, 2024 - Keyboard Input System
+- ✅ **Inline Keyboard Input** - New text input system with styled `>` prompt
+- ✅ **Input Mode Detection** - Auto-hide on char mode, show on line mode
+- ✅ **Echo Suppression** - Detects and skips glk-input command echoes
+- ✅ **Focus Behavior** - Auto-focus, click-to-focus, no flash transitions
+- ✅ **Old Input Removal** - Cleaned up userInput, sendBtn, inputArea elements
+
+### December 16, 2024 - UX & Features
 - ✅ **TTS/Narration** - Working with browser speechSynthesis
 - ✅ **Upper Window Narration** - Quotes and formatted text now narrated
 - ✅ **Autoplay Behavior** - Fixed restart/navigation auto-start issues
 - ✅ **Settings Panel** - Fixed button not opening panel (class mismatch)
 - ✅ **Microphone Default** - Now starts muted by default
 - ✅ **Push-to-Talk** - Changed Alt → Ctrl (fixes browser menu focus issue)
-
-### Features Added
 - ✅ **Speech Speed Slider** - Adjustable 0.5x - 1.5x with localStorage persistence
 - ✅ **Collapsible Settings** - All sections expandable with smooth animations
 - ✅ **Comprehensive Logging** - TTS pipeline fully instrumented for debugging
@@ -18,28 +23,33 @@
 - ✅ **Auto-scroll to Highlight** - Screen scrolls to currently highlighted text during narration
 - ✅ **Title Chunking** - Asterisk-wrapped titles (* TITLE *) split into separate narration chunks
 
-### Library Updates
-- ✅ **ifvms.js 1.1.6** - Updated from 2017 version (Dec 15, 2024)
+### December 15, 2024 - Core Fixes
+- ✅ **ifvms.js 1.1.6** - Updated from 2017 version
+- ✅ **Socket.IO Removed** - Completely eliminated legacy infrastructure
+- ✅ **Generation Counter Fixed** - Commands now accepted properly by ZVM
+- ✅ **VM Start Timing Fixed** - Resolved DOM initialization race condition
 
 ---
 
 ## 📋 Current Tasks
 
 ### High Priority
+- [ ] Test keyboard input across all games (line and char modes)
+- [ ] Verify echo suppression works for all command formats
 - [ ] Test TTS narration thoroughly across all 4 games
-- [ ] Verify upper window content narration (quotes, ASCII art)
-- [ ] Test autoplay behavior edge cases
+- [ ] Test focus behavior (auto-focus, click-to-focus, typing to focus)
 
 ### Medium Priority
 - [ ] Verify responsive layout on mobile devices (768px, 480px breakpoints)
 - [ ] Review voice recognition accuracy with different accents
 - [ ] Performance testing with longer game sessions
+- [ ] Test keyboard navigation accessibility
 
 ### Low Priority
 - [ ] Improve loading states visual feedback
 - [ ] Polish error message styling
-- [ ] Enhance focus states for keyboard navigation
 - [ ] Consider upgrading GlkOte from 2.2.5 → 2.3.7
+- [ ] Add keyboard shortcut help overlay
 
 ---
 
@@ -80,8 +90,11 @@ TTS narration with highlighting
 
 ### Core Functionality
 - ✅ Game loading and playback (all 4 games: Anchorhead, Photopia, Dungeon, Lost Pig)
-- ✅ Character input (single keypress)
-- ✅ Line input (command entry)
+- ✅ Inline keyboard input with mode detection (line/char)
+- ✅ Character input (single keypress, hidden input, any key advances)
+- ✅ Line input (command entry with styled `>` prompt)
+- ✅ Echo suppression (glk-input detection and filtering)
+- ✅ Focus management (auto-focus, click-to-focus, typing-to-focus)
 - ✅ Voice recognition with Ctrl push-to-talk
 - ✅ TTS narration with browser speechSynthesis
 - ✅ Text highlighting during narration
