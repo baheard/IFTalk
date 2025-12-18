@@ -47,29 +47,24 @@ export function skipToChunk(offset, speakTextChunked) {
 
   state.isNavigating = true;
 
-  // Check if narration is ACTIVELY PLAYING (not just enabled)
-  const wasPlaying = state.isNarrating;
-
   // Stop current playback but preserve highlighting (we'll update it next)
   stopNarration(true);
   state.currentChunkIndex = targetIndex;
 
   // Small delay to prevent rapid navigation loops
-  setTimeout(() => {
+  setTimeout(async () => {
     state.isNavigating = false;
 
     // Update highlighting to new chunk
     updateTextHighlight(targetIndex);
 
-    // Auto-resume ONLY if narration was actively playing
-    if (wasPlaying) {
-      console.log('[SkipToChunk] Was playing, resuming at chunk', targetIndex);
+    // If in autoplay mode, start playing from new position
+    if (state.autoplayEnabled) {
       state.isPaused = false;
       state.narrationEnabled = true;
       speakTextChunked(null, targetIndex);
     } else {
-      console.log('[SkipToChunk] Was not playing, staying paused at chunk', targetIndex);
-      // Just update highlight if not playing
+      // Just update highlight if not in autoplay mode
       state.isPaused = true;
     }
   }, 100);
@@ -86,28 +81,22 @@ export function skipToStart(speakTextChunked) {
   state.isNavigating = true;
   state.currentChunkStartTime = 0;
 
-  // Check if narration is ACTIVELY PLAYING (not just enabled)
-  const wasPlaying = state.isNarrating;
-
   // Stop but preserve highlighting (we'll update it next)
   stopNarration(true);
   state.currentChunkIndex = 0;
 
-  setTimeout(() => {
+  setTimeout(async () => {
     state.isNavigating = false;
 
     // Always update highlighting to first chunk
     updateTextHighlight(0);
 
-    // ONLY start playing if narration was actively playing before (not if autoplay is on)
-    // User must explicitly click play if they want to start from beginning
-    if (wasPlaying) {
-      console.log('[SkipToStart] Was playing, resuming from start');
+    // If in autoplay mode, start playing from beginning
+    if (state.autoplayEnabled) {
       state.isPaused = false;
       state.narrationEnabled = true;
       speakTextChunked(null, 0);
     } else {
-      console.log('[SkipToStart] Was not playing, staying paused');
       // Stay paused but keep first chunk highlighted
       state.isPaused = true;
     }
@@ -153,5 +142,4 @@ export function skipToEnd() {
   if (dom.gameOutput) {
     dom.gameOutput.scrollTop = dom.gameOutput.scrollHeight;
   }
-
 }

@@ -55,10 +55,42 @@ function file_remove_ref(ref) {
     localStorage.removeItem(key);
 }
 
-/* Autosave stubs */
-function autosave_write(key, val) {
+/* Autosave with HTML content extension */
+function autosave_write(key, snapshot) {
     try {
-        localStorage.setItem('iftalk_auto_' + key, JSON.stringify(val));
+        // If snapshot exists, extend it with HTML content
+        if (snapshot) {
+            console.log('[Dialog] Extending autosave with HTML content');
+
+            // Capture window HTML
+            var statusBarEl = document.getElementById('status-bar');
+            var upperWindowEl = document.getElementById('upper-window');
+            var lowerWindowEl = document.getElementById('lower-window');
+
+            snapshot.displayHTML = {
+                statusBar: statusBarEl ? statusBarEl.innerHTML : '',
+                upperWindow: upperWindowEl ? upperWindowEl.innerHTML : '',
+                lowerWindow: lowerWindowEl ? lowerWindowEl.innerHTML : ''
+            };
+
+            // Capture narration state if available
+            if (window.state) {
+                snapshot.narrationState = {
+                    currentChunkIndex: window.state.currentChunkIndex || 0,
+                    chunksLength: window.state.narrationChunks ? window.state.narrationChunks.length : 0
+                };
+            }
+
+            console.log('[Dialog] Autosave snapshot:', {
+                hasRAM: !!snapshot.ram,
+                hasGlk: !!snapshot.glk,
+                hasHTML: !!snapshot.displayHTML,
+                htmlLength: snapshot.displayHTML.lowerWindow.length
+            });
+        }
+
+        localStorage.setItem('iftalk_auto_' + key, JSON.stringify(snapshot));
+        console.log('[Dialog] Autosave written');
     } catch (e) {
         console.error('[Dialog] Autosave write error:', e);
     }
@@ -67,8 +99,45 @@ function autosave_write(key, val) {
 function autosave_read(key) {
     try {
         var data = localStorage.getItem('iftalk_auto_' + key);
-        return data ? JSON.parse(data) : null;
+        var snapshot = data ? JSON.parse(data) : null;
+
+        if (snapshot) {
+            console.log('[Dialog] Autosave found:', {
+                hasRAM: !!snapshot.ram,
+                hasGlk: !!snapshot.glk,
+                hasHTML: !!snapshot.displayHTML,
+                hasNarration: !!snapshot.narrationState
+            });
+
+            // If we have HTML to restore, schedule it after do_autorestore completes
+            if (snapshot.displayHTML) {
+                // Use setTimeout to restore HTML after ifvms.js finishes do_autorestore
+                setTimeout(function() {
+                    console.log('[Dialog] Restoring HTML content');
+
+                    var statusBarEl = document.getElementById('status-bar');
+                    var upperWindowEl = document.getElementById('upper-window');
+                    var lowerWindowEl = document.getElementById('lower-window');
+
+                    if (statusBarEl) statusBarEl.innerHTML = snapshot.displayHTML.statusBar;
+                    if (upperWindowEl) upperWindowEl.innerHTML = snapshot.displayHTML.upperWindow;
+                    if (lowerWindowEl) lowerWindowEl.innerHTML = snapshot.displayHTML.lowerWindow;
+
+                    // Restore narration state
+                    if (snapshot.narrationState && window.state) {
+                        window.state.currentChunkIndex = snapshot.narrationState.currentChunkIndex;
+                    }
+
+                    // Suppress next VoxGlk update to prevent overwriting
+                    window.ignoreNextVoxGlkUpdate = true;
+                    console.log('[Dialog] HTML restored, ignoreNextVoxGlkUpdate set');
+                }, 0);
+            }
+        }
+
+        return snapshot;
     } catch (e) {
+        console.error('[Dialog] Autosave read error:', e);
         return null;
     }
 }

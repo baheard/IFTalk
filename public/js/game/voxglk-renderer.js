@@ -220,7 +220,6 @@ function processStyledContent(contentArray) {
         const isStandalonePrompt = lineText.trim() === '>' || escapedText.trim() === '&gt;';
 
         if (isStandalonePrompt) {
-          console.log('[VoxGlkRenderer] Filtered standalone prompt:', JSON.stringify(lineText));
         }
 
         // Add to current line (with white-space: pre-wrap to preserve spaces but allow wrapping)
@@ -228,7 +227,6 @@ function processStyledContent(contentArray) {
           // Mark input-style text to use app voice instead of narrator
           const voiceAttr = cssClass === 'glk-input' ? ' data-voice="app"' : '';
           if (cssClass === 'glk-input') {
-            console.log('[VoxGlkRenderer] FOUND glk-input class! Text:', JSON.stringify(escapedText));
           }
           currentLine += `<span class="${cssClass}" style="white-space: pre-wrap;"${voiceAttr}>${escapedText}</span>`;
         }
@@ -308,7 +306,6 @@ function processStyledContent(contentArray) {
         const isStandalonePrompt = lineText.trim() === '>' || escapedText.trim() === '&gt;';
 
         if (isStandalonePrompt) {
-          console.log('[VoxGlkRenderer] Filtered standalone prompt (run path):', JSON.stringify(lineText));
         }
 
         // Add to HTML
@@ -316,7 +313,6 @@ function processStyledContent(contentArray) {
           // Mark input-style text to use app voice instead of narrator
           const voiceAttr = cssClass === 'glk-input' ? ' data-voice="app"' : '';
           if (cssClass === 'glk-input') {
-            console.log('[VoxGlkRenderer] FOUND glk-input class (run path)! Text:', JSON.stringify(escapedText));
           }
           if (customStyle) {
             // Custom colors override - use both class and inline style
@@ -436,6 +432,8 @@ function renderStatusBar(content) {
                   typeof line.content[0] === 'string' &&
                   line.content.length >= 2;
 
+  console.log('[StatusBar] Raw line content:', JSON.stringify(line.content).substring(0, 200));
+
   if (isFlat) {
     // Process flat array: [style1, text1, style2, text2, ...]
     for (let i = 1; i < line.content.length; i += 2) {
@@ -454,14 +452,13 @@ function renderStatusBar(content) {
     });
   }
 
-  console.log('[StatusBar] Raw fullText:', JSON.stringify(fullText));
-  console.log('[StatusBar] Length:', fullText.length);
+  console.log('[StatusBar] Extracted fullText:', fullText);
+
 
   // Split into parts by 2+ spaces
   // Z-machine status bars typically have lots of spaces between parts
   const parts = fullText.split(/\s{2,}/).filter(p => p.trim()); // Filter out empty parts
 
-  console.log('[StatusBar] Split parts:', parts);
 
   if (parts.length === 0) {
     return '';
@@ -495,7 +492,6 @@ function renderStatusBar(content) {
 
   html += '</div>';
 
-  console.log('[StatusBar] Final HTML:', html);
 
   return html;
 }
@@ -586,7 +582,24 @@ function renderGridWindow(content, window) {
   lines.forEach((runs, lineIndex) => {
     // Check if this line has any non-whitespace content
     const hasContent = runs.some(run => run.text.trim().length > 0);
-    const lineClasses = hasContent ? 'grid-line' : 'grid-line empty-line';
+
+    // Determine if this is part of a consecutive empty line group
+    let emptyLineClass = '';
+    if (!hasContent) {
+      // Check previous and next lines
+      const prevEmpty = lineIndex > 0 && !lines[lineIndex - 1].some(run => run.text.trim().length > 0);
+      const nextEmpty = lineIndex < lines.length - 1 && !lines[lineIndex + 1].some(run => run.text.trim().length > 0);
+
+      if (prevEmpty || nextEmpty) {
+        // Part of a double/multiple line break - keep first one for paragraph spacing
+        emptyLineClass = prevEmpty ? 'empty-line empty-line-continuation' : 'empty-line empty-line-first';
+      } else {
+        // Single line break - hide on mobile
+        emptyLineClass = 'empty-line empty-line-single';
+      }
+    }
+
+    const lineClasses = hasContent ? 'grid-line' : `grid-line ${emptyLineClass}`;
 
     html += `<div class="${lineClasses}">`;
 
@@ -607,6 +620,11 @@ function renderGridWindow(content, window) {
 
       if (shouldReverse) {
         classes.push('reverse');
+      }
+
+      // Mark spans containing only whitespace for mobile CSS hiding
+      if (run.text.trim().length === 0) {
+        classes.push('whitespace-only');
       }
 
       html += `<span class="${classes.join(' ')}" style="grid-column: ${run.start + 1} / ${run.end + 1};">${escapeHtml(run.text)}</span>`;

@@ -104,7 +104,6 @@ export function initSettings() {
           // Show success message
           const count = keysToRemove.length;
           updateStatus(`✓ Cleared ${count} save file${count !== 1 ? 's' : ''}`);
-          console.log('[Settings] Cleared save data:', keysToRemove);
 
           // Close settings panel
           if (dom.settingsPanel) {

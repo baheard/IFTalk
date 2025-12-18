@@ -193,10 +193,12 @@ export async function speakTextChunked(text, startFromIndex = 0) {
     return;
   }
 
+  console.log('[TTS] speakTextChunked - startFromIndex:', startFromIndex, 'total chunks:', state.narrationChunks.length);
 
   state.currentChunkIndex = startFromIndex;
   state.isPaused = false;
   state.isNarrating = true;
+  console.log('[TTS] Starting narration from chunk index:', state.currentChunkIndex);
 
   const totalChunks = state.narrationChunks.length;
 

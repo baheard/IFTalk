@@ -32,16 +32,17 @@ export function updateNavButtons() {
     skipToEndBtn.disabled = state.currentChunkIndex >= state.narrationChunks.length;
   }
 
-  // Update pause/play button icon
+  // Update pause/play button icon based on autoplay mode
+  // When autoplayEnabled is true, show PAUSE icon (even if not currently playing)
+  // When autoplayEnabled is false, show PLAY icon
   if (pausePlayBtn) {
-    const isPlaying = state.isNarrating && state.narrationEnabled && !state.isPaused;
     const iconSpan = pausePlayBtn.querySelector('.material-icons');
-    if (isPlaying) {
+    if (state.autoplayEnabled) {
       if (iconSpan) iconSpan.textContent = 'pause';
-      pausePlayBtn.title = 'Pause';
+      pausePlayBtn.title = 'Pause (Exit Autoplay)';
     } else {
       if (iconSpan) iconSpan.textContent = 'play_arrow';
-      pausePlayBtn.title = 'Play';
+      pausePlayBtn.title = 'Play (Enter Autoplay)';
     }
   }
 

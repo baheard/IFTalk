@@ -716,17 +716,50 @@ function update() {
     if (option_before_select_hook) {
         option_before_select_hook();
     }
+
+    // Check if we have line input (not char input) - only autosave after line input
+    var has_line_input = false;
+    if (inputarray && inputarray.length > 0) {
+        for (var i = 0; i < inputarray.length; i++) {
+            if (inputarray[i].type === 'line') {
+                has_line_input = true;
+                break;
+            }
+        }
+    }
+
+    console.log('[GlkAPI] update() called - checking autosave:', {
+        option_do_vm_autosave: option_do_vm_autosave,
+        has_exited: has_exited,
+        GiDispa_exists: !!GiDispa,
+        has_VM: !!VM,
+        has_do_autosave: !!(VM && VM.do_autosave),
+        has_line_input: has_line_input
+    });
+
     if (option_do_vm_autosave) {
         if (has_exited) {
             /* On quit or fatal error, delete the autosave. */
+            console.log('[GlkAPI] Deleting autosave (game exited)');
             VM.do_autosave(-1);
         }
         else if (GiDispa) {
-            /* If this is a good time, autosave. */
+            /* Glulx games: use GiDispa to check if it's a good time */
             var eventarg = GiDispa.check_autosave();
-            if (eventarg)
+            console.log('[GlkAPI] GiDispa.check_autosave() returned:', eventarg);
+            if (eventarg) {
+                console.log('[GlkAPI] Triggering autosave (eventarg:', eventarg, ')');
                 VM.do_autosave(eventarg);
+            }
+        } else if (VM && VM.do_autosave && has_line_input) {
+            /* Z-machine games: Only autosave when line input is available (not char input) */
+            console.log('[GlkAPI] Z-machine game with line input, triggering autosave');
+            VM.do_autosave(1);
+        } else {
+            console.log('[GlkAPI] Skipping autosave: no line input or VM not ready');
         }
+    } else {
+        console.log('[GlkAPI] option_do_vm_autosave is false, autosave disabled');
     }
 }
 
