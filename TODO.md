@@ -30,13 +30,20 @@
 
 ### High Priority
 
-- [ ] **Hide transition error messages** - Filter specific patterns or skip those updates
-- [ ] **Add "Restoring..." overlay** - Visual feedback during transition
-- [ ] **Test all games** - Verify with Anchorhead, Photopia, Dungeon, Lost Pig
-- [ ] **Test edge cases** - Rapid commands, multiple refreshes
+- [ ] **Test char input panel with real games**
+  - Test Anchorhead "Press R to restore" prompt
+  - Test Anchorhead help menu (arrow navigation)
+  - Test Lost Pig menus if any
+  - Verify keyboard button works on actual mobile device
+- [ ] **Polish char input panel**
+  - Consider adding visual hints ("Use arrow keys to navigate")
+  - Test keyboard shortcuts still work alongside buttons
+  - Verify accessibility (screen reader support)
 
 ### Medium Priority
 
+- [ ] **Hide transition error messages** - Filter specific patterns or skip those updates
+- [ ] **Add "Restoring..." overlay** - Visual feedback during transition
 - [ ] **Chunk index restoration** - Test narration resumes from correct chunk
 - [ ] **Visual feedback** - Show "Restored from last session" toast
 - [ ] **Clear old autosaves** - Cleanup saves older than 30 days
@@ -47,12 +54,48 @@
 - [ ] **Autosave indicator** - Visual feedback when autosave occurs
 - [ ] **Multiple save slots** - Manual save/load in addition to autosave
 - [ ] **Export/import saves** - Download/upload save files
+- [ ] **Gesture support** - Add swipe gestures as alternative to buttons (char panel)
+- [ ] **Collapsible char panel** - Toggle to show/hide for advanced users
+- [ ] **Haptic feedback** - Add vibration on button press (mobile)
 
 ---
 
-## ✅ Recently Completed (December 17, 2024)
+## ✅ Recently Completed
 
-### Autosave/Restore Implementation
+### Messaging Interface (December 18, 2024)
+
+**Re-implemented classic messaging UI:**
+- ✅ Text input + Send button in controls panel (below nav controls)
+- ✅ Commands appear in game content area (not duplicated)
+- ✅ Auto-focus on game load
+- ✅ Enter key sends commands
+- ✅ Subtle send button styling (de-emphasized, users prefer Enter)
+- ✅ Dynamic placeholder based on mic state:
+  - Muted: "Type a command..."
+  - Listening: "Speak a command..."
+
+### Character Input Panel for Mobile (December 18, 2024)
+
+**Mobile-friendly menu navigation:**
+- ✅ Arrow buttons (← ↑ ↓ →) for navigating game menus
+- ✅ Enter button (far right, styled like Send)
+- ✅ Escape button (square, matches arrow dimensions)
+- ✅ Keyboard button (⌨️) - opens virtual keyboard for arbitrary keys
+- ✅ Smart input swapping:
+  - Line mode: Message input visible
+  - Char mode: Char buttons visible (replaces message input)
+- ✅ Touch device detection - keyboard button auto-hides on desktop
+- ✅ Hidden input technique for mobile keyboard triggering
+- ✅ Proper Glk keycode mapping (0xfffffffc for Up, etc.)
+- ✅ Mobile-optimized sizing (44x44px desktop, 48x48px mobile)
+
+**Files modified:**
+- `public/index.html` - Added char input panel HTML
+- `public/styles.css` - Styled panel with responsive sizing
+- `public/js/input/keyboard.js` - Button handlers, visibility logic, touch detection
+- `public/js/game/game-loader.js` - Panel initialization
+
+### Autosave/Restore Implementation (December 17, 2024)
 
 **Key accomplishments:**
 - ✅ Researched ifvms.js + GlkOte save systems
@@ -74,7 +117,7 @@
 
 ### Keyboard Input System (December 17, 2024)
 
-- ✅ Inline text input with styled `>` prompt
+- ✅ Inline text input with styled `>` prompt (reverted to messaging interface)
 - ✅ Mode detection (line vs char input)
 - ✅ Echo suppression for command echoes
 - ✅ Auto-focus and click-to-focus behavior
@@ -98,6 +141,60 @@
 ---
 
 ## 🔧 Technical Architecture
+
+### Character Input Panel Flow
+
+```
+User playing game in line mode (typing commands)
+  ↓
+Game requests char input (e.g., "Press R to restore")
+  ↓
+getInputType() returns 'char'
+  ↓
+updateInputVisibility() (polling every 500ms)
+  - Hides message input row
+  - Shows char input panel
+  ↓
+Desktop: [← ↑ ↓ → ... [Esc] [⏎]]
+Mobile:  [← ↑ ↓ → ... [⌨️] [Esc] [⏎]]
+  ↓
+User interactions:
+  - Taps arrow button → sends Glk keycode (e.g., 0xfffffffc for Up)
+  - Taps Enter → sends 0xfffffffa
+  - Taps Escape → sends 0xfffffff8
+  - Taps Keyboard (mobile) → focuses hidden input → virtual keyboard opens
+    → user types key (e.g., "R") → sends to game
+  ↓
+Game processes char input, returns to line mode
+  ↓
+updateInputVisibility() detects mode change
+  - Hides char input panel
+  - Shows message input row
+```
+
+### Touch Detection Logic
+
+```javascript
+const isTouchDevice = ('ontouchstart' in window) ||      // Touch events API
+                      (navigator.maxTouchPoints > 0) ||   // Pointer events
+                      (navigator.msMaxTouchPoints > 0);   // IE/Edge legacy
+```
+
+**Result:**
+- Desktop: Keyboard button hidden (physical keyboard available)
+- Mobile/Tablet: Keyboard button visible (virtual keyboard needed)
+
+### Glk Keycode Mappings
+
+```javascript
+Arrow Left:  0xfffffffe
+Arrow Right: 0xfffffffd
+Arrow Up:    0xfffffffc
+Arrow Down:  0xfffffffb
+Enter:       0xfffffffa
+Escape:      0xfffffff8
+Backspace:   0xfffffff9 (not used, have Escape instead)
+```
 
 ### Current Autosave/Restore Flow
 

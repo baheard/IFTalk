@@ -490,10 +490,10 @@ export async function autoLoad() {
                     setTimeout(() => {
                         lowerWindowEl.scrollTop = lowerWindowEl.scrollHeight;
 
-                        // Focus the command input
-                        const commandText = document.getElementById('commandText');
-                        if (commandText) {
-                            commandText.focus();
+                        // Focus the message input
+                        const messageInput = document.getElementById('messageInput');
+                        if (messageInput) {
+                            messageInput.focus();
                         }
                     }, 500);
                 }

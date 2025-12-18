@@ -81,6 +81,12 @@ const voiceCommandHandlers = {
     updateStatus('Microphone unmuted - Listening...');
     updateNavButtons();
 
+    // Update message input placeholder
+    const messageInput = document.getElementById('messageInput');
+    if (messageInput) {
+      messageInput.placeholder = 'Speak a command...';
+    }
+
     // Start voice recognition
     if (state.recognition && !state.isRecognitionActive) {
       try {
@@ -103,6 +109,12 @@ const voiceCommandHandlers = {
     stopVoiceMeter();
     updateStatus('Microphone muted');
     updateNavButtons();
+
+    // Update message input placeholder
+    const messageInput = document.getElementById('messageInput');
+    if (messageInput) {
+      messageInput.placeholder = 'Type a command...';
+    }
 
     // Stop voice recognition
     if (state.recognition && state.isRecognitionActive) {

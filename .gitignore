@@ -45,6 +45,7 @@ coverage/
 # MCP / Tools
 .mcp.json
 eng.traineddata
+screenshots/
 
 # Windows artifacts
 nul

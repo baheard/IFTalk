@@ -287,3 +287,154 @@ For detailed technical information, see the `reference/` folder:
 ## Current Status
 
 See [TODO.md](TODO.md) for current tasks and progress.
+
+---
+
+## Web Agent MCP Configuration
+
+This project uses the `web-agent-mcp` server for browser automation, screenshot testing, and web debugging.
+
+### Context-Efficient Screenshot Practices
+
+**IMPORTANT**: Follow these guidelines when taking screenshots to minimize context token usage:
+
+#### Default Behavior (Automatic)
+- Screenshots save ONLY 800px lowRes by default (saves ~50-60% context tokens & disk space)
+- High resolution images are NOT saved unless you specify `hiRes: true`
+- Filename is exactly what you specify (no suffix added)
+
+#### When to Use Each Feature
+
+**Default: Just take the screenshot** (lowRes only, most common)
+- Use for: Visual verification, checking layouts, confirming page state
+- Example: `screenshot({ filename: 'page.png' })`
+- Result: Saves `page.png` (800px lowRes)
+- **This is what you should do 90% of the time**
+
+**Use `hiRes: true` ONLY when:**
+- Fine visual details are critical (design review, pixel-perfect verification)
+- 800px lowRes is insufficient for the task
+- User explicitly requests full resolution
+- Example: `screenshot({ filename: 'detailed.png', hiRes: true })`
+- Result: Saves `detailed.png` (full resolution, NO lowRes version)
+- **Rarely needed - ask yourself if you really need this**
+
+#### Screenshot Examples for IFTalk
+
+```javascript
+// MOST COMMON: Basic screenshot (lowRes only, default)
+await mcp__web-agent-mcp__screenshot({
+  filename: 'game-interface.png',
+  directory: 'E:\\Project\\IFTalk-messaging\\screenshots'
+});
+// Saves: E:\Project\IFTalk-messaging\screenshots\game-interface.png (800px lowRes)
+
+// Full-page screenshot
+await mcp__web-agent-mcp__screenshot({
+  filename: 'full-page.png',
+  fullPage: true,
+  directory: 'E:\\Project\\IFTalk-messaging\\screenshots'
+});
+
+// RARE: High resolution (only if needed)
+await mcp__web-agent-mcp__screenshot({
+  filename: 'design-review.png',
+  hiRes: true,
+  directory: 'E:\\Project\\IFTalk-messaging\\screenshots'
+});
+```
+
+### Console Tools for Debugging
+
+The web-agent-mcp server supports capturing and executing JavaScript in the browser console - useful for debugging IFTalk's client-side code.
+
+#### get_console_logs Tool
+
+**Purpose**: Retrieve console messages (console.log, console.warn, console.error, etc.) from the browser.
+
+**Parameters**:
+- `clear` (optional, boolean): Clear the console log buffer after reading (default: false)
+- `filter` (optional, string): Filter messages by type (log, warn, error, info, debug) or by text content
+- `limit` (optional, number): Max messages to return (default: 50, use 0 for all)
+
+**Usage Examples**:
+```javascript
+// Get last 50 console logs (default, saves context)
+await mcp__web-agent-mcp__get_console_logs({});
+
+// Get only error messages
+await mcp__web-agent-mcp__get_console_logs({ filter: 'error' });
+
+// Get last 10 messages only
+await mcp__web-agent-mcp__get_console_logs({ limit: 10 });
+
+// Search for ZVM-related logs
+await mcp__web-agent-mcp__get_console_logs({ filter: 'ZVM', limit: 20 });
+
+// Search for TTS/narration logs
+await mcp__web-agent-mcp__get_console_logs({ filter: 'TTS', limit: 20 });
+```
+
+**Notes**:
+- **Default returns only 50 most recent messages to save context**
+- Console messages are captured automatically from the moment the page loads
+- Messages include timestamp, type (log/warn/error/info/debug), text content, and source location
+- Use `limit` parameter to control context usage (lower = less context)
+- Useful for debugging Vue components, event handlers, ZVM, and TTS code
+
+#### execute_console Tool
+
+**Purpose**: Execute JavaScript code in the browser console and return the result.
+
+**Parameters**:
+- `code` (required, string): JavaScript code to execute in the browser context
+
+**Usage Examples**:
+```javascript
+// Query the DOM
+await mcp__web-agent-mcp__execute_console({
+  code: 'document.querySelector("#gameport").textContent'
+});
+
+// Check ZVM state
+await mcp__web-agent-mcp__execute_console({
+  code: 'window.vm ? "VM loaded" : "VM not loaded"'
+});
+
+// Check TTS state
+await mcp__web-agent-mcp__execute_console({
+  code: 'window.speechSynthesis.speaking'
+});
+
+// Manipulate the page for testing
+await mcp__web-agent-mcp__execute_console({
+  code: 'document.querySelector("#mic-toggle").click(); "Toggled mic"'
+});
+```
+
+**Notes**:
+- Code executes in the current page context with full access to the DOM and global scope
+- The last expression in the code is returned as the result
+- Do not use `return` statements (causes "Illegal return statement" error)
+- Console output from the executed code is captured and available via `get_console_logs`
+- Useful for debugging, testing, and dynamically manipulating pages
+
+### Web Navigation Workflow
+
+#### Single Action Instructions
+When the user provides a **specific single navigation/interaction instruction** (e.g., "click this button", "navigate to this URL", "take a screenshot"), complete ONLY that action and then **STOP and await further instructions**.
+
+Examples of single actions:
+- "Navigate to [URL]"
+- "Click [element]"
+- "Type [text] into [field]"
+- "Take a screenshot"
+- "Scroll down"
+
+#### Multi-Step Task Instructions
+When the user provides a **higher-level task** (e.g., "test the login flow", "find and fill out the form"), you may proceed with multiple actions to complete the entire task without stopping after each step.
+
+Examples of multi-step tasks:
+- "Test the game interface"
+- "Test the TTS narration controls"
+- "Test voice input with various commands"

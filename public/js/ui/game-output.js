@@ -85,8 +85,23 @@ export function ensureChunksReady() {
     statusEl.innerHTML = statusMarkedHTML;
     insertRealMarkersAtIDs(statusEl, statusMarkerIDs);
 
-    // Insert start marker for chunk 0
-    if (statusEl.firstChild) {
+    // Insert start marker for chunk 0 BEFORE first marker position
+    if (statusMarkerIDs.length > 0) {
+      const firstMarkerID = statusMarkerIDs[0];
+      const tempMarkerRegex = new RegExp(`⚐${firstMarkerID}⚐`);
+      const walker = document.createTreeWalker(statusEl, NodeFilter.SHOW_TEXT);
+      let textNode;
+      while (textNode = walker.nextNode()) {
+        if (tempMarkerRegex.test(textNode.textContent)) {
+          const startMarker = document.createElement('span');
+          startMarker.className = 'chunk-marker-start';
+          startMarker.dataset.chunk = 0;
+          startMarker.style.cssText = 'display: none; position: absolute;';
+          textNode.parentNode.insertBefore(startMarker, textNode);
+          break;
+        }
+      }
+    } else if (statusEl.firstChild) {
       const startMarker = document.createElement('span');
       startMarker.className = 'chunk-marker-start';
       startMarker.dataset.chunk = 0;
@@ -114,8 +129,23 @@ export function ensureChunksReady() {
     // Pass original marker IDs with chunk offset info
     insertRealMarkersAtIDs(upperEl, upperMarkerIDs, chunkOffset);
 
-    // Insert start marker at beginning of upper window
-    if (upperEl.firstChild) {
+    // Insert start marker BEFORE first marker position
+    if (upperMarkerIDs.length > 0) {
+      const firstMarkerID = upperMarkerIDs[0];
+      const tempMarkerRegex = new RegExp(`⚐${firstMarkerID}⚐`);
+      const walker = document.createTreeWalker(upperEl, NodeFilter.SHOW_TEXT);
+      let textNode;
+      while (textNode = walker.nextNode()) {
+        if (tempMarkerRegex.test(textNode.textContent)) {
+          const startMarker = document.createElement('span');
+          startMarker.className = 'chunk-marker-start';
+          startMarker.dataset.chunk = chunkOffset;
+          startMarker.style.cssText = 'display: none; position: absolute;';
+          textNode.parentNode.insertBefore(startMarker, textNode);
+          break;
+        }
+      }
+    } else if (upperEl.firstChild) {
       const startMarker = document.createElement('span');
       startMarker.className = 'chunk-marker-start';
       startMarker.dataset.chunk = chunkOffset;
@@ -142,8 +172,29 @@ export function ensureChunksReady() {
     // Pass original marker IDs (not sequential indices) with chunk offset info
     insertRealMarkersAtIDs(mainEl, mainMarkerIDs, chunkOffset);
 
-    // ALWAYS insert start marker at beginning of main content
-    if (mainEl.firstChild) {
+    // Insert start marker for first chunk
+    // IMPORTANT: Insert it BEFORE the first marker position, not at container beginning
+    // This ensures chunk 0 doesn't include filtered-out app voice content
+    if (mainMarkerIDs.length > 0) {
+      // Find the first temp marker in the DOM
+      const firstMarkerID = mainMarkerIDs[0];
+      const tempMarkerRegex = new RegExp(`⚐${firstMarkerID}⚐`);
+
+      const walker = document.createTreeWalker(mainEl, NodeFilter.SHOW_TEXT);
+      let textNode;
+      while (textNode = walker.nextNode()) {
+        if (tempMarkerRegex.test(textNode.textContent)) {
+          // Found the first marker - insert start[chunkOffset] right before this text node
+          const startMarker = document.createElement('span');
+          startMarker.className = 'chunk-marker-start';
+          startMarker.dataset.chunk = chunkOffset;
+          startMarker.style.cssText = 'display: none; position: absolute;';
+          textNode.parentNode.insertBefore(startMarker, textNode);
+          break;
+        }
+      }
+    } else if (mainEl.firstChild) {
+      // No markers (shouldn't happen, but fallback to old behavior)
       const startMarker = document.createElement('span');
       startMarker.className = 'chunk-marker-start';
       startMarker.dataset.chunk = chunkOffset;

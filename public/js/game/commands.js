@@ -46,7 +46,7 @@ export async function sendCommandDirect(cmd, isVoiceCommand = null) {
   window.lastCommandWasVoice = isVoiceCommand;
 
   // Intercept meta-commands before sending to game
-  const intercepted = await interceptMetaCommand(input.toLowerCase().trim());
+  const intercepted = await interceptMetaCommand(input.toLowerCase().trim(), input);
   if (intercepted) {
     // Command was handled by interceptor, don't send to game
     setTimeout(() => {
@@ -111,14 +111,19 @@ function formatTimestamp(isoString) {
 /**
  * Intercept meta-commands and respond without sending to game
  * @param {string} cmd - Normalized command (lowercase, trimmed)
+ * @param {string} displayCmd - Original command for display (optional)
  * @returns {boolean} - True if command was intercepted
  */
-async function interceptMetaCommand(cmd) {
-  const originalCmd = cmd; // Keep original for save names (case-sensitive)
+async function interceptMetaCommand(cmd, displayCmd = null) {
+  const originalCmd = displayCmd || cmd; // Keep original for save names (case-sensitive)
   cmd = cmd.toLowerCase().trim();
 
   // Handle interactive responses (when awaiting input)
   if (awaitingMetaInput) {
+    // Display the response in the transcript
+    if (originalCmd && originalCmd.trim()) {
+      addGameText(originalCmd.trim(), true);
+    }
     return await handleMetaResponse(originalCmd);
   }
 
@@ -126,31 +131,39 @@ async function interceptMetaCommand(cmd) {
   switch (cmd) {
     case 'help':
     case 'commands':
+      // Display command in transcript
+      addGameText(originalCmd, true);
       respondAsGame(`
-<div class="normal">
-<b>IFTalk Meta Commands</b>
-
-These commands are handled by IFTalk and won't be sent to the game:
-
-  <span style="color: var(--accent-primary)">SAVE</span> - Save game to named slot (max 5)
-  <span style="color: var(--accent-primary)">RESTORE</span> - Restore from saved game
-  <span style="color: var(--accent-primary)">DELETE SAVE</span> - Delete a saved game
-
-For game commands, type anything else.
+<div class="system-message">
+<b>IFTalk Meta Commands</b><br>
+<br>
+These commands are handled by IFTalk and won't be sent to the game:<br>
+<br>
+&nbsp;&nbsp;SAVE - Save game to named slot (max 5)<br>
+&nbsp;&nbsp;RESTORE - Restore from saved game<br>
+&nbsp;&nbsp;DELETE SAVE - Delete a saved game<br>
+<br>
+For game commands, type anything else.<br>
 See Settings panel for more help.
 </div>
       `);
       return true;
 
     case 'save':
+      // Display command in transcript
+      addGameText(originalCmd, true);
       return await handleSaveCommand();
 
     case 'restore':
     case 'load':
+      // Display command in transcript
+      addGameText(originalCmd, true);
       return await handleRestoreCommand();
 
     case 'delete save':
     case 'delete':
+      // Display command in transcript
+      addGameText(originalCmd, true);
       return await handleDeleteCommand();
 
     default:
@@ -164,18 +177,16 @@ See Settings panel for more help.
 async function handleSaveCommand() {
   const saves = getCustomSaves();
 
-  let message = '<div class="normal"><b>Enter a file name for your save:</b>\n\n';
+  let message = '<div class="system-message"><b>Enter a file name for your save.</b>';
 
   if (saves.length > 0) {
-    message += 'Existing saves:\n';
+    message += '<br>Existing saves:<br>';
     saves.forEach((save, i) => {
-      message += `  ${i + 1}. <span style="color: var(--accent-primary)">${save.name}</span> - ${formatTimestamp(save.timestamp)}\n`;
+      message += `&nbsp;&nbsp;• ${save.name} - ${formatTimestamp(save.timestamp)}<br>`;
     });
-  } else {
-    message += '<i>No existing saves</i>\n';
   }
 
-  message += '\nType a name for your save.</div>';
+  message += '</div>';
 
   respondAsGame(message);
   awaitingMetaInput = 'save';
@@ -189,15 +200,15 @@ async function handleRestoreCommand() {
   const saves = getCustomSaves();
 
   if (saves.length === 0) {
-    respondAsGame('<div class="normal">No custom save games currently exist. Use "Save" to save one.</div>');
+    respondAsGame('<div class="system-message">No custom save games currently exist. Use "Save" to save one.</div>');
     return true;
   }
 
-  let message = '<div class="normal"><b>Choose a file to restore:</b>\n\n';
+  let message = '<div class="system-message"><b>Choose a file to restore.</b><br>';
   saves.forEach((save, i) => {
-    message += `  ${i + 1}. <span style="color: var(--accent-primary)">${save.name}</span> - ${formatTimestamp(save.timestamp)}\n`;
+    message += `&nbsp;&nbsp;• ${save.name} - ${formatTimestamp(save.timestamp)}<br>`;
   });
-  message += '\nType the save name or number.</div>';
+  message += '</div>';
 
   respondAsGame(message);
   awaitingMetaInput = 'restore';
@@ -211,15 +222,15 @@ async function handleDeleteCommand() {
   const saves = getCustomSaves();
 
   if (saves.length === 0) {
-    respondAsGame('<div class="normal">No custom save games currently exist. Use "Save" to save one.</div>');
+    respondAsGame('<div class="system-message">No custom save games currently exist. Use "Save" to save one.</div>');
     return true;
   }
 
-  let message = '<div class="normal"><b>Delete which save?</b>\n\n';
+  let message = '<div class="system-message"><b>Delete which save?</b><br>';
   saves.forEach((save, i) => {
-    message += `  ${i + 1}. <span style="color: var(--accent-primary)">${save.name}</span> - ${formatTimestamp(save.timestamp)}\n`;
+    message += `&nbsp;&nbsp;• ${save.name} - ${formatTimestamp(save.timestamp)}<br>`;
   });
-  message += '\nType the save name or number to delete.</div>';
+  message += '</div>';
 
   respondAsGame(message);
   awaitingMetaInput = 'delete';
@@ -234,7 +245,7 @@ async function handleMetaResponse(input) {
   awaitingMetaInput = null; // Reset state
 
   if (!input || input.trim() === '') {
-    respondAsGame('<div class="normal"><i>Cancelled.</i></div>');
+    respondAsGame('<div class="system-message"><i>Cancelled.</i></div>');
     return true;
   }
 
@@ -261,14 +272,14 @@ async function handleMetaResponse(input) {
 async function handleSaveResponse(saveName, saves) {
   // Check if name is valid (no special characters that could break localStorage)
   if (!/^[a-zA-Z0-9_ -]+$/.test(saveName)) {
-    respondAsGame('<div class="normal">Invalid save name. Use only letters, numbers, spaces, dashes, and underscores.</div>');
+    respondAsGame('<div class="system-message">Invalid save name. Use only letters, numbers, spaces, dashes, and underscores.</div>');
     return true;
   }
 
   // Check if this would exceed max saves (and it's a new name)
   const existingSave = saves.find(s => s.name.toLowerCase() === saveName.toLowerCase());
   if (!existingSave && saves.length >= MAX_SAVES) {
-    respondAsGame(`<div class="normal">You can't have more than ${MAX_SAVES} saves. Override an existing save or use the "Delete Save" command.</div>`);
+    respondAsGame(`<div class="system-message">You can't have more than ${MAX_SAVES} saves. Override an existing save or use the "Delete Save" command.</div>`);
     return true;
   }
 
@@ -277,9 +288,9 @@ async function handleSaveResponse(saveName, saves) {
   const success = await customSave(saveName);
 
   if (success) {
-    respondAsGame(`<div class="normal">Game saved as "<span style="color: var(--accent-primary)">${saveName}</span>".</div>`);
+    respondAsGame(`<div class="system-message">Game saved as "${saveName}".</div>`);
   } else {
-    respondAsGame('<div class="normal">Save failed. Please try again.</div>');
+    respondAsGame('<div class="system-message">Save failed. Please try again.</div>');
   }
 
   return true;
@@ -301,7 +312,7 @@ async function handleRestoreResponse(input, saves) {
   }
 
   if (!save) {
-    respondAsGame('<div class="normal">Save not found. Please try again.</div>');
+    respondAsGame('<div class="system-message">Save not found. Please try again.</div>');
     return true;
   }
 
@@ -310,9 +321,9 @@ async function handleRestoreResponse(input, saves) {
   const success = await customLoad(save.name);
 
   if (success) {
-    respondAsGame(`<div class="normal">Game restored from "<span style="color: var(--accent-primary)">${save.name}</span>".</div>`);
+    respondAsGame(`<div class="system-message">Game restored from "${save.name}".</div>`);
   } else {
-    respondAsGame('<div class="normal">Restore failed. Save file may be corrupted.</div>');
+    respondAsGame('<div class="system-message">Restore failed. Save file may be corrupted.</div>');
   }
 
   return true;
@@ -334,13 +345,13 @@ async function handleDeleteResponse(input, saves) {
   }
 
   if (!save) {
-    respondAsGame('<div class="normal">Save not found. Please try again.</div>');
+    respondAsGame('<div class="system-message">Save not found. Please try again.</div>');
     return true;
   }
 
   // Delete the save
   localStorage.removeItem(save.key);
-  respondAsGame(`<div class="normal">Deleted save "<span style="color: var(--accent-primary)">${save.name}</span>".</div>`);
+  respondAsGame(`<div class="system-message">Deleted save "${save.name}".</div>`);
 
   return true;
 }

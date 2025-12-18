@@ -34,9 +34,13 @@ export async function startGame(gamePath, onOutput) {
     const gameOutput = document.getElementById('gameOutput');
     if (gameOutput) gameOutput.classList.remove('hidden');
 
-    // Show controls
+    // Show controls and message input
     const controls = document.getElementById('controls');
     if (controls) controls.classList.remove('hidden');
+    const messageInputRow = document.getElementById('messageInputRow');
+    if (messageInputRow) messageInputRow.classList.remove('hidden');
+    const charInputPanel = document.getElementById('charInputPanel');
+    if (charInputPanel) charInputPanel.classList.add('hidden'); // Hidden initially, shown by updateInputVisibility
 
     // Initialize keyboard input
     const { initKeyboardInput } = await import('../input/keyboard.js');
@@ -129,9 +133,9 @@ export async function startGame(gamePath, onOutput) {
         // Focus command input after overlay is gone (if not restoring)
         if (!hasAutosave) {
           setTimeout(() => {
-            const commandText = document.getElementById('commandText');
-            if (commandText) {
-              commandText.focus();
+            const messageInput = document.getElementById('messageInput');
+            if (messageInput) {
+              messageInput.focus();
             }
           }, 100);
         }
