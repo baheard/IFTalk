@@ -68,7 +68,6 @@ export function ensureChunksReady() {
 
   // Check if status bar should be included (set by voxglk when status bar changes)
   const shouldIncludeStatus = window.includeStatusBarInChunks !== false; // Default true for first load
-  console.log('[EnsureChunks] Should include status bar:', shouldIncludeStatus);
 
   // Process status line first (if exists AND should be included)
   if (hasStatus && statusEl && shouldIncludeStatus) {
@@ -100,7 +99,6 @@ export function ensureChunksReady() {
     allChunks = allChunks.concat(statusChunks);
     chunkOffset = statusChunks.length;
   } else if (hasStatus && statusEl && !shouldIncludeStatus) {
-    console.log('[EnsureChunks] Skipping status bar (unchanged)');
   }
 
   // Process upper window second (if exists) - for quotes, formatted text, etc.
@@ -133,15 +131,10 @@ export function ensureChunksReady() {
 
   // Process main content third (if exists)
   if (hasMain && mainEl) {
-    console.log('[CHUNK DEBUG] Main HTML:', mainHTML);
     let mainMarkedHTML = insertTemporaryMarkers(mainHTML);
-    console.log('[CHUNK DEBUG] Marked HTML:', mainMarkedHTML);
     const mainChunksWithMarkers = createNarrationChunks(mainMarkedHTML);
-    console.log('[CHUNK DEBUG] Chunks with markers:', mainChunksWithMarkers);
     const { chunks: mainChunks, markerIDs: mainMarkerIDs } =
       extractChunksAndMarkers(mainChunksWithMarkers);
-    console.log('[CHUNK DEBUG] Final chunks:', mainChunks);
-    console.log('[CHUNK DEBUG] Marker IDs:', mainMarkerIDs);
 
     // Apply markers to main element (NO renumbering - keep original marker IDs!)
     mainEl.innerHTML = mainMarkedHTML;
@@ -183,7 +176,6 @@ export function addGameText(text, isCommand = false, isVoiceCommand = false) {
     // Check if this is ONLY a glk-input echo (no other content)
     const glkInputMatch = text.match(/<span class="glk-input"[^>]*>(.*?)<\/span>/);
     if (glkInputMatch && text.replace(/<[^>]*>/g, '').trim() === glkInputMatch[1].trim()) {
-      console.log('[Game Output] ✓ Skipping glk-input echo:', glkInputMatch[1]);
       return null;
     }
 
@@ -192,7 +184,6 @@ export function addGameText(text, isCommand = false, isVoiceCommand = false) {
       const plainText = text.replace(/<[^>]*>/g, '').trim().toLowerCase();
       const lastCmd = window.lastSentCommand.trim().toLowerCase();
 
-      console.log('[Game Output] Checking for echo - plainText:', plainText, 'lastCmd:', lastCmd);
 
       // Check various echo patterns
       const isEcho =
@@ -205,7 +196,6 @@ export function addGameText(text, isCommand = false, isVoiceCommand = false) {
         (plainText.split('\n')[0].trim() === lastCmd && plainText.split('\n').length === 1);
 
       if (isEcho) {
-        console.log('[Game Output] ✓ Skipping command echo:', lastCmd);
         window.lastSentCommand = null; // Clear so we don't skip future legitimate text
         return null;
       }
@@ -237,6 +227,29 @@ export function addGameText(text, isCommand = false, isVoiceCommand = false) {
     // LAZY CHUNKING: Just render HTML, don't create chunks yet
     // Chunks will be created on-demand when narration is requested
     div.innerHTML = text;
+
+    // Trim excessive leading blank lines (max 1)
+    if (dom.lowerWindow && dom.lowerWindow.children.length === 0) {
+      // This is the first content in lower window
+      let leadingBlankCount = 0;
+      const children = Array.from(div.children);
+
+      for (const child of children) {
+        if (child.classList.contains('blank-line-spacer') ||
+            (child.textContent && child.textContent.trim() === '')) {
+          leadingBlankCount++;
+        } else {
+          break; // Found non-blank content
+        }
+      }
+
+      // Remove all leading blanks except first one (if any)
+      if (leadingBlankCount > 1) {
+        for (let i = 1; i < leadingBlankCount; i++) {
+          children[i].remove();
+        }
+      }
+    }
 
     // Add mic icon to glk-input spans if they were voice commands
     if (window.lastCommandWasVoice && window.lastSentCommand) {

@@ -22,7 +22,7 @@ export function initKeyboardInput() {
   commandLineEl = document.getElementById('commandLine');
   commandPromptEl = document.querySelector('.command-prompt');
 
-  console.log('[Keyboard] Initializing input:', {
+  console.log('[Keyboard] DOM elements initialized:', {
     commandLineEl: !!commandLineEl,
     commandTextEl: !!commandTextEl,
     commandPromptEl: !!commandPromptEl
@@ -35,21 +35,34 @@ export function initKeyboardInput() {
   // Listen for keydown events on document
   document.addEventListener('keydown', handleKeyPress);
 
-  // Click on game area focuses input (unless selecting text)
+  // Click on game area - different behavior based on mode
   const lowerWindow = document.getElementById('lowerWindow');
-  if (lowerWindow) {
-    lowerWindow.addEventListener('click', (e) => {
-      // Don't interfere with text selection
-      const selection = window.getSelection();
-      if (selection && selection.toString().length > 0) {
-        return;
-      }
+  const gameOutput = document.getElementById('gameOutput');
 
-      // Focus input if it's visible
-      if (commandTextEl && commandLineEl.style.display === 'flex') {
-        commandTextEl.focus();
-      }
-    });
+  const handleGameClick = (e) => {
+    // Don't interfere with text selection
+    const selection = window.getSelection();
+    if (selection && selection.toString().length > 0) {
+      return;
+    }
+
+    const inputType = getInputType();
+
+    if (inputType === 'char') {
+      // Char mode - tap anywhere to send Enter
+      e.preventDefault();
+      sendInput('\n', 'char');
+    } else if (inputType === 'line' && commandTextEl && commandLineEl.style.display === 'flex') {
+      // Line mode - focus input
+      commandTextEl.focus();
+    }
+  };
+
+  if (lowerWindow) {
+    lowerWindow.addEventListener('click', handleGameClick);
+  }
+  if (gameOutput) {
+    gameOutput.addEventListener('click', handleGameClick);
   }
 
   // Listen for input type changes (poll periodically - check every 500ms)
@@ -77,21 +90,34 @@ function handleKeyPress(e) {
     e.preventDefault();
     e.stopPropagation();
 
-    // Get the character
-    let char = e.key;
+    // Map special keys to Glk keycodes (from glkapi.js Const values)
+    const specialKeyCodes = {
+      'ArrowLeft': 0xfffffffe,
+      'ArrowRight': 0xfffffffd,
+      'ArrowUp': 0xfffffffc,
+      'ArrowDown': 0xfffffffb,
+      'Enter': 0xfffffffa,
+      'Backspace': 0xfffffff9,
+      'Delete': 0xfffffff9,
+      'Escape': 0xfffffff8,
+      'Tab': 0xfffffff7,
+      'PageUp': 0xfffffff6,
+      'PageDown': 0xfffffff5,
+      'Home': 0xfffffff4,
+      'End': 0xfffffff3,
+    };
 
-    // For special keys, map to characters
-    if (char === 'Enter') char = '\n';
-    else if (char === 'Escape') char = '\x1b';
-    else if (char === 'Backspace') char = '\x08';
-    else if (char === 'Tab') char = '\t';
-    else if (char.length > 1) {
-      // For other special keys, use first char
-      char = char.charAt(0).toLowerCase();
+    // Check if this is a special key
+    if (specialKeyCodes[e.key]) {
+      // Send special keycode directly
+      sendInput(specialKeyCodes[e.key], 'char');
+    } else if (e.key.length === 1) {
+      // Regular printable character - send as-is
+      sendInput(e.key, 'char');
+    } else {
+      // Unknown special key - ignore
+      console.log('[Keyboard] Ignoring unknown special key:', e.key);
     }
-
-    // Send as character input
-    sendInput(char, 'char');
     return;
   }
 
@@ -114,6 +140,7 @@ function handleKeyPress(e) {
     // Handle Enter key - send command
     if (e.key === 'Enter') {
       e.preventDefault();
+      console.log('[Keyboard] Enter pressed, sending command');
       sendCommand();
       return;
     }
@@ -153,7 +180,7 @@ function updateCaretVisibility() {
     const wasHidden = commandLineEl.style.display !== 'flex';
 
     if (inputType === 'line') {
-      // Line mode - show command line
+      // Line mode - show command line with prompt
       commandLineEl.style.display = 'flex';
 
       // Auto-focus when command line becomes visible
@@ -161,7 +188,7 @@ function updateCaretVisibility() {
         commandTextEl.focus();
       }
     } else {
-      // Char mode or no input - hide command line
+      // Char mode or no input - hide command line (tap screen to advance)
       commandLineEl.style.display = 'none';
     }
   }
@@ -181,6 +208,8 @@ function scrollCommandLineIntoView() {
  */
 function sendCommand() {
   const cmd = commandTextEl ? commandTextEl.value.trim() : '';
+  console.log('[Keyboard] sendCommand called with:', cmd);
+
   if (commandTextEl) {
     commandTextEl.value = '';
   }
@@ -188,6 +217,7 @@ function sendCommand() {
   if (cmd || cmd === '') {
     // Store last command for echo detection
     window.lastSentCommand = cmd;
+    console.log('[Keyboard] Calling sendCommandDirect');
     sendCommandDirect(cmd, false); // false = not a voice command
   }
 }

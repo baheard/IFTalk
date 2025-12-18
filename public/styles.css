@@ -11,7 +11,7 @@
   --bg-surface: #1a1e24;
   --bg-elevated: #22272e;
 
-  --accent-primary: #8b9dc3;
+  --accent-primary: #aec8ff;
   --accent-warm: #c4a35a;
   --accent-muted: #5c6370;
 
@@ -51,6 +51,7 @@ body {
   background: linear-gradient(145deg, var(--bg-primary) 0%, var(--bg-secondary) 100%);
   color: var(--text-primary);
   height: 100vh;
+  height: 100dvh; /* Dynamic viewport height for mobile browsers */
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -438,7 +439,7 @@ body {
 }
 
 .pronunciation-word {
-  font-family: 'IBM Plex Mono', 'Consolas', monospace;
+  font-family: 'Space Mono', 'Consolas', monospace;
   color: var(--text-primary);
   font-weight: 500;
   min-width: 120px;
@@ -450,7 +451,7 @@ body {
 }
 
 .pronunciation-says {
-  font-family: 'IBM Plex Mono', 'Consolas', monospace;
+  font-family: 'Space Mono', 'Consolas', monospace;
   color: var(--accent-primary);
   flex: 1;
 }
@@ -491,7 +492,7 @@ body {
   border-radius: 6px;
   color: var(--text-primary);
   font-size: 14px;
-  font-family: 'IBM Plex Mono', 'Consolas', monospace;
+  font-family: 'Space Mono', 'Consolas', monospace;
 }
 
 .pronunciation-input:focus {
@@ -577,7 +578,7 @@ body {
   background: var(--bg-tertiary);
   padding: 2px 6px;
   border-radius: 3px;
-  font-family: 'IBM Plex Mono', 'Consolas', monospace;
+  font-family: 'Space Mono', 'Consolas', monospace;
   font-size: 12px;
   color: var(--accent-primary);
 }
@@ -785,14 +786,13 @@ body {
   white-space: normal;
   word-wrap: break-word;
   text-align: left;
-  margin-bottom: 8px;
   color: var(--text-primary);
   letter-spacing: 0.01em;
 }
 
 /* Blank line spacer for vertical spacing between paragraphs */
 .blank-line-spacer {
-  height: 14px;
+  height: 16px;
 }
 
 /* CSS Custom Highlight API for TTS text highlighting (no DOM modification) */
@@ -911,7 +911,7 @@ body {
 
 .controls {
   display: flex;
-  justify-content: center;
+  justify-content: space-between;
   align-items: center;
   gap: 4px;
   max-width: 800px;
@@ -1851,10 +1851,6 @@ body {
   }
 
   /* Game output */
-  .game-output {
-    padding: 16px;
-  }
-
   .game-text {
     font-size: var(--font-m);
     line-height: 1.8;
@@ -1891,12 +1887,12 @@ body {
     padding: 8px 12px;
   }
 
-  .controls {
+  /* .controls {
     flex-direction: row;
     align-items: center;
     gap: 8px;
     flex-wrap: wrap;
-  }
+  } */
 
   .btn-control {
     padding: 8px 14px;
@@ -2110,7 +2106,6 @@ body {
     font-size: var(--font-m);
     color: var(--text-primary);
     line-height: 1.6;
-    margin-bottom: 12px;
   }
 
   .input-area {
@@ -2265,7 +2260,7 @@ body {
   display: flex;
   justify-content: space-between;
   background: linear-gradient(135deg, #1a1a1a 0%, #2a2a2a 100%);
-  padding: 6px 10px;
+  padding: 8px 11px;
   width: 100%;
   font-weight: 600;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
@@ -2452,19 +2447,97 @@ body {
 /* #mainWindow styles removed - VoxGlk now uses #lowerWindow with frotz styling */
 
 /* Responsive spacing - disable space-based centering on narrow screens */
+/* Add .force-mobile class to body element to test mobile styles on desktop */
 @media (max-width: 768px) {
-  /* Status bar: switch from space-based to CSS centering */
+  /* Fix body height for mobile browsers with address bar */
+  body {
+    height: calc(var(--vh, 1vh) * 100);
+  }
+
+  /* Game output container - allow scrolling */
+  .game-output {
+    overflow-y: auto !important;
+    overflow-x: hidden;
+  }
+
+  /* Status bar: fixed to top on mobile */
   #statusBar {
+    position: sticky;
+    top: 0;
+    /* z-index: 10;
+    background: var(--bg-primary);
     white-space: normal !important;
     text-align: center;
     word-wrap: break-word;
-  }
+    padding: 8px;
+    border-bottom: 1px solid var(--border-subtle); */
+  } 
 
-  /* Upper window: ensure proper wrapping on narrow screens */
+  /* Upper window: scrolls with content */
   #upperWindow {
     white-space: normal !important;
     word-wrap: break-word;
     overflow-wrap: break-word;
+    padding: 16px 8px;
+  }
+
+  /* Lower window: no separate scroll, scrolls with parent */
+  #lowerWindow {
+    overflow-y: visible !important;
+    flex: none !important;
+    padding: 0 8px 16px;
+  }
+
+  /* Convert grid layout to normal flow on mobile */
+  .grid-status.multiline {
+    display: block !important;
+  }
+
+  .grid-status .grid-line {
+    display: inline !important;
+    text-align: center;
+    margin: 0;
+    line-height: 1.4;
+  }
+
+  /* Make the container centered text so inline grid-lines flow together */
+  .grid-status.multiline {
+    display: block !important;
+    text-align: center;
+    word-wrap: break-word;
+  }
+
+  /* Hide single line breaks (ignore), keep double line breaks (paragraph spacing) */
+  /* These must come AFTER .grid-line to override it */
+  .grid-status .grid-line.empty-line-single {
+    display: none !important;
+  }
+
+  .grid-status .grid-line.empty-line-continuation {
+    display: none !important;
+  }
+
+  .grid-status .grid-line.empty-line-first {
+    display: block !important;
+    height: 1em;
+    line-height: 1em;
+  }
+
+  /* Grid-positioned spans: remove grid, flow as inline text */
+  .grid-status span[style*="grid-column"] {
+    display: inline !important;
+    grid-column: unset !important;
+    white-space: normal !important; /* Collapse whitespace */
+  }
+
+  /* Hide spans that are purely whitespace */
+  .grid-status span.whitespace-only {
+    display: none !important;
+  }
+
+  /* Trim excessive spaces between words */
+  .grid-status .grid-line {
+    word-spacing: normal !important;
   }
 
   /* Lower window: disable space preservation on narrow screens */
@@ -2479,8 +2552,84 @@ body {
   }
 }
 
+/* Force mobile styles on desktop for testing - add class="force-mobile" to body tag */
+body.force-mobile .game-output {
+  overflow-y: auto !important;
+  overflow-x: hidden;
+}
+
+body.force-mobile #statusBar {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: var(--bg-primary);
+  white-space: normal !important;
+  text-align: center;
+  word-wrap: break-word;
+  padding: 8px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+body.force-mobile #upperWindow {
+  white-space: normal !important;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  padding: 16px 8px;
+}
+
+body.force-mobile #lowerWindow {
+  overflow-y: visible !important;
+  flex: none !important;
+  padding: 0 8px 16px;
+}
+
+body.force-mobile .grid-status.multiline {
+  display: block !important;
+}
+
+body.force-mobile .grid-status .grid-line {
+  display: inline !important;
+  text-align: center;
+  margin: 0;
+  line-height: 1.4;
+}
+
+body.force-mobile .grid-status.multiline {
+  display: block !important;
+  text-align: center;
+  word-wrap: break-word;
+}
+
+body.force-mobile .grid-status .grid-line.empty-line-single {
+  display: none !important;
+}
+
+body.force-mobile .grid-status .grid-line.empty-line-continuation {
+  display: none !important;
+}
+
+body.force-mobile .grid-status .grid-line.empty-line-first {
+  display: block !important;
+  height: 1em;
+  line-height: 1em;
+}
+
+body.force-mobile .grid-status span[style*="grid-column"] {
+  display: inline !important;
+  grid-column: unset !important;
+  white-space: normal !important; /* Collapse whitespace */
+}
+
+body.force-mobile .grid-status span.whitespace-only {
+  display: none !important;
+}
+
+body.force-mobile .grid-status .grid-line {
+  word-spacing: normal !important;
+}
+
+/* 
 @media (max-width: 480px) {
-  /* Extra small screens: reduce padding */
   #statusBar {
     font-size: 13px;
   }
@@ -2488,4 +2637,4 @@ body {
   .status-bar-line {
     padding: 6px 10px;
   }
-}
+} */

@@ -36,6 +36,12 @@ export async function sendCommandDirect(cmd, isVoiceCommand = null) {
   // Add to command history (show [ENTER] for empty commands)
   addToCommandHistory(input || '[ENTER]', null, null, isVoiceCommand);
 
+  // For empty commands, display a visual prompt in game output
+  // (Non-empty commands are echoed by the game itself)
+  if (input === '') {
+    addGameText('[ENTER]', true, isVoiceCommand);
+  }
+
   // Track for echo detection
   window.lastCommandWasVoice = isVoiceCommand;
 

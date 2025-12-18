@@ -28,7 +28,7 @@ const _state = {
   // Narration state
   currentAudio: null,
   narrationEnabled: false,
-  _autoplayEnabled: false,
+  _autoplayEnabled: false,  // When true, new content auto-plays and nav buttons auto-start
   isNarrating: false,
   pendingNarrationText: null,
   narrationChunks: [],
@@ -38,9 +38,9 @@ const _state = {
   narrationSessionId: 0,
   currentChunkStartTime: 0,
   lastStatusBarText: null,  // Track previous status bar text to avoid re-reading
+  restoredChunkIndex: null,  // Chunk index restored from autosave (used once after autoload)
 
-  // Talk mode state
-  talkModeActive: false,
+  // TTS state
   ttsIsSpeaking: false,
   appVoicePromise: null,
 
@@ -81,7 +81,6 @@ Object.defineProperty(_state, 'autoplayEnabled', {
   },
   set(value) {
     if (this._autoplayEnabled !== value) {
-      console.log('[State] autoplayEnabled changed:', this._autoplayEnabled, '->', value);
       console.trace('[State] Stack trace:');
     }
     this._autoplayEnabled = value;
@@ -91,6 +90,11 @@ Object.defineProperty(_state, 'autoplayEnabled', {
 });
 
 export const state = _state;
+
+// Expose state to window for debugging
+if (typeof window !== 'undefined') {
+  window.state = state;
+}
 
 export const constants = {
   SOUND_THRESHOLD: 60,
