@@ -24,19 +24,21 @@
   <!-- Settings Panel -->
   <div class="settings-panel" id="settingsPanel">
     <div class="settings-header">
-      <h2>🎮 IF Talk</h2>
+      <h2>🎮 IF Talk - Settings</h2>
       <button id="closeSettingsBtn" class="close-settings-btn">✕</button>
     </div>
+
     <div class="settings-content">
+      <!-- Current Game Display -->
+      <div class="current-game-display" id="currentGameDisplay">
+        <span class="current-game-label">Currently playing:</span>
+        <span class="current-game-name" id="currentGameName">No game loaded</span>
+      </div>
+
       <!-- Game Settings -->
       <div class="settings-section collapsible collapsed">
         <h3 class="section-header">🎮 Game</h3>
         <div class="section-content">
-          <!-- Current Game Display -->
-          <div class="current-game-display" id="currentGameDisplay">
-            <span class="current-game-label">Currently playing:</span>
-            <span class="current-game-name" id="currentGameName">No game loaded</span>
-          </div>
 
           <!-- Quick Save/Restore Buttons -->
           <div class="game-actions">
@@ -152,11 +154,6 @@
               <li>Game saves to that slot (or overwrites if exists)</li>
             </ol>
             <p><em>Note: You can have up to 5 named saves. To make more room, use DELETE SAVE.</em></p>
-
-            <strong>Help:</strong>
-            <ul>
-              <li><code>HELP</code> / <code>COMMANDS</code> - Show meta-command list</li>
-            </ul>
           </div>
         </div>
       </div>
