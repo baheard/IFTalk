@@ -203,6 +203,34 @@ function loadPronunciationUI() {
 }
 
 /**
+ * Filter and sort voices
+ * - Show only English voices
+ * - Sort by quality (local/high-quality first) then alphabetically
+ */
+function filterAndSortVoices(voices) {
+  // Filter to English voices only
+  const filtered = voices.filter(voice => voice.lang.startsWith('en'));
+
+  // Sort: local voices first, then by name
+  filtered.sort((a, b) => {
+    // Local voices (high quality) come first
+    if (a.localService !== b.localService) {
+      return a.localService ? -1 : 1;
+    }
+    // Then sort alphabetically
+    return a.name.localeCompare(b.name);
+  });
+
+  console.log('[Settings] Available English voices:');
+  filtered.forEach((voice, index) => {
+    const quality = voice.localService ? 'HIGH-QUALITY' : 'network';
+    console.log(`  ${index + 1}. ${voice.name} (${voice.lang}) [${quality}]`);
+  });
+
+  return filtered;
+}
+
+/**
  * Populate voice dropdown
  */
 export function populateVoiceDropdown() {
@@ -213,13 +241,21 @@ export function populateVoiceDropdown() {
     return;
   }
 
+  // Filter to English voices only
+  const filteredVoices = filterAndSortVoices(voices);
+
+  console.log(`[Settings] Found ${voices.length} total voices, showing ${filteredVoices.length} English voices`);
+
   // Populate narrator voice dropdown
   if (dom.voiceSelect) {
     dom.voiceSelect.innerHTML = '';
-    voices.forEach((voice) => {
+
+    filteredVoices.forEach((voice) => {
       const option = document.createElement('option');
       option.value = voice.name;
-      option.textContent = `${voice.name} (${voice.lang})`;
+      // Show quality indicator
+      const quality = voice.localService ? '⭐ ' : '';
+      option.textContent = `${quality}${voice.name} (${voice.lang})`;
 
       if (voice.name === state.browserVoiceConfig?.voice) {
         option.selected = true;
@@ -232,10 +268,13 @@ export function populateVoiceDropdown() {
   // Populate app voice dropdown
   if (dom.appVoiceSelect) {
     dom.appVoiceSelect.innerHTML = '';
-    voices.forEach((voice) => {
+
+    filteredVoices.forEach((voice) => {
       const option = document.createElement('option');
       option.value = voice.name;
-      option.textContent = `${voice.name} (${voice.lang})`;
+      // Show quality indicator
+      const quality = voice.localService ? '⭐ ' : '';
+      option.textContent = `${quality}${voice.name} (${voice.lang})`;
 
       if (voice.name === state.browserVoiceConfig?.appVoice) {
         option.selected = true;

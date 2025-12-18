@@ -91,22 +91,22 @@ export function initKeyboardInput() {
 
   // Add click handlers for char input buttons
   if (charUpBtnEl) {
-    charUpBtnEl.addEventListener('click', () => sendInput(0xfffffffc, 'char')); // Up
+    charUpBtnEl.addEventListener('click', () => sendInput('up', 'char'));
   }
   if (charLeftBtnEl) {
-    charLeftBtnEl.addEventListener('click', () => sendInput(0xfffffffe, 'char')); // Left
+    charLeftBtnEl.addEventListener('click', () => sendInput('left', 'char'));
   }
   if (charDownBtnEl) {
-    charDownBtnEl.addEventListener('click', () => sendInput(0xfffffffb, 'char')); // Down
+    charDownBtnEl.addEventListener('click', () => sendInput('down', 'char'));
   }
   if (charRightBtnEl) {
-    charRightBtnEl.addEventListener('click', () => sendInput(0xfffffffd, 'char')); // Right
+    charRightBtnEl.addEventListener('click', () => sendInput('right', 'char'));
   }
   if (charEnterBtnEl) {
-    charEnterBtnEl.addEventListener('click', () => sendInput(0xfffffffa, 'char')); // Enter
+    charEnterBtnEl.addEventListener('click', () => sendInput('return', 'char'));
   }
   if (charEscBtnEl) {
-    charEscBtnEl.addEventListener('click', () => sendInput(0xfffffff8, 'char')); // Escape
+    charEscBtnEl.addEventListener('click', () => sendInput('escape', 'char'));
   }
 
   // Keyboard button: Focus hidden input to open mobile keyboard
@@ -132,7 +132,7 @@ export function initKeyboardInput() {
   hiddenKeyInputEl.addEventListener('keydown', (e) => {
     if (e.key === 'Enter') {
       e.preventDefault();
-      sendInput(0xfffffffa, 'char'); // Enter keycode
+      sendInput('return', 'char');
       hiddenKeyInputEl.blur();
     }
   });
@@ -197,27 +197,28 @@ function handleKeyPress(e) {
     e.preventDefault();
     e.stopPropagation();
 
-    // Map special keys to Glk keycodes (from glkapi.js Const values)
-    const specialKeyCodes = {
-      'ArrowLeft': 0xfffffffe,
-      'ArrowRight': 0xfffffffd,
-      'ArrowUp': 0xfffffffc,
-      'ArrowDown': 0xfffffffb,
-      'Enter': 0xfffffffa,
-      'Backspace': 0xfffffff9,
-      'Delete': 0xfffffff9,
-      'Escape': 0xfffffff8,
-      'Tab': 0xfffffff7,
-      'PageUp': 0xfffffff6,
-      'PageDown': 0xfffffff5,
-      'Home': 0xfffffff4,
-      'End': 0xfffffff3,
+    // Map special keys to Glk key names (for glkapi.js KeystrokeNameMap)
+    // These match the string keys expected by glkapi.js (lines 1419-1422)
+    const specialKeyNames = {
+      'ArrowLeft': 'left',
+      'ArrowRight': 'right',
+      'ArrowUp': 'up',
+      'ArrowDown': 'down',
+      'Enter': 'return',
+      'Backspace': 'delete',
+      'Delete': 'delete',
+      'Escape': 'escape',
+      'Tab': 'tab',
+      'PageUp': 'pageup',
+      'PageDown': 'pagedown',
+      'Home': 'home',
+      'End': 'end',
     };
 
     // Check if this is a special key
-    if (specialKeyCodes[e.key]) {
-      // Send special keycode directly
-      sendInput(specialKeyCodes[e.key], 'char');
+    if (specialKeyNames[e.key]) {
+      // Send special key name (string) that glkapi will convert to keycode
+      sendInput(specialKeyNames[e.key], 'char');
     } else if (e.key.length === 1) {
       // Regular printable character - send as-is
       sendInput(e.key, 'char');
