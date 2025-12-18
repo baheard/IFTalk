@@ -1,151 +1,189 @@
 # IFTalk TODO
 
-## ✅ Recent Completions
+## ✅ Autosave/Restore: WORKING (December 17, 2024)
 
-### December 17, 2024 - Keyboard Input System
-- ✅ **Inline Keyboard Input** - New text input system with styled `>` prompt
-- ✅ **Input Mode Detection** - Auto-hide on char mode, show on line mode
-- ✅ **Echo Suppression** - Detects and skips glk-input command echoes
-- ✅ **Focus Behavior** - Auto-focus, click-to-focus, no flash transitions
-- ✅ **Old Input Removal** - Cleaned up userInput, sendBtn, inputArea elements
+**Status:** Functional with minor cosmetic issues
 
-### December 16, 2024 - UX & Features
-- ✅ **TTS/Narration** - Working with browser speechSynthesis
-- ✅ **Upper Window Narration** - Quotes and formatted text now narrated
-- ✅ **Autoplay Behavior** - Fixed restart/navigation auto-start issues
-- ✅ **Settings Panel** - Fixed button not opening panel (class mismatch)
-- ✅ **Microphone Default** - Now starts muted by default
-- ✅ **Push-to-Talk** - Changed Alt → Ctrl (fixes browser menu focus issue)
-- ✅ **Speech Speed Slider** - Adjustable 0.5x - 1.5x with localStorage persistence
-- ✅ **Collapsible Settings** - All sections expandable with smooth animations
-- ✅ **Comprehensive Logging** - TTS pipeline fully instrumented for debugging
-- ✅ **State Tracking** - Autoplay state changes logged with stack traces
-- ✅ **Auto-scroll to Highlight** - Screen scrolls to currently highlighted text during narration
-- ✅ **Title Chunking** - Asterisk-wrapped titles (* TITLE *) split into separate narration chunks
+### What Works
 
-### December 15, 2024 - Core Fixes
-- ✅ **ifvms.js 1.1.6** - Updated from 2017 version
-- ✅ **Socket.IO Removed** - Completely eliminated legacy infrastructure
-- ✅ **Generation Counter Fixed** - Commands now accepted properly by ZVM
-- ✅ **VM Start Timing Fixed** - Resolved DOM initialization race condition
+- ✅ Autosave after each turn
+- ✅ Auto-restore on page load
+- ✅ VM restores to correct position
+- ✅ Display HTML shows saved content immediately
+- ✅ Auto-keypress advances past intro (no manual action needed)
+- ✅ Input becomes available automatically
+- ✅ Game continues from saved position
+
+### Known Issues
+
+**Minor: Transition error messages**
+- "I didn't understand that sentence."
+- "I beg your pardon?"
+
+**Cause:** Auto-keypress is processed by restored VM as a command
+**Impact:** Cosmetic only - doesn't affect functionality
+**Fix Priority:** Low - can add filtering later if needed
 
 ---
 
 ## 📋 Current Tasks
 
 ### High Priority
-- [ ] Test keyboard input across all games (line and char modes)
-- [ ] Verify echo suppression works for all command formats
-- [ ] Test TTS narration thoroughly across all 4 games
-- [ ] Test focus behavior (auto-focus, click-to-focus, typing to focus)
+
+- [ ] **Hide transition error messages** - Filter specific patterns or skip those updates
+- [ ] **Add "Restoring..." overlay** - Visual feedback during transition
+- [ ] **Test all games** - Verify with Anchorhead, Photopia, Dungeon, Lost Pig
+- [ ] **Test edge cases** - Rapid commands, multiple refreshes
 
 ### Medium Priority
-- [ ] Verify responsive layout on mobile devices (768px, 480px breakpoints)
-- [ ] Review voice recognition accuracy with different accents
-- [ ] Performance testing with longer game sessions
-- [ ] Test keyboard navigation accessibility
+
+- [ ] **Chunk index restoration** - Test narration resumes from correct chunk
+- [ ] **Visual feedback** - Show "Restored from last session" toast
+- [ ] **Clear old autosaves** - Cleanup saves older than 30 days
+- [ ] **Storage efficiency** - Consider IndexedDB for large saves
 
 ### Low Priority
-- [ ] Improve loading states visual feedback
-- [ ] Polish error message styling
-- [ ] Consider upgrading GlkOte from 2.2.5 → 2.3.7
-- [ ] Add keyboard shortcut help overlay
+
+- [ ] **Autosave indicator** - Visual feedback when autosave occurs
+- [ ] **Multiple save slots** - Manual save/load in addition to autosave
+- [ ] **Export/import saves** - Download/upload save files
 
 ---
 
-## Current Architecture
+## ✅ Recently Completed (December 17, 2024)
 
-### VoxGlk Custom Display Engine
+### Autosave/Restore Implementation
 
-**Files:**
-- `public/js/game/voxglk.js` - Display interface (init, update, error)
-- `public/js/game/voxglk-renderer.js` - HTML renderer with space preservation
-- `public/js/narration/chunking.js` - TTS marker system (currently broken)
+**Key accomplishments:**
+- ✅ Researched ifvms.js + GlkOte save systems
+- ✅ Confirmed Z-machine requires custom save system (Glulx-only limitation)
+- ✅ Implemented working restore with proper timing
+- ✅ Auto-keypress eliminates manual action requirement
+- ✅ Display HTML restoration shows saved content immediately
 
-**Data Flow:**
+**Lessons learned:**
+- Can't restore before vm.start() (VM not initialized)
+- Can't call vm.run() after restore (input request conflicts)
+- Must restore after first update (VM fully running)
+- Display HTML must be restored separately
+- Auto-keypress needed to clear intro input
+
+**Documentation created:**
+- `reference/save-restore-research.md` - Technical deep dive
+- `reference/save-restore-status.md` - Current implementation status
+
+### Keyboard Input System (December 17, 2024)
+
+- ✅ Inline text input with styled `>` prompt
+- ✅ Mode detection (line vs char input)
+- ✅ Echo suppression for command echoes
+- ✅ Auto-focus and click-to-focus behavior
+
+### UX Improvements (December 16, 2024)
+
+- ✅ TTS/Narration working with browser speechSynthesis
+- ✅ Upper window (quotes/formatting) narration
+- ✅ Settings panel with collapsible sections
+- ✅ Speech speed slider (0.5x - 1.5x)
+- ✅ Auto-scroll to highlighted text during narration
+- ✅ Title chunking for section headers
+
+### Core Fixes (December 15, 2024)
+
+- ✅ Updated ifvms.js to 1.1.6 (from 2017 version)
+- ✅ Removed Socket.IO (fully browser-based now)
+- ✅ Fixed generation counter (commands accepted properly)
+- ✅ Fixed VM start timing (DOM race condition)
+
+---
+
+## 🔧 Technical Architecture
+
+### Current Autosave/Restore Flow
+
 ```
-ZVM (ifvms.js game engine)
-  ↓ calls Glk API
-glkapi.js
-  ↓ GlkOte.update(updateObj)
-VoxGlk.update()
-  ↓ VoxGlkRenderer.renderUpdate()
-  ↓ HTML with white-space: pre
-#gameOutputInner (rendered output)
-  ↓ chunking.js inserts markers
-TTS narration with highlighting
+1. Game starts normally (shows intro with char input)
+   ↓
+2. First update arrives (~100ms)
+   ↓
+3. autoLoad() triggered
+   - Restores VM state with restore_file()
+   - Restores display HTML (user sees saved content)
+   ↓
+4. Auto-keypress sent (~200ms later)
+   - Clears intro char input
+   - VM processes from restored state
+   ↓
+5. Error messages appear (brief, cosmetic)
+   ↓
+6. Line input becomes available
+   ↓
+7. User can play from saved position
 ```
 
-**Key Features:**
-- Browser-based Z-machine interpreter (ifvms.js)
-- Custom VoxGlk renderer (replaces GlkOte UI)
-- Preserves spaces via `white-space: pre` CSS
-- Responsive layout (768px, 480px breakpoints)
-- Voice recognition (Web Speech API)
-- TTS narration (Web Speech API)
+### Files Modified
+
+**Core implementation:**
+- `public/js/game/game-loader.js` - Sets `shouldAutoRestore` flag
+- `public/js/game/voxglk.js` - Triggers autoLoad(), sends auto-keypress
+- `public/js/game/save-manager.js` - Handles VM + HTML restoration
+
+### Save Data Structure
+
+**localStorage Key:** `iftalk_autosave_${gameName}`
+
+**Format:**
+```javascript
+{
+  timestamp: "2024-12-17T...",
+  gameName: "anchorhead",
+  gameSignature: "080000...",
+  quetzalData: "base64...",     // VM state
+  displayHTML: {
+    statusBar: "<div>...</div>",
+    upperWindow: "<div>...</div>",
+    lowerWindow: "<div>...</div>"
+  },
+  narrationState: {
+    currentChunkIndex: 3,
+    chunksLength: 9
+  }
+}
+```
 
 ---
 
-## What Works ✅
+## 📚 Documentation
 
-### Core Functionality
-- ✅ Game loading and playback (all 4 games: Anchorhead, Photopia, Dungeon, Lost Pig)
-- ✅ Inline keyboard input with mode detection (line/char)
-- ✅ Character input (single keypress, hidden input, any key advances)
-- ✅ Line input (command entry with styled `>` prompt)
-- ✅ Echo suppression (glk-input detection and filtering)
-- ✅ Focus management (auto-focus, click-to-focus, typing-to-focus)
-- ✅ Voice recognition with Ctrl push-to-talk
-- ✅ TTS narration with browser speechSynthesis
-- ✅ Text highlighting during narration
-- ✅ Responsive mobile layout (768px, 480px breakpoints)
-- ✅ Status line rendering
-- ✅ Upper window rendering (quotes, formatted text)
-- ✅ Generation counter sync
-
-### UI Features
-- ✅ Settings panel (slide-in from right)
-- ✅ Collapsible settings sections
-- ✅ Speech speed control (0.5x - 1.5x)
-- ✅ Voice selection (narration + app voices)
-- ✅ Pronunciation dictionary
-- ✅ Navigation controls (play/pause, skip, restart)
-- ✅ Autoplay toggle
-- ✅ Microphone mute toggle
-
-### Voice Control
-- ✅ Navigation commands (restart, back, stop, pause, play, skip, skip all)
-- ✅ Game commands (next, enter, more, print [text])
-- ✅ Keyboard shortcuts (←/→ nav, M mute, Ctrl push-to-talk, Esc stop)
+**Reference files:**
+- `reference/save-restore-research.md` - Deep dive into ifvms.js/GlkOte
+- `reference/save-restore-status.md` - Current implementation status
+- `reference/design-decisions.md` - Text processing pipeline
+- `reference/navigation-rules.md` - Playback controls behavior
+- `reference/zvm-integration.md` - ifvms.js + GlkOte setup
 
 ---
 
-## Quick Commands
+## Testing
 
+**To test autosave/restore:**
 ```bash
-# Start server
-cd /e/Project/IFTalk && npm start
-
-# Access at http://localhost:3000
+1. Load game (e.g., Anchorhead)
+2. Play for a few turns
+3. Refresh page (Ctrl+R)
+4. Should restore automatically
+5. Brief error messages appear (expected)
+6. Continue playing normally
 ```
 
----
+**To clear saves:**
+```javascript
+// In browser console:
+localStorage.clear()
+```
 
-## Version History
-
-**Architecture Evolution:**
-1. **v1:** Server-side Frotz via WSL + Socket.IO (removed Dec 2024)
-2. **v2:** Browser-based Parchment (replaced Dec 2024)
-3. **v3 (current):** Browser-based ifvms.js + VoxGlk custom renderer
-
-**Current Libraries:**
-- ifvms.js: 1.1.6 (updated Dec 15, 2024) ✅
-- GlkOte: 2.2.5 (latest: 2.3.7)
-- jQuery: 3.7.1
-
-**Key Settings:**
-- Speech Rate: 0.5x - 1.5x (default 1.0x)
-- Microphone: Muted by default
-- Push-to-Talk: Ctrl key
-- Autoplay: Toggle in settings
-- Settings Sections: Collapsible (start collapsed)
+**To inspect save:**
+```javascript
+// In browser console:
+JSON.parse(localStorage.getItem('iftalk_autosave_anchorhead'))
+```

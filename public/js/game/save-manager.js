@@ -46,7 +46,6 @@ export async function quickSave() {
         localStorage.setItem(key, JSON.stringify(saveData));
 
         updateStatus('Quick saved', 'success');
-        console.log('[SaveManager] Quick saved to', key);
 
         return true;
 
@@ -63,7 +62,7 @@ export async function quickSave() {
 export async function autoSave() {
     try {
         const gameSignature = getGameSignature();
-        if (!gameSignature) {
+        if (!state.currentGameName) {
             return false;
         }
 
@@ -74,18 +73,66 @@ export async function autoSave() {
         // Convert to base64 for localStorage
         const base64Data = btoa(String.fromCharCode(...new Uint8Array(quetzalData)));
 
-        // Save with metadata
+        // Save the current display HTML so we can restore it
+        const statusBarEl = document.getElementById('statusBar');
+        const upperWindowEl = document.getElementById('upperWindow');
+        const lowerWindowEl = document.getElementById('lowerWindow');
+
+        // Get lowerWindow content excluding command line
+        let lowerWindowHTML = '';
+        if (lowerWindowEl) {
+            const commandLine = document.getElementById('commandLine');
+            if (commandLine) {
+                // Clone lowerWindow, remove commandLine, get HTML
+                const clone = lowerWindowEl.cloneNode(true);
+                const commandLineClone = clone.querySelector('#commandLine');
+                if (commandLineClone) {
+                    commandLineClone.remove();
+                }
+                lowerWindowHTML = clone.innerHTML;
+            } else {
+                lowerWindowHTML = lowerWindowEl.innerHTML;
+            }
+        }
+
+        // Get VoxGlk state
+        const { getGeneration, getInputWindowId } = await import('./voxglk.js');
+        const savedGeneration = getGeneration();
+        const savedInputWindowId = getInputWindowId();
+
+        // Save with metadata, verification data, and display HTML
         const saveData = {
             timestamp: new Date().toISOString(),
-            gameName: state.currentGameName || 'unknown',
+            gameName: state.currentGameName,
             gameSignature: gameSignature,
-            quetzalData: base64Data
+            quetzalData: base64Data,
+            // Verification data to confirm successful restore
+            verification: {
+                pc: pc,
+                stackDepth: window.zvmInstance.stack?.length || 0,
+                callStackDepth: window.zvmInstance.callstack?.length || 0
+            },
+            voxglkState: {
+                generation: savedGeneration,
+                inputWindowId: savedInputWindowId
+            },
+            displayHTML: {
+                statusBar: statusBarEl?.innerHTML || '',
+                upperWindow: upperWindowEl?.innerHTML || '',
+                lowerWindow: lowerWindowHTML
+            }
         };
 
-        const key = `iftalk_autosave_${gameSignature}`;
+        const key = `iftalk_autosave_${state.currentGameName}`;
         localStorage.setItem(key, JSON.stringify(saveData));
 
-        console.log('[SaveManager] Auto saved to', key);
+        console.log('[SaveManager] ✅ Auto saved:', {
+            pc: pc,
+            stackDepth: saveData.verification.stackDepth,
+            callStackDepth: saveData.verification.callStackDepth,
+            htmlLength: saveData.displayHTML.lowerWindow.length
+        });
+
         return true;
 
     } catch (error) {
@@ -99,21 +146,25 @@ export async function autoSave() {
  */
 export async function autoLoad() {
     try {
-        const gameSignature = getGameSignature();
-        if (!gameSignature) {
+        if (!state.currentGameName) {
             return false;
         }
 
-        // Read from localStorage
-        const key = `iftalk_autosave_${gameSignature}`;
+        // Read from localStorage using game name
+        const key = `iftalk_autosave_${state.currentGameName}`;
         const saved = localStorage.getItem(key);
 
         if (!saved) {
-            console.log('[SaveManager] No autosave found');
             return false;
         }
 
         const saveData = JSON.parse(saved);
+
+        // Verify game name matches (basic check)
+        if (saveData.gameName !== state.currentGameName) {
+            console.warn('[SaveManager] Save file game name mismatch');
+            return false;
+        }
 
         // Decode base64 to binary
         const binaryString = atob(saveData.quetzalData);
@@ -122,42 +173,92 @@ export async function autoLoad() {
             bytes[i] = binaryString.charCodeAt(i);
         }
 
-        // Cancel any pending input requests before restoring
-        // This prevents "window already has keyboard request" error
-        console.log('[SaveManager] Attempting to cancel pending input requests');
-        try {
-            // Iterate through all Glk windows and cancel any active input
-            if (window.Glk && window.Glk.windows) {
-                for (let win of window.Glk.windows.values()) {
-                    if (win && win.type !== 'graphics') {
-                        if (win.char_request) {
-                            console.log('[SaveManager] Canceling char input on window', win.id);
-                            window.Glk.glk_cancel_char_event(win);
-                        }
-                        if (win.line_request) {
-                            console.log('[SaveManager] Canceling line input on window', win.id);
-                            window.Glk.glk_cancel_line_event(win, null);
-                        }
-                    }
-                }
-            }
-        } catch (e) {
-            console.error('[SaveManager] Input cancellation error:', e);
-        }
+        // Note: We don't need to cancel input requests anymore
+        // The auto-keypress approach handles the transition naturally
+        // Just restore the VM state and let the keypress clear the intro
 
         // Restore using ZVM
         const result = window.zvmInstance.restore_file(bytes.buffer);
 
         if (result === 2) { // ZVM returns 2 on successful restore
-            console.log('[SaveManager] Auto loaded from', key);
+            // Verify VM state matches saved state
+            if (saveData.verification) {
+                const restoredPC = window.zvmInstance.pc;
+                const restoredStackDepth = window.zvmInstance.stack?.length || 0;
+                const restoredCallStackDepth = window.zvmInstance.callstack?.length || 0;
+
+                const pcMatch = restoredPC === saveData.verification.pc;
+                const stackMatch = restoredStackDepth === saveData.verification.stackDepth;
+                const callStackMatch = restoredCallStackDepth === saveData.verification.callStackDepth;
+
+                console.log('[SaveManager] ✅ VM State Verification:', {
+                    pc: { saved: saveData.verification.pc, restored: restoredPC, match: pcMatch ? '✓' : '✗' },
+                    stackDepth: { saved: saveData.verification.stackDepth, restored: restoredStackDepth, match: stackMatch ? '✓' : '✗' },
+                    callStackDepth: { saved: saveData.verification.callStackDepth, restored: restoredCallStackDepth, match: callStackMatch ? '✓' : '✗' }
+                });
+
+                if (!pcMatch || !stackMatch || !callStackMatch) {
+                    console.warn('[SaveManager] ⚠️ VM state mismatch detected - restore may be incomplete');
+                }
+            }
+
             updateStatus('Restored from last session', 'success');
 
-            // Don't call run() - restore already handles continuing the game
-            // Calling run() triggers another update which would autosave over what we just loaded
+            // Restore VoxGlk state (generation, inputWindowId)
+            if (saveData.voxglkState && window._voxglkInstance) {
+                window._voxglkInstance.restore_state(
+                    saveData.voxglkState.generation,
+                    saveData.voxglkState.inputWindowId
+                );
+            }
+
+            // Restore display HTML so user sees saved content immediately
+            if (saveData.displayHTML) {
+                console.log('[SaveManager] Restoring display HTML...');
+                const statusBarEl = document.getElementById('statusBar');
+                const upperWindowEl = document.getElementById('upperWindow');
+                const lowerWindowEl = document.getElementById('lowerWindow');
+
+                if (statusBarEl && saveData.displayHTML.statusBar) {
+                    statusBarEl.innerHTML = saveData.displayHTML.statusBar;
+                    statusBarEl.style.display = '';
+                }
+                if (upperWindowEl) {
+                    upperWindowEl.innerHTML = saveData.displayHTML.upperWindow || '';
+                    if (saveData.displayHTML.upperWindow && saveData.displayHTML.upperWindow.trim()) {
+                        upperWindowEl.style.display = '';
+                    } else {
+                        upperWindowEl.style.display = 'none';
+                    }
+                }
+                if (lowerWindowEl && saveData.displayHTML.lowerWindow) {
+                    // Preserve command line element before restoring
+                    const commandLine = document.getElementById('commandLine');
+
+                    // Restore game content
+                    lowerWindowEl.innerHTML = saveData.displayHTML.lowerWindow;
+
+                    // Re-append command line
+                    if (commandLine) {
+                        lowerWindowEl.appendChild(commandLine);
+                    }
+
+                    // Scroll lowerWindow to bottom and focus input
+                    setTimeout(() => {
+                        lowerWindowEl.scrollTop = lowerWindowEl.scrollHeight;
+
+                        // Focus the command input
+                        const commandText = document.getElementById('commandText');
+                        if (commandText) {
+                            commandText.focus();
+                        }
+                    }, 500);
+                }
+                console.log('[SaveManager] Display restored - press any key to activate input');
+            }
 
             return true;
         } else {
-            console.log('[SaveManager] Auto load failed: Invalid save data');
             return false;
         }
 
@@ -201,7 +302,6 @@ export async function quickLoad() {
 
         if (result === 2) { // ZVM returns 2 on successful restore
             updateStatus('Quick loaded', 'success');
-            console.log('[SaveManager] Quick loaded from', key);
 
             // Trigger UI refresh
             window.zvmInstance.run();
@@ -235,7 +335,7 @@ export function exportSaveToFile() {
         const saved = localStorage.getItem(key);
 
         if (!saved) {
-            updateStatus('No quick save found - Press F5 to save first', 'error');
+            updateStatus('No quick save found - Use Quick Save button first', 'error');
             return;
         }
 
@@ -259,7 +359,6 @@ export function exportSaveToFile() {
         URL.revokeObjectURL(url);
 
         updateStatus('Save exported to file!', 'success');
-        console.log('[SaveManager] Save exported to file');
 
     } catch (error) {
         console.error('[SaveManager] Export error:', error);
@@ -295,8 +394,7 @@ export function importSaveFromFile() {
             const key = `iftalk_quicksave_${saveData.gameSignature}`;
             localStorage.setItem(key, JSON.stringify(saveData));
 
-            updateStatus('Save imported! Press F9 to load', 'success');
-            console.log('[SaveManager] Save imported from file');
+            updateStatus('Save imported! Use Quick Load button to load', 'success');
 
         } catch (error) {
             console.error('[SaveManager] Import error:', error);
@@ -312,23 +410,6 @@ export function importSaveFromFile() {
  * Initialize save handlers and keyboard shortcuts
  */
 export function initSaveHandlers() {
-    console.log('[SaveManager] Quick save/load initialized');
-
-    // F5 - Quick Save
-    document.addEventListener('keydown', (e) => {
-        if (e.key === 'F5') {
-            e.preventDefault();
-            quickSave();
-        }
-    });
-
-    // F9 - Quick Load
-    document.addEventListener('keydown', (e) => {
-        if (e.key === 'F9') {
-            e.preventDefault();
-            quickLoad();
-        }
-    });
 
     // Quick Save button (in both toolbar and settings)
     const quickSaveBtn = document.getElementById('quickSaveBtn');

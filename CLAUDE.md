@@ -237,15 +237,41 @@ For detailed technical information, see the `reference/` folder:
 7. **Styling** - Clean visual integration
    - File: `public/styles.css`
    - `>` prompt positioned absolutely inside input area
-   - Transparent input background blends with game text
-   - Monospace font matches game output
-   - 0.5ch spacing between `>` and text
-   - No visible borders or outlines
+
+12. **Autosave System Investigation** - Researched ifvms.js built-in autosave
+   - **Critical Finding**: ifvms.js autosave ONLY works for Glulx games, NOT Z-machine games
+   - Root cause: `save_allstate()` in glkapi.js requires GiDispa (Glulx dispatch layer)
+   - GiDispa is null for Z-machine games (Lost Pig, Anchorhead, Zork, etc.)
+   - Error: `Cannot read properties of null (reading 'get_retained_array')`
+   - **Solution**: Confirmed custom save-manager.js is the correct approach for Z-machine
+   - File: `public/js/game/game-loader.js:82` - Set `do_vm_autosave: false`
+   - File: `public/js/game/voxglk.js:335-348` - Restored manual autoSave() calls
+   - Files modified but reverted: `public/lib/dialog-stub.js`, `public/lib/glkapi.js`
+   - **Documentation**: Updated `reference/save-restore-research.md` with findings
+   - See: [Save/Restore Research](reference/save-restore-research.md#critical-finding-z-machine-vs-glulx-autosave-support)
+
+13. **Autosave/Restore Completed** - Fully functional with "bootstrap" technique
+   - **The Problem**: After `restore_file()`, VM memory restored but VM frozen (not running)
+   - **The Solution**: "Wake" VM by fulfilling intro's pending char input request
+   - Files: `public/js/game/voxglk.js`, `public/js/game/save-manager.js`
+   - **How it works**:
+     1. Game starts, intro shows char input request at gen: 1
+     2. autoLoad() restores VM memory + VoxGlk state + display HTML
+     3. Send char input with `gen: 1` to fulfill intro's pending request
+     4. VM wakes up, processes input in restored state
+     5. VM sends fresh update with line input at restored generation
+     6. User can send commands normally
+   - **Why this works**: Uses intro's char request as "bootstrap trigger" to wake frozen VM
+   - **Failed alternatives**: vm.run() (conflicts), cancel input (doesn't help), no wake (VM stays frozen)
+   - **Key insight**: Must use `gen: 1` (intro's generation), not restored generation (e.g., 5)
+   - **Result**: Clean restore with no error messages, commands work immediately
+   - **Documentation**: Updated `reference/save-restore-status.md` with complete details
 
 ### What Works Now
 - ✅ Game selection and loading
 - ✅ Browser-based ZVM game engine
 - ✅ Inline keyboard input with mode detection (line/char)
+- ✅ **Autosave/restore** - Automatic save after each turn, restores on page load
 - ✅ Text-to-speech narration (browser-based) with speed control
 - ✅ Upper window (quotes/formatting) narration
 - ✅ Text highlighting with auto-scroll during narration
