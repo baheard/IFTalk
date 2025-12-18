@@ -18,6 +18,7 @@
   --text-primary: #e6e4e0;
   --text-secondary: #a8a5a0;
   --text-muted: #6b6966;
+  --text-system: #7eb8a8; /* Muted teal for system/app messages */
 
   --border-subtle: rgba(255, 255, 255, 0.08);
   --border-accent: rgba(139, 157, 195, 0.3);
@@ -790,6 +791,17 @@ body {
   letter-spacing: 0.01em;
 }
 
+/* System/app messages - distinct from game text */
+.system-message {
+  font-family: var(--font-mono);
+  color: var(--text-system);
+  background: rgba(126, 184, 168, 0.05);
+  padding: 8px 12px;
+  border-left: 2px solid var(--text-system);
+  margin: 4px 0;
+  border-radius: 4px;
+}
+
 /* Blank line spacer for vertical spacing between paragraphs */
 .blank-line-spacer {
   height: 16px;
@@ -901,20 +913,194 @@ body {
   font-style: italic;
 }
 
-/* Single-line Controls */
+/* Controls Wrapper */
 .controls-wrapper {
   background: var(--bg-surface);
   width: 100%;
   border-top: 1px solid var(--border-subtle);
   padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 
+/* Message Input Row */
+.message-input-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 800px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+.message-input {
+  flex: 1;
+  padding: 10px 16px;
+  border: 1px solid var(--border-subtle);
+  border-radius: 8px;
+  background: var(--bg-elevated);
+  color: var(--text-primary);
+  font-size: var(--font-m);
+  font-family: var(--font-mono);
+  transition: all 0.3s ease;
+}
+
+.message-input:focus {
+  outline: none;
+  border-color: var(--accent-primary);
+  box-shadow: 0 0 0 2px var(--highlight-active);
+}
+
+.message-input::placeholder {
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+.btn-send {
+  padding: 10px 16px;
+  border-radius: 8px;
+  background: var(--bg-elevated);
+  color: var(--text-secondary);
+  border: 1px solid var(--border-subtle);
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.btn-send:hover {
+  background: var(--highlight-active);
+  border-color: var(--accent-muted);
+  color: var(--text-primary);
+}
+
+.btn-send:active {
+  transform: scale(0.98);
+}
+
+/* Char Input Panel - replaces message input in char mode */
+.char-input-panel {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  max-width: 800px;
+  width: 100%;
+  margin: 0 auto;
+  padding: 8px 0;
+}
+
+/* Spacer pushes Enter to the right (like Send button position) */
+.char-input-spacer {
+  flex: 1;
+  min-width: 20px;
+}
+
+/* Arrow navigation buttons */
+.btn-char-nav {
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 1px solid var(--border-subtle);
+  border-radius: 8px;
+  background: var(--bg-elevated);
+  color: var(--text-secondary);
+  font-size: 20px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.btn-char-nav:hover {
+  background: var(--highlight-active);
+  border-color: var(--accent-muted);
+  color: var(--text-primary);
+  transform: scale(1.05);
+}
+
+.btn-char-nav:active {
+  transform: scale(0.95);
+}
+
+/* Keyboard button */
+.btn-char-action {
+  padding: 8px 12px;
+  border: 1px solid var(--border-subtle);
+  border-radius: 8px;
+  background: var(--bg-elevated);
+  color: var(--text-secondary);
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.btn-char-action:hover {
+  background: var(--highlight-active);
+  border-color: var(--accent-muted);
+  color: var(--text-primary);
+}
+
+.btn-char-action:active {
+  transform: scale(0.98);
+}
+
+/* Escape button - matches arrow button dimensions */
+#charEscBtn {
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  justify-content: center;
+}
+
+/* Enter button - styled like send button */
+.btn-char-enter {
+  padding: 10px 16px;
+  background: var(--bg-elevated);
+  color: var(--text-secondary);
+  border: 1px solid var(--border-subtle);
+}
+
+.btn-char-enter:hover {
+  background: var(--highlight-active);
+  border-color: var(--accent-muted);
+  color: var(--text-primary);
+}
+
+/* Mobile: Larger touch targets */
+@media (max-width: 768px) {
+  .btn-char-nav {
+    width: 48px;
+    height: 48px;
+  }
+
+  .btn-char-action {
+    padding: 10px 14px;
+  }
+
+  #charEscBtn {
+    width: 48px;
+    height: 48px;
+  }
+}
+
+/* Navigation Controls */
 .controls {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: 4px;
+  gap: 2px;
   max-width: 800px;
+  width: 100%;
   margin: 0 auto;
 }
 
@@ -2288,7 +2474,7 @@ body {
 #upperWindow {
   font-family: var(--font-mono);
   font-size: var(--font-m);
-  color: var(--text-primary);
+  color: var(--accent-warm);
   line-height: 1.4;
   flex-shrink: 0; /* Don't shrink when space is tight */
   /* Container will be styled by .grid-status.multiline */

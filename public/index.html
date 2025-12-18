@@ -258,8 +258,9 @@
     </div>
   </div>
 
-  <!-- Single-line Controls -->
+  <!-- Controls Panel -->
   <div class="controls-wrapper">
+    <!-- Navigation Controls -->
     <div class="controls hidden" id="controls">
       <button id="skipToStartBtn" class="btn-nav" title="&quot;Restart&quot;"><span class="material-icons">skip_previous</span></button>
       <button id="prevChunkBtn" class="btn-nav" title="&quot;Back&quot;"><span class="material-icons">fast_rewind</span></button>
@@ -269,6 +270,49 @@
       <div class="controls-spacer"></div>
       <button id="settingsBtn" class="btn-nav btn-settings" title="Settings"><span class="material-icons">settings</span></button>
       <button id="muteBtn" class="btn-mic" title="Toggle voice input"><span class="material-icons">mic</span></button>
+    </div>
+
+    <!-- Message Input Row -->
+    <div class="message-input-row hidden" id="messageInputRow">
+      <input type="text" class="message-input" id="messageInput" placeholder="Type a command..." autocomplete="off" spellcheck="false">
+      <button id="sendMessageBtn" class="btn-send" title="Send command">
+        <span class="material-icons">send</span>
+      </button>
+    </div>
+
+    <!-- Char Input Panel (replaces message input in char mode) -->
+    <div class="char-input-panel hidden" id="charInputPanel">
+      <!-- Arrow navigation -->
+      <button class="btn-char-nav" id="charLeftBtn" title="Left Arrow" aria-label="Left Arrow">
+        <span class="material-icons">arrow_back</span>
+      </button>
+      <button class="btn-char-nav" id="charUpBtn" title="Up Arrow" aria-label="Up Arrow">
+        <span class="material-icons">arrow_upward</span>
+      </button>
+      <button class="btn-char-nav" id="charDownBtn" title="Down Arrow" aria-label="Down Arrow">
+        <span class="material-icons">arrow_downward</span>
+      </button>
+      <button class="btn-char-nav" id="charRightBtn" title="Right Arrow" aria-label="Right Arrow">
+        <span class="material-icons">arrow_forward</span>
+      </button>
+
+      <!-- Spacer to push Enter to the right -->
+      <div class="char-input-spacer"></div>
+
+      <!-- Keyboard button (opens virtual keyboard) -->
+      <button class="btn-char-action" id="charKeyboardBtn" title="Type any key" aria-label="Open Keyboard">
+        <span class="material-icons">keyboard</span>
+      </button>
+
+      <!-- Escape button -->
+      <button class="btn-char-action" id="charEscBtn" title="Escape" aria-label="Escape Key">
+        Esc
+      </button>
+
+      <!-- Enter button (rightmost, like Send button) -->
+      <button class="btn-char-action btn-char-enter" id="charEnterBtn" title="Enter" aria-label="Enter Key">
+        <span class="material-icons">send</span>
+      </button>
     </div>
   </div>
 </div>
