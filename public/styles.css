@@ -439,7 +439,7 @@ body {
 }
 
 .pronunciation-word {
-  font-family: 'Space Mono', 'Consolas', monospace;
+  font-family: 'IBM Plex Mono', 'Consolas', monospace;
   color: var(--text-primary);
   font-weight: 500;
   min-width: 120px;
@@ -451,7 +451,7 @@ body {
 }
 
 .pronunciation-says {
-  font-family: 'Space Mono', 'Consolas', monospace;
+  font-family: 'IBM Plex Mono', 'Consolas', monospace;
   color: var(--accent-primary);
   flex: 1;
 }
@@ -492,7 +492,7 @@ body {
   border-radius: 6px;
   color: var(--text-primary);
   font-size: 14px;
-  font-family: 'Space Mono', 'Consolas', monospace;
+  font-family: 'IBM Plex Mono', 'Consolas', monospace;
 }
 
 .pronunciation-input:focus {
@@ -578,7 +578,7 @@ body {
   background: var(--bg-tertiary);
   padding: 2px 6px;
   border-radius: 3px;
-  font-family: 'Space Mono', 'Consolas', monospace;
+  font-family: 'IBM Plex Mono', 'Consolas', monospace;
   font-size: 12px;
   color: var(--accent-primary);
 }
