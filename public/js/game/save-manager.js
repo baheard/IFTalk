@@ -18,6 +18,7 @@ function getGameSignature() {
 
 /**
  * Quick save to dedicated quick slot
+ * Uses same comprehensive approach as autosave
  */
 export async function quickSave() {
     try {
@@ -34,24 +35,255 @@ export async function quickSave() {
         // Convert to base64 for localStorage
         const base64Data = btoa(String.fromCharCode(...new Uint8Array(quetzalData)));
 
-        // Save with metadata
+        // Save the current display HTML so we can restore it
+        const statusBarEl = document.getElementById('statusBar');
+        const upperWindowEl = document.getElementById('upperWindow');
+        const lowerWindowEl = document.getElementById('lowerWindow');
+
+        // Get lowerWindow content excluding command line
+        let lowerWindowHTML = '';
+        if (lowerWindowEl) {
+            const commandLine = document.getElementById('commandLine');
+            if (commandLine) {
+                // Clone lowerWindow, remove commandLine, get HTML
+                const clone = lowerWindowEl.cloneNode(true);
+                const commandLineClone = clone.querySelector('#commandLine');
+                if (commandLineClone) {
+                    commandLineClone.remove();
+                }
+                lowerWindowHTML = clone.innerHTML;
+            } else {
+                lowerWindowHTML = lowerWindowEl.innerHTML;
+            }
+        }
+
+        // Get VoxGlk state
+        const { getGeneration, getInputWindowId } = await import('./voxglk.js');
+        const savedGeneration = getGeneration();
+        const savedInputWindowId = getInputWindowId();
+
+        // Save with metadata (same structure as autosave)
         const saveData = {
             timestamp: new Date().toISOString(),
             gameName: state.currentGameName || 'unknown',
             gameSignature: gameSignature,
-            quetzalData: base64Data
+            quetzalData: base64Data,
+            displayHTML: {
+                statusBar: statusBarEl?.innerHTML || '',
+                upperWindow: upperWindowEl?.innerHTML || '',
+                lowerWindow: lowerWindowHTML
+            },
+            voxglkState: {
+                generation: savedGeneration,
+                inputWindowId: savedInputWindowId
+            },
+            narrationState: {
+                currentChunkIndex: state.currentChunkIndex,
+                chunksLength: state.narrationChunks.length
+            }
         };
 
         const key = `iftalk_quicksave_${gameSignature}`;
         localStorage.setItem(key, JSON.stringify(saveData));
 
         updateStatus('Quick saved', 'success');
+        console.log('[SaveManager] Quick save successful');
 
         return true;
 
     } catch (error) {
         console.error('[SaveManager] Quick save error:', error);
         updateStatus('Quick save failed: ' + error.message, 'error');
+        return false;
+    }
+}
+
+/**
+ * Custom save to named slot (for SAVE meta-command)
+ * @param {string} saveName - Name for the save slot
+ */
+export async function customSave(saveName) {
+    try {
+        if (!state.currentGameName) {
+            console.error('[SaveManager] No game loaded');
+            return false;
+        }
+
+        // Get Quetzal save data from ZVM
+        const pc = window.zvmInstance.pc;
+        const quetzalData = window.zvmInstance.save_file(pc);
+
+        // Convert to base64 for localStorage
+        const base64Data = btoa(String.fromCharCode(...new Uint8Array(quetzalData)));
+
+        // Save the current display HTML so we can restore it
+        const statusBarEl = document.getElementById('statusBar');
+        const upperWindowEl = document.getElementById('upperWindow');
+        const lowerWindowEl = document.getElementById('lowerWindow');
+
+        // Get lowerWindow content excluding command line
+        let lowerWindowHTML = '';
+        if (lowerWindowEl) {
+            const commandLine = document.getElementById('commandLine');
+            if (commandLine) {
+                const clone = lowerWindowEl.cloneNode(true);
+                const commandLineClone = clone.querySelector('#commandLine');
+                if (commandLineClone) {
+                    commandLineClone.remove();
+                }
+                lowerWindowHTML = clone.innerHTML;
+            } else {
+                lowerWindowHTML = lowerWindowEl.innerHTML;
+            }
+        }
+
+        // Get VoxGlk state
+        const { getGeneration, getInputWindowId } = await import('./voxglk.js');
+        const savedGeneration = getGeneration();
+        const savedInputWindowId = getInputWindowId();
+
+        // Save with metadata (same structure as quicksave)
+        const saveData = {
+            timestamp: new Date().toISOString(),
+            gameName: state.currentGameName,
+            saveName: saveName,
+            quetzalData: base64Data,
+            displayHTML: {
+                statusBar: statusBarEl?.innerHTML || '',
+                upperWindow: upperWindowEl?.innerHTML || '',
+                lowerWindow: lowerWindowHTML
+            },
+            voxglkState: {
+                generation: savedGeneration,
+                inputWindowId: savedInputWindowId
+            },
+            narrationState: {
+                currentChunkIndex: state.currentChunkIndex,
+                chunksLength: state.narrationChunks.length
+            }
+        };
+
+        const key = `iftalk_customsave_${state.currentGameName}_${saveName}`;
+        localStorage.setItem(key, JSON.stringify(saveData));
+
+        console.log('[SaveManager] Custom save successful:', saveName);
+        return true;
+
+    } catch (error) {
+        console.error('[SaveManager] Custom save error:', error);
+        return false;
+    }
+}
+
+/**
+ * Custom load from named slot (for RESTORE meta-command)
+ * @param {string} saveName - Name of the save slot
+ */
+export async function customLoad(saveName) {
+    try {
+        if (!state.currentGameName) {
+            console.error('[SaveManager] No game loaded');
+            return false;
+        }
+
+        // Read from localStorage
+        const key = `iftalk_customsave_${state.currentGameName}_${saveName}`;
+        const saved = localStorage.getItem(key);
+
+        if (!saved) {
+            console.error('[SaveManager] Custom save not found:', saveName);
+            return false;
+        }
+
+        const saveData = JSON.parse(saved);
+
+        // Decode base64 to binary
+        const binaryString = atob(saveData.quetzalData);
+        const bytes = new Uint8Array(binaryString.length);
+        for (let i = 0; i < binaryString.length; i++) {
+            bytes[i] = binaryString.charCodeAt(i);
+        }
+
+        // Restore using ZVM
+        const result = window.zvmInstance.restore_file(bytes.buffer);
+
+        if (result === 2) { // ZVM returns 2 on successful restore
+            console.log('[SaveManager] Custom load: VM state restored');
+
+            // Restore VoxGlk state (generation, inputWindowId)
+            if (saveData.voxglkState && window._voxglkInstance) {
+                window._voxglkInstance.restore_state(
+                    saveData.voxglkState.generation,
+                    saveData.voxglkState.inputWindowId
+                );
+                console.log('[SaveManager] Custom load: VoxGlk state restored');
+            }
+
+            // Restore display HTML
+            if (saveData.displayHTML) {
+                console.log('[SaveManager] Custom load: Restoring display HTML...');
+                const statusBarEl = document.getElementById('statusBar');
+                const upperWindowEl = document.getElementById('upperWindow');
+                const lowerWindowEl = document.getElementById('lowerWindow');
+
+                if (statusBarEl && saveData.displayHTML.statusBar) {
+                    statusBarEl.innerHTML = saveData.displayHTML.statusBar;
+                    statusBarEl.style.display = '';
+                }
+                if (upperWindowEl) {
+                    upperWindowEl.innerHTML = saveData.displayHTML.upperWindow || '';
+                    if (saveData.displayHTML.upperWindow && saveData.displayHTML.upperWindow.trim()) {
+                        upperWindowEl.style.display = '';
+                    } else {
+                        upperWindowEl.style.display = 'none';
+                    }
+                }
+                if (lowerWindowEl && saveData.displayHTML.lowerWindow) {
+                    const commandLine = document.getElementById('commandLine');
+                    lowerWindowEl.innerHTML = saveData.displayHTML.lowerWindow;
+                    if (commandLine) {
+                        lowerWindowEl.appendChild(commandLine);
+                    }
+                    setTimeout(() => {
+                        lowerWindowEl.scrollTop = lowerWindowEl.scrollHeight;
+                    }, 0);
+                }
+            }
+
+            // Restore narration state if available
+            if (saveData.narrationState) {
+                state.currentChunkIndex = saveData.narrationState.currentChunkIndex;
+                console.log('[SaveManager] Custom load: Narration state restored');
+            }
+
+            // Send bootstrap input to wake VM
+            const { getAcceptCallback, setSkipNextUpdateAfterBootstrap } = await import('./voxglk.js');
+            const acceptCallback = getAcceptCallback();
+
+            if (acceptCallback) {
+                setSkipNextUpdateAfterBootstrap(true);
+
+                setTimeout(() => {
+                    console.log('[SaveManager] Custom load: Sending bootstrap input...');
+                    acceptCallback({
+                        type: 'char',
+                        gen: 1,
+                        window: 1,
+                        value: 10
+                    });
+                    console.log('[SaveManager] Custom load: Bootstrap input sent');
+                }, 100);
+            }
+
+            console.log('[SaveManager] Custom load successful:', saveName);
+            return true;
+        } else {
+            console.error('[SaveManager] Custom load failed: Invalid save data');
+            return false;
+        }
+
+    } catch (error) {
+        console.error('[SaveManager] Custom load error:', error);
         return false;
     }
 }
@@ -68,6 +300,12 @@ export async function autoSave() {
 
         // Get Quetzal save data from ZVM
         const pc = window.zvmInstance.pc;
+
+        // Debug: Check what we're saving
+        console.log('[SaveManager] Saving with PC:', pc, '(0x' + pc.toString(16) + ')');
+        console.log('[SaveManager] Memory at PC:', '0x' + window.zvmInstance.m.getUint8(pc).toString(16));
+        console.log('[SaveManager] Next 10 bytes:', Array.from(window.zvmInstance.m.getUint8Array(pc, 10)).map(b => '0x' + b.toString(16).padStart(2, '0')).join(' '));
+
         const quetzalData = window.zvmInstance.save_file(pc);
 
         // Convert to base64 for localStorage
@@ -197,6 +435,11 @@ export async function autoLoad() {
                     callStackDepth: { saved: saveData.verification.callStackDepth, restored: restoredCallStackDepth, match: callStackMatch ? '✓' : '✗' }
                 });
 
+                // Debug: Check memory at restored PC
+                console.log('[SaveManager] Restored PC:', restoredPC, '(0x' + restoredPC.toString(16) + ')');
+                console.log('[SaveManager] Memory at restored PC:', '0x' + window.zvmInstance.m.getUint8(restoredPC).toString(16));
+                console.log('[SaveManager] Next 10 bytes:', Array.from(window.zvmInstance.m.getUint8Array(restoredPC, 10)).map(b => '0x' + b.toString(16).padStart(2, '0')).join(' '));
+
                 if (!pcMatch || !stackMatch || !callStackMatch) {
                     console.warn('[SaveManager] ⚠️ VM state mismatch detected - restore may be incomplete');
                 }
@@ -270,6 +513,7 @@ export async function autoLoad() {
 
 /**
  * Quick load from dedicated quick slot
+ * Uses same bootstrap technique as autoLoad
  */
 export async function quickLoad() {
     try {
@@ -284,7 +528,7 @@ export async function quickLoad() {
         const saved = localStorage.getItem(key);
 
         if (!saved) {
-            updateStatus('No quick save found', 'error');
+            updateStatus('No quick save found - Use Quick Save button first', 'error');
             return false;
         }
 
@@ -301,10 +545,84 @@ export async function quickLoad() {
         const result = window.zvmInstance.restore_file(bytes.buffer);
 
         if (result === 2) { // ZVM returns 2 on successful restore
-            updateStatus('Quick loaded', 'success');
+            console.log('[SaveManager] Quick load: VM state restored');
 
-            // Trigger UI refresh
-            window.zvmInstance.run();
+            // Restore VoxGlk state (generation, inputWindowId)
+            if (saveData.voxglkState && window._voxglkInstance) {
+                window._voxglkInstance.restore_state(
+                    saveData.voxglkState.generation,
+                    saveData.voxglkState.inputWindowId
+                );
+                console.log('[SaveManager] Quick load: VoxGlk state restored');
+            }
+
+            // Restore display HTML so user sees saved content immediately
+            if (saveData.displayHTML) {
+                console.log('[SaveManager] Quick load: Restoring display HTML...');
+                const statusBarEl = document.getElementById('statusBar');
+                const upperWindowEl = document.getElementById('upperWindow');
+                const lowerWindowEl = document.getElementById('lowerWindow');
+
+                if (statusBarEl && saveData.displayHTML.statusBar) {
+                    statusBarEl.innerHTML = saveData.displayHTML.statusBar;
+                    statusBarEl.style.display = '';
+                }
+                if (upperWindowEl) {
+                    upperWindowEl.innerHTML = saveData.displayHTML.upperWindow || '';
+                    if (saveData.displayHTML.upperWindow && saveData.displayHTML.upperWindow.trim()) {
+                        upperWindowEl.style.display = '';
+                    } else {
+                        upperWindowEl.style.display = 'none';
+                    }
+                }
+                if (lowerWindowEl && saveData.displayHTML.lowerWindow) {
+                    // Preserve command line element before restoring
+                    const commandLine = document.getElementById('commandLine');
+
+                    // Restore game content
+                    lowerWindowEl.innerHTML = saveData.displayHTML.lowerWindow;
+
+                    // Re-append command line
+                    if (commandLine) {
+                        lowerWindowEl.appendChild(commandLine);
+                    }
+
+                    // Scroll to bottom
+                    setTimeout(() => {
+                        lowerWindowEl.scrollTop = lowerWindowEl.scrollHeight;
+                    }, 0);
+                }
+            }
+
+            // Restore narration state if available
+            if (saveData.narrationState) {
+                state.currentChunkIndex = saveData.narrationState.currentChunkIndex;
+                console.log('[SaveManager] Quick load: Narration state restored');
+            }
+
+            // Import voxglk to send bootstrap input and get acceptCallback
+            const { getAcceptCallback, setSkipNextUpdateAfterBootstrap } = await import('./voxglk.js');
+            const acceptCallback = getAcceptCallback();
+
+            if (acceptCallback) {
+                // Set flag to suppress next update (the response to bootstrap input)
+                setSkipNextUpdateAfterBootstrap(true);
+
+                // Send bootstrap char input to wake VM (same as autoload)
+                setTimeout(() => {
+                    console.log('[SaveManager] Quick load: Sending bootstrap input to wake VM...');
+                    acceptCallback({
+                        type: 'char',
+                        gen: 1,  // Always use intro's generation
+                        window: 1,
+                        value: 10  // Enter key
+                    });
+                    console.log('[SaveManager] Quick load: Bootstrap input sent');
+                }, 100);
+            }
+
+            updateStatus('Quick loaded', 'success');
+            console.log('[SaveManager] Quick load successful');
 
             return true;
         } else {

@@ -71,9 +71,23 @@ export function createNarrationChunks(html) {
 
   // Mark app voice spans before converting to plain text
   // Add ⚑APP⚑ markers around text that should use app voice
+  let appVoiceCount = 0;
   let markedHTML = html.replace(/<span([^>]*data-voice="app"[^>]*)>(.*?)<\/span>/gi, (match, attrs, content) => {
+    appVoiceCount++;
+    console.log('[Chunking] Found app voice span:', content);
     return `⚑APP⚑${content}⚑APP⚑`;
   });
+  console.log('[Chunking] Total app voice spans found:', appVoiceCount);
+
+  // Log where markers appear in the HTML
+  const markerPositions = [];
+  let tempMarkerRegex = /⚐(\d+)⚐/g;
+  let match;
+  while ((match = tempMarkerRegex.exec(markedHTML)) !== null) {
+    const context = markedHTML.substring(Math.max(0, match.index - 30), Math.min(markedHTML.length, match.index + 40));
+    markerPositions.push({ id: match[1], position: match.index, context });
+  }
+  console.log('[Chunking] Temp markers in HTML (in order):', markerPositions.map(m => `⚐${m.id}⚐`).join(' '));
 
   // Process HTML to plain text (keeps ⚐N⚐ markers and ⚑APP⚑ markers)
   const tempDiv = document.createElement('div');
@@ -88,6 +102,15 @@ export function createNarrationChunks(html) {
   tempDiv.innerHTML = htmlForText;
   const plainText = (tempDiv.textContent || tempDiv.innerText || '').trim();
 
+  // Log plain text with markers
+  console.log('[Chunking] Plain text (first 200 chars):', plainText.substring(0, 200));
+  const plainMarkerPositions = [];
+  tempMarkerRegex = /⚐(\d+)⚐/g;
+  while ((match = tempMarkerRegex.exec(plainText)) !== null) {
+    plainMarkerPositions.push(match[1]);
+  }
+  console.log('[Chunking] Temp markers in plain text (in order):', plainMarkerPositions.map(m => `⚐${m}⚐`).join(' '));
+
   // Process text for TTS and split into sentences (combined operation)
   // Markers move with the text during processing
   const sentences = processAndSplitText(plainText);
@@ -95,7 +118,7 @@ export function createNarrationChunks(html) {
   // Extract marker ID and voice type from each chunk
   const markerRegex = /⚐(\d+)⚐/;
   const appVoiceRegex = /⚑APP⚑/;
-  const chunks = sentences
+  const chunksBeforeFilter = sentences
     .map((sentence, index) => {
       const match = sentence.match(markerRegex);
       const markerID = match ? parseInt(match[1]) : null;
@@ -108,9 +131,18 @@ export function createNarrationChunks(html) {
         index,
         voice: useAppVoice ? 'app' : 'narrator'
       };
-    })
-    // Filter out app voice chunks - user commands are displayed but never narrated
-    .filter(chunk => chunk.voice !== 'app');
+    });
+
+  console.log('[Chunking] Chunks before filtering:', chunksBeforeFilter.length);
+  chunksBeforeFilter.forEach((chunk, i) => {
+    console.log(`[Chunking]   Chunk ${i}: voice="${chunk.voice}", markerID=${chunk.markerID}, text="${chunk.text.substring(0, 50)}..."`);
+  });
+
+  // Filter out app voice chunks - user commands are displayed but never narrated
+  const chunks = chunksBeforeFilter.filter(chunk => chunk.voice !== 'app');
+
+  console.log('[Chunking] Chunks after filtering:', chunks.length);
+  console.log('[Chunking] Filtered out:', chunksBeforeFilter.length - chunks.length, 'app voice chunks');
 
   return chunks;
 }

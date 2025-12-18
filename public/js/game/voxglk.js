@@ -583,3 +583,20 @@ export function setSkipFirstAutosave(skip) {
 export function getVoxGlk() {
   return window._voxglkInstance;
 }
+
+/**
+ * Get acceptCallback for sending input events
+ * Used by quickLoad to send bootstrap input
+ */
+export function getAcceptCallback() {
+  return acceptCallback;
+}
+
+/**
+ * Set flag to skip next update after bootstrap
+ * Used by quickLoad to suppress "I beg your pardon" message
+ */
+export function setSkipNextUpdateAfterBootstrap(skip) {
+  skipNextUpdateAfterBootstrap = skip;
+  console.log('[VoxGlk] skipNextUpdateAfterBootstrap set to:', skip);
+}
