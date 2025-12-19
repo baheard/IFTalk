@@ -2,12 +2,14 @@
  * Settings Panel Module
  *
  * Manages settings UI, voice selection, and pronunciation dictionary.
+ * Supports per-game settings for voices, speech rate, etc.
  */
 
 import { state } from '../core/state.js';
 import { dom } from '../core/dom.js';
 import { updateStatus } from '../utils/status.js';
 import { getPronunciationMap, savePronunciationMap, addPronunciation, removePronunciation } from '../utils/pronunciation.js';
+import { getGameSetting, setGameSetting, loadGameSettings } from '../utils/game-settings.js';
 
 /**
  * Initialize settings panel
@@ -128,14 +130,12 @@ export function initSettings() {
   const speechRateSlider = document.getElementById('speechRate');
   const speechRateValue = document.getElementById('speechRateValue');
   if (speechRateSlider && speechRateValue) {
-    // Load saved speech rate
-    const savedRate = localStorage.getItem('speechRate');
-    if (savedRate) {
-      speechRateSlider.value = savedRate;
-      speechRateValue.textContent = parseFloat(savedRate).toFixed(1) + 'x';
-      if (state.browserVoiceConfig) {
-        state.browserVoiceConfig.rate = parseFloat(savedRate);
-      }
+    // Load saved speech rate for current game
+    const savedRate = getGameSetting('speechRate', 1.0);
+    speechRateSlider.value = savedRate;
+    speechRateValue.textContent = savedRate.toFixed(1) + 'x';
+    if (state.browserVoiceConfig) {
+      state.browserVoiceConfig.rate = savedRate;
     }
 
     speechRateSlider.addEventListener('input', (e) => {
@@ -147,8 +147,8 @@ export function initSettings() {
         state.browserVoiceConfig.rate = rate;
       }
 
-      // Save to localStorage
-      localStorage.setItem('speechRate', rate);
+      // Save per-game
+      setGameSetting('speechRate', rate);
     });
   }
 }
@@ -221,10 +221,8 @@ function filterAndSortVoices(voices) {
     return a.name.localeCompare(b.name);
   });
 
-  console.log('[Settings] Available English voices:');
   filtered.forEach((voice, index) => {
     const quality = voice.localService ? 'HIGH-QUALITY' : 'network';
-    console.log(`  ${index + 1}. ${voice.name} (${voice.lang}) [${quality}]`);
   });
 
   return filtered;
@@ -244,7 +242,6 @@ export function populateVoiceDropdown() {
   // Filter to English voices only
   const filteredVoices = filterAndSortVoices(voices);
 
-  console.log(`[Settings] Found ${voices.length} total voices, showing ${filteredVoices.length} English voices`);
 
   // Populate narrator voice dropdown
   if (dom.voiceSelect) {
@@ -300,18 +297,24 @@ export async function loadBrowserVoiceConfig() {
   } catch (error) {
   }
 
-  // Load narrator voice from localStorage
-  const savedNarratorVoice = localStorage.getItem('narratorVoice');
+  // Load per-game voice settings
+  const savedNarratorVoice = getGameSetting('narratorVoice');
   if (savedNarratorVoice) {
     if (!state.browserVoiceConfig) state.browserVoiceConfig = {};
     state.browserVoiceConfig.voice = savedNarratorVoice;
   }
 
-  // Load app voice from localStorage
-  const savedAppVoice = localStorage.getItem('appVoice');
+  const savedAppVoice = getGameSetting('appVoice');
   if (savedAppVoice) {
     if (!state.browserVoiceConfig) state.browserVoiceConfig = {};
     state.browserVoiceConfig.appVoice = savedAppVoice;
+  }
+
+  // Load per-game speech rate
+  const savedSpeechRate = getGameSetting('speechRate');
+  if (savedSpeechRate) {
+    if (!state.browserVoiceConfig) state.browserVoiceConfig = {};
+    state.browserVoiceConfig.rate = savedSpeechRate;
   }
 
   // Populate dropdown after loading config
@@ -319,6 +322,35 @@ export async function loadBrowserVoiceConfig() {
     speechSynthesis.onvoiceschanged = populateVoiceDropdown;
     populateVoiceDropdown();
   }
+}
+
+/**
+ * Reload settings for current game (called when game changes)
+ */
+export function reloadSettingsForGame() {
+
+  // Load per-game settings
+  const savedNarratorVoice = getGameSetting('narratorVoice');
+  const savedAppVoice = getGameSetting('appVoice');
+  const savedSpeechRate = getGameSetting('speechRate', 1.0);
+
+  if (!state.browserVoiceConfig) state.browserVoiceConfig = {};
+
+  // Update config with saved settings (or clear if none saved)
+  state.browserVoiceConfig.voice = savedNarratorVoice || null;
+  state.browserVoiceConfig.appVoice = savedAppVoice || null;
+  state.browserVoiceConfig.rate = savedSpeechRate;
+
+  // Update UI elements
+  const speechRateSlider = document.getElementById('speechRate');
+  const speechRateValue = document.getElementById('speechRateValue');
+  if (speechRateSlider && speechRateValue) {
+    speechRateSlider.value = savedSpeechRate;
+    speechRateValue.textContent = savedSpeechRate.toFixed(1) + 'x';
+  }
+
+  // Refresh voice dropdowns to show correct selection
+  populateVoiceDropdown();
 }
 
 /**
@@ -330,8 +362,9 @@ export function initVoiceSelection() {
     dom.voiceSelect.addEventListener('change', (e) => {
       if (!state.browserVoiceConfig) state.browserVoiceConfig = {};
       state.browserVoiceConfig.voice = e.target.value;
-      localStorage.setItem('narratorVoice', e.target.value);
-      updateStatus(`Voice changed to: ${e.target.value}`);
+      setGameSetting('narratorVoice', e.target.value);
+      const gameName = state.currentGameName || 'default';
+      updateStatus(`Narrator voice: ${e.target.value} (${gameName})`);
     });
   }
 
@@ -340,8 +373,9 @@ export function initVoiceSelection() {
     dom.appVoiceSelect.addEventListener('change', (e) => {
       if (!state.browserVoiceConfig) state.browserVoiceConfig = {};
       state.browserVoiceConfig.appVoice = e.target.value;
-      localStorage.setItem('appVoice', e.target.value);
-      updateStatus(`App voice changed to: ${e.target.value}`);
+      setGameSetting('appVoice', e.target.value);
+      const gameName = state.currentGameName || 'default';
+      updateStatus(`App voice: ${e.target.value} (${gameName})`);
     });
   }
 

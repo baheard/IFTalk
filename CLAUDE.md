@@ -267,6 +267,24 @@ For detailed technical information, see the `reference/` folder:
    - **Result**: Clean restore with no error messages, commands work immediately
    - **Documentation**: Updated `reference/save-restore-status.md` with complete details
 
+### December 18, 2024 - Per-Game Settings System
+1. **Organized Per-Game Settings** - Centralized storage for game-specific preferences
+   - Files: `public/js/utils/game-settings.js` (new), `public/js/ui/settings.js`, `public/js/game/game-loader.js:13,31`
+   - Settings stored as JSON objects in localStorage: `gameSettings_LostPig`, `gameSettings_Anchorhead`, etc.
+   - Each game remembers its own: narrator voice, app voice, speech rate
+   - Settings automatically reload when switching games
+   - Default fallback when no game-specific settings saved
+   - **Extensible architecture** ready for future per-game preferences:
+     - Current: narratorVoice, appVoice, speechRate
+     - Future: autoplay, highlightColor, fontSize, etc.
+   - Clean API:
+     - Settings: `getGameSetting()`, `setGameSetting()`, `loadGameSettings()`, `reloadSettingsForGame()`
+     - Data management: `getGameData()`, `hasGameData()`, `clearAllGameData()`, `listAllGames()`
+   - **Save data kept separate** (performance/size) but **logically grouped** via helper functions
+   - Helpers manage settings + saves together: `clearAllGameData('lostpig')` removes settings, quicksave, and glkote save
+   - Separation of concerns: game-settings.js (storage) → settings.js (UI) → game-loader.js (triggers)
+   - Status messages show game name when changing settings: "Narrator voice: Karen (lostpig)"
+
 ### What Works Now
 - ✅ Game selection and loading
 - ✅ Browser-based ZVM game engine

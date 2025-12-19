@@ -60,8 +60,6 @@ function autosave_write(key, snapshot) {
     try {
         // If snapshot exists, extend it with HTML content
         if (snapshot) {
-            console.log('[Dialog] Extending autosave with HTML content');
-
             // Capture window HTML
             var statusBarEl = document.getElementById('status-bar');
             var upperWindowEl = document.getElementById('upper-window');
@@ -81,16 +79,9 @@ function autosave_write(key, snapshot) {
                 };
             }
 
-            console.log('[Dialog] Autosave snapshot:', {
-                hasRAM: !!snapshot.ram,
-                hasGlk: !!snapshot.glk,
-                hasHTML: !!snapshot.displayHTML,
-                htmlLength: snapshot.displayHTML.lowerWindow.length
-            });
         }
 
         localStorage.setItem('iftalk_auto_' + key, JSON.stringify(snapshot));
-        console.log('[Dialog] Autosave written');
     } catch (e) {
         console.error('[Dialog] Autosave write error:', e);
     }
@@ -102,19 +93,10 @@ function autosave_read(key) {
         var snapshot = data ? JSON.parse(data) : null;
 
         if (snapshot) {
-            console.log('[Dialog] Autosave found:', {
-                hasRAM: !!snapshot.ram,
-                hasGlk: !!snapshot.glk,
-                hasHTML: !!snapshot.displayHTML,
-                hasNarration: !!snapshot.narrationState
-            });
-
             // If we have HTML to restore, schedule it after do_autorestore completes
             if (snapshot.displayHTML) {
                 // Use setTimeout to restore HTML after ifvms.js finishes do_autorestore
                 setTimeout(function() {
-                    console.log('[Dialog] Restoring HTML content');
-
                     var statusBarEl = document.getElementById('status-bar');
                     var upperWindowEl = document.getElementById('upper-window');
                     var lowerWindowEl = document.getElementById('lower-window');
@@ -130,7 +112,6 @@ function autosave_read(key) {
 
                     // Suppress next VoxGlk update to prevent overwriting
                     window.ignoreNextVoxGlkUpdate = true;
-                    console.log('[Dialog] HTML restored, ignoreNextVoxGlkUpdate set');
                 }, 0);
             }
         }

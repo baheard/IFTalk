@@ -23,6 +23,10 @@ let charEscBtnEl = null;
 let charKeyboardBtnEl = null;
 let hiddenKeyInputEl = null;
 
+// System entry mode state (for SAVE/RESTORE/DELETE prompts)
+let systemEntryMode = false;
+let systemEntryCallback = null;
+
 // Cached media queries for keyboard detection (performance optimization)
 const mqCoarse = window.matchMedia('(pointer: coarse)');
 const mqHover = window.matchMedia('(hover: hover)');
@@ -45,15 +49,6 @@ export function initKeyboardInput() {
   charEnterBtnEl = document.getElementById('charEnterBtn');
   charEscBtnEl = document.getElementById('charEscBtn');
   charKeyboardBtnEl = document.getElementById('charKeyboardBtn');
-
-  console.log('[Keyboard] DOM elements initialized:', {
-    messageInputEl: !!messageInputEl,
-    sendMessageBtnEl: !!sendMessageBtnEl,
-    messageInputRowEl: !!messageInputRowEl,
-    charInputPanelEl: !!charInputPanelEl,
-    charButtons: !!(charUpBtnEl && charLeftBtnEl && charDownBtnEl && charRightBtnEl),
-    charActions: !!(charEnterBtnEl && charEscBtnEl && charKeyboardBtnEl)
-  });
 
   // Create hidden input for arbitrary key capture (keyboard button)
   hiddenKeyInputEl = document.createElement('input');
@@ -180,6 +175,16 @@ function handleKeyPress(e) {
     return;
   }
 
+  // Handle Escape in system entry mode (SAVE/RESTORE/DELETE prompts)
+  if (systemEntryMode && e.key === 'Escape') {
+    e.preventDefault();
+    // Import dynamically to avoid circular dependency
+    import('../game/commands.js').then(module => {
+      module.cancelMetaInput();
+    });
+    return;
+  }
+
   const inputType = getInputType();
 
   // In char mode (press any key), send any key immediately
@@ -222,10 +227,8 @@ function handleKeyPress(e) {
     } else if (e.key.length === 1) {
       // Regular printable character - send as-is
       sendInput(e.key, 'char');
-    } else {
-      // Unknown special key - ignore
-      console.log('[Keyboard] Ignoring unknown special key:', e.key);
     }
+    // Unknown special keys are ignored
     return;
   }
 
@@ -305,7 +308,6 @@ function updateInputVisibility() {
  */
 function sendCommand() {
   const cmd = messageInputEl ? messageInputEl.value.trim() : '';
-  console.log('[Keyboard] sendCommand called with:', cmd);
 
   if (messageInputEl) {
     messageInputEl.value = '';
@@ -314,7 +316,6 @@ function sendCommand() {
   if (cmd || cmd === '') {
     // Store last command for echo detection
     window.lastSentCommand = cmd;
-    console.log('[Keyboard] Calling sendCommandDirect');
     sendCommandDirect(cmd, false); // false = not a voice command
   }
 }
@@ -338,4 +339,35 @@ export function hideMessageInput() {
   if (messageInputEl) {
     messageInputEl.value = '';
   }
+}
+
+/**
+ * Enter system entry mode for meta-commands (SAVE/RESTORE/DELETE)
+ * Shows a custom prompt and handles Escape to cancel
+ */
+export function enterSystemEntryMode(promptText) {
+  systemEntryMode = true;
+  if (messageInputEl) {
+    messageInputEl.placeholder = promptText;
+    messageInputEl.value = '';
+    messageInputEl.focus();
+  }
+  showMessageInput();
+}
+
+/**
+ * Exit system entry mode, restore normal prompt
+ */
+export function exitSystemEntryMode() {
+  systemEntryMode = false;
+  if (messageInputEl) {
+    messageInputEl.placeholder = 'Enter command...';
+  }
+}
+
+/**
+ * Check if we're in system entry mode
+ */
+export function isSystemEntryMode() {
+  return systemEntryMode;
 }

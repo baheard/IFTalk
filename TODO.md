@@ -28,13 +28,31 @@
 
 ## 📋 Current Tasks
 
+### Code Review / Cleanup
+
+- [x] **Remove all console.log statements** - Keep console.error and console.warn only (DONE Dec 19)
+
 ### High Priority
 
-- [ ] **Test char input panel with real games**
-  - Test Anchorhead "Press R to restore" prompt
-  - Test Anchorhead help menu (arrow navigation)
-  - Test Lost Pig menus if any
-  - Verify keyboard button works on actual mobile device
+- [x] **Fix: Remove cleared content from DOM and autosaves** (December 18, 2024)
+  - See plan: `C:\Users\bahea\.claude\plans\snappy-gliding-wilkes.md`
+  - **Problem**: Intro text stayed in DOM and got saved in autosaves, causing voice to re-read intro on every restore
+  - **Solution**: Remove intro from DOM when user progresses past it
+  - **Implementation**: Modified `public/js/ui/game-output.js` (lines 271-292)
+    - Mark first game-text as `.game-intro`
+    - When second game-text is added, remove `.game-intro` from DOM
+    - Autosaves no longer include intro (not in DOM)
+    - Voice narration won't read intro on restore
+  - **Behavior**: Matches iplayif.com/Parchment - cleared content actually removed
+  - **Testing needed**:
+    - [ ] Start fresh game → verify intro displays
+    - [ ] Send first command → verify intro removed from DOM (check DevTools)
+    - [ ] Refresh page → verify autorestore doesn't show intro
+    - [ ] Test voice narration → verify intro not read on restore
+- [x] **'R' key restore from intro screen** (December 19, 2024)
+  - Anchorhead's "Press R to restore" now works properly
+  - Triggers game's native restore → Dialog.open() → restores from autosave
+  - See `reference/save-restore-status.md` for full flow
 - [ ] **Polish char input panel**
   - Consider adding visual hints ("Use arrow keys to navigate")
   - Test keyboard shortcuts still work alongside buttons
@@ -61,6 +79,23 @@
 ---
 
 ## ✅ Recently Completed
+
+### 'R' Key Restore / Dialog.open Implementation (December 19, 2024)
+
+**Fixed char input sending**: VoxGlk was sending character codes as numbers (82) instead of strings ("R"), causing glkapi.js to interpret all chars as "unknown key".
+
+**Implemented native restore via Dialog.open**:
+- When game calls `glk_fileref_create_by_prompt()` for restore, VoxGlk now handles `specialinput`
+- Dialog.open checks for saves in priority order: autosave → quicksave → custom saves
+- If found, triggers page reload with restore flag
+- If nothing found, shows user-friendly alert
+
+**Files modified:**
+- `public/js/game/voxglk.js` - Fixed char input format, added specialinput handling
+- `public/lib/dialog-stub.js` - Implemented restore priority, triggerAutorestore()
+- `public/js/game/game-loader.js` - Added pending restore detection
+
+**Flow**: Press 'R' → Game triggers `glk_fileref_create_by_prompt()` → VoxGlk calls Dialog.open() → Finds autosave → Sets flag + reloads → Game restores automatically
 
 ### Messaging Interface (December 18, 2024)
 

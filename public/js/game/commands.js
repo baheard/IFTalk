@@ -10,6 +10,7 @@ import { updateStatus } from '../utils/status.js';
 import { addToCommandHistory } from '../ui/history.js';
 import { addGameText } from '../ui/game-output.js';
 import { sendCommandToGame } from './game-loader.js';
+import { enterSystemEntryMode, exitSystemEntryMode } from '../input/keyboard.js';
 
 /**
  * Send command directly to game (no AI translation)
@@ -83,7 +84,8 @@ function getCustomSaves() {
       saves.push({
         name: saveName,
         timestamp: saveData.timestamp,
-        key: key
+        key: key,
+        type: 'custom'
       });
     }
   }
@@ -92,6 +94,51 @@ function getCustomSaves() {
   saves.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
   return saves;
 }
+
+/**
+ * Get quicksave info if it exists
+ */
+function getQuicksave() {
+  // Try game signature first (newer saves), then game name (older saves)
+  const gameSignature = window.zvmInstance?.get_signature?.() || state.currentGameName;
+  let key = `iftalk_quicksave_${gameSignature}`;
+  let saved = localStorage.getItem(key);
+
+  // Fallback to game name if signature key doesn't exist
+  if (!saved && gameSignature !== state.currentGameName) {
+    key = `iftalk_quicksave_${state.currentGameName}`;
+    saved = localStorage.getItem(key);
+  }
+
+  if (!saved) return null;
+
+  const saveData = JSON.parse(saved);
+  return {
+    name: 'quicksave',
+    timestamp: saveData.timestamp,
+    key: key,
+    type: 'quicksave'
+  };
+}
+
+/**
+ * Get autosave info if it exists
+ */
+function getAutosave() {
+  const key = `iftalk_autosave_${state.currentGameName}`;
+  const saved = localStorage.getItem(key);
+
+  if (!saved) return null;
+
+  const saveData = JSON.parse(saved);
+  return {
+    name: 'autosave',
+    timestamp: saveData.timestamp,
+    key: key,
+    type: 'autosave'
+  };
+}
+
 
 /**
  * Format timestamp for display
@@ -172,24 +219,68 @@ See Settings panel for more help.
 }
 
 /**
+ * Format save entry for display with number
+ * @param {object} save - Save object
+ * @param {number} index - 1-based index for numbering
+ */
+function formatSaveEntry(save, index) {
+  const typeLabel = save.type === 'autosave' ? ' (autosave)' : '';
+  return `&nbsp;&nbsp;${index}. ${save.name}${typeLabel} &nbsp;<i>${formatTimestamp(save.timestamp)}</i><br>`;
+}
+
+/**
+ * Get unified list of all saves (custom + quicksave + autosave) for display
+ * Sorted by timestamp, newest first
+ */
+function getUnifiedSavesList() {
+  const saves = getCustomSaves();
+  const quicksave = getQuicksave();
+  const autosave = getAutosave();
+
+  if (quicksave) {
+    saves.push(quicksave);
+  }
+  if (autosave) {
+    saves.push(autosave);
+  }
+
+  // Sort by timestamp, newest first
+  saves.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+  return saves;
+}
+
+/**
+ * Format the unified saves list with numbers
+ */
+function formatSavesList(saves) {
+  let html = '';
+  saves.forEach((save, index) => {
+    html += formatSaveEntry(save, index + 1);
+  });
+  return html;
+}
+
+/**
  * Handle SAVE command
  */
 async function handleSaveCommand() {
-  const saves = getCustomSaves();
+  const allSaves = getUnifiedSavesList();
 
   let message = '<div class="system-message"><b>Enter a file name for your save.</b>';
 
-  if (saves.length > 0) {
+  if (allSaves.length > 0) {
     message += '<br>Existing saves:<br>';
-    saves.forEach((save, i) => {
-      message += `&nbsp;&nbsp;• ${save.name} - ${formatTimestamp(save.timestamp)}<br>`;
-    });
+    message += formatSavesList(allSaves);
   }
 
   message += '</div>';
 
   respondAsGame(message);
   awaitingMetaInput = 'save';
+
+  // Enter system entry mode with prompt
+  enterSystemEntryMode('Enter save name (send nothing to cancel)');
+
   return true;
 }
 
@@ -197,43 +288,48 @@ async function handleSaveCommand() {
  * Handle RESTORE command
  */
 async function handleRestoreCommand() {
-  const saves = getCustomSaves();
+  const allSaves = getUnifiedSavesList();
 
-  if (saves.length === 0) {
-    respondAsGame('<div class="system-message">No custom save games currently exist. Use "Save" to save one.</div>');
+  if (allSaves.length === 0) {
+    respondAsGame('<div class="system-message">No save games currently exist. Use "Save" to save one.</div>');
     return true;
   }
 
   let message = '<div class="system-message"><b>Choose a file to restore.</b><br>';
-  saves.forEach((save, i) => {
-    message += `&nbsp;&nbsp;• ${save.name} - ${formatTimestamp(save.timestamp)}<br>`;
-  });
+  message += formatSavesList(allSaves);
   message += '</div>';
 
   respondAsGame(message);
   awaitingMetaInput = 'restore';
+
+  // Enter system entry mode with prompt
+  enterSystemEntryMode('Enter save name to restore (send nothing to cancel)');
+
   return true;
 }
 
 /**
- * Handle DELETE SAVE command
+ * Handle DELETE command
  */
 async function handleDeleteCommand() {
-  const saves = getCustomSaves();
+  const allSaves = getUnifiedSavesList();
 
-  if (saves.length === 0) {
-    respondAsGame('<div class="system-message">No custom save games currently exist. Use "Save" to save one.</div>');
+  if (allSaves.length === 0) {
+    respondAsGame('<div class="system-message">No save games currently exist. Use "Save" to save one.</div>');
     return true;
   }
 
   let message = '<div class="system-message"><b>Delete which save?</b><br>';
-  saves.forEach((save, i) => {
-    message += `&nbsp;&nbsp;• ${save.name} - ${formatTimestamp(save.timestamp)}<br>`;
-  });
+  message += formatSavesList(allSaves);
+  message += '<br><i>Note: To delete the autosave and start fresh, use "Restart Game" in Settings.</i>';
   message += '</div>';
 
   respondAsGame(message);
   awaitingMetaInput = 'delete';
+
+  // Enter system entry mode with prompt
+  enterSystemEntryMode('Enter save name to delete (send nothing to cancel)');
+
   return true;
 }
 
@@ -244,22 +340,28 @@ async function handleMetaResponse(input) {
   const mode = awaitingMetaInput;
   awaitingMetaInput = null; // Reset state
 
+  // Exit system entry mode
+  exitSystemEntryMode();
+
   if (!input || input.trim() === '') {
     respondAsGame('<div class="system-message"><i>Cancelled.</i></div>');
     return true;
   }
 
-  const saves = getCustomSaves();
+  // For save, only count custom saves toward the limit
+  const customSaves = getCustomSaves();
+  // For restore/delete, use the unified list (same order as displayed)
+  const allSaves = getUnifiedSavesList();
 
   switch (mode) {
     case 'save':
-      return await handleSaveResponse(input.trim(), saves);
+      return await handleSaveResponse(input.trim(), customSaves);
 
     case 'restore':
-      return await handleRestoreResponse(input.trim(), saves);
+      return await handleRestoreResponse(input.trim(), allSaves);
 
     case 'delete':
-      return await handleDeleteResponse(input.trim(), saves);
+      return await handleDeleteResponse(input.trim(), allSaves);
 
     default:
       return false;
@@ -273,6 +375,13 @@ async function handleSaveResponse(saveName, saves) {
   // Check if name is valid (no special characters that could break localStorage)
   if (!/^[a-zA-Z0-9_ -]+$/.test(saveName)) {
     respondAsGame('<div class="system-message">Invalid save name. Use only letters, numbers, spaces, dashes, and underscores.</div>');
+    return true;
+  }
+
+  // Check for reserved names
+  const reservedNames = ['quicksave', 'autosave'];
+  if (reservedNames.includes(saveName.toLowerCase())) {
+    respondAsGame('<div class="system-message">That name is reserved. Please choose a different name.</div>');
     return true;
   }
 
@@ -316,12 +425,22 @@ async function handleRestoreResponse(input, saves) {
     return true;
   }
 
-  // Perform the restore
-  const { customLoad } = await import('./save-manager.js');
-  const success = await customLoad(save.name);
+  // Use appropriate load function based on save type
+  let success = false;
+  const saveManager = await import('./save-manager.js');
+
+  if (save.type === 'quicksave') {
+    success = await saveManager.quickLoad();
+  } else if (save.type === 'autosave') {
+    success = await saveManager.autoLoad();
+  } else {
+    success = await saveManager.customLoad(save.name);
+  }
 
   if (success) {
-    respondAsGame(`<div class="system-message">Game restored from "${save.name}".</div>`);
+    const typeLabel = save.type === 'quicksave' ? ' (quicksave)' :
+                      save.type === 'autosave' ? ' (autosave)' : '';
+    respondAsGame(`<div class="system-message">Game restored from "${save.name}"${typeLabel}.</div>`);
   } else {
     respondAsGame('<div class="system-message">Restore failed. Save file may be corrupted.</div>');
   }
@@ -349,9 +468,16 @@ async function handleDeleteResponse(input, saves) {
     return true;
   }
 
+  // Handle autosave specially - can't delete directly
+  if (save.type === 'autosave') {
+    respondAsGame('<div class="system-message">The autosave cannot be deleted directly. Use "Restart Game" in Settings to start fresh.</div>');
+    return true;
+  }
+
   // Delete the save
   localStorage.removeItem(save.key);
-  respondAsGame(`<div class="system-message">Deleted save "${save.name}".</div>`);
+  const typeLabel = save.type === 'quicksave' ? ' (quicksave)' : '';
+  respondAsGame(`<div class="system-message">Deleted save "${save.name}"${typeLabel}.</div>`);
 
   return true;
 }
@@ -382,4 +508,15 @@ export async function sendCommand() {
   // This function is kept for compatibility but is no longer used
   // Commands are now sent directly from keyboard.js via sendCommandDirect
   console.warn('[Commands] sendCommand() called but is deprecated - use sendCommandDirect() instead');
+}
+
+/**
+ * Cancel system entry mode (called when Escape is pressed)
+ */
+export function cancelMetaInput() {
+  if (awaitingMetaInput) {
+    awaitingMetaInput = null;
+    exitSystemEntryMode();
+    respondAsGame('<div class="system-message"><i>Cancelled.</i></div>');
+  }
 }

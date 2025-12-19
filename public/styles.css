@@ -58,6 +58,11 @@ body {
   overflow: hidden;
 }
 
+/* Utility Classes */
+.hidden {
+  display: none !important;
+}
+
 /* Loading Overlay */
 .loading-overlay {
   position: fixed;
@@ -68,7 +73,7 @@ body {
   background: var(--bg-primary);
   z-index: 9999;
   opacity: 1;
-  transition: opacity 0.8s ease-out;
+  transition: opacity 0.2s ease-out;
   pointer-events: none;
 }
 
@@ -749,7 +754,7 @@ body {
   margin: 0 auto;
   font-family: var(--font-mono);
   background: var(--bg-surface);
-  overflow: hidden; /* Container doesn't scroll, only lower window does */
+  overflow-y: auto; /* Scroll when content exceeds viewport height */
 }
 
 .game-output-inner {
@@ -866,23 +871,35 @@ body {
 }
 
 .game-list {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-  gap: 15px;
+  display: flex;
+  flex-direction: column;
+  gap: 40px;
   margin-top: 30px;
 }
 
-.game-list h3 {
-  grid-column: 1 / -1;
+.game-category {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.category-title {
   font-family: var(--font-serif);
   color: var(--accent-warm);
   font-size: var(--font-l);
   font-weight: 600;
-  margin-bottom: 16px;
+  margin: 0;
   letter-spacing: 0.02em;
 }
 
+.game-category-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 15px;
+}
+
 .game-card {
+  position: relative;
   background: var(--bg-surface);
   border: 1px solid var(--border-subtle);
   border-radius: 10px;
@@ -897,6 +914,52 @@ body {
   border-color: var(--accent-muted);
   transform: translateY(-3px);
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+}
+
+/* Save badge */
+.save-badge {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: transparent;
+  transition: all 0.3s ease;
+  opacity: 0;
+}
+
+.save-badge.has-save {
+  opacity: 1;
+  background: var(--accent-warm);
+  box-shadow: 0 0 12px rgba(196, 163, 90, 0.6);
+}
+
+/* IF Database link */
+.if-database-link {
+  text-align: center;
+  padding: 30px 20px;
+  border-top: 1px solid var(--border-subtle);
+  margin-top: 20px;
+}
+
+.if-database-link p {
+  font-family: var(--font-sans);
+  font-size: 16px;
+  color: var(--text-secondary);
+  margin: 0;
+}
+
+.if-database-link a {
+  color: var(--accent-primary);
+  text-decoration: none;
+  font-weight: 500;
+  transition: color 0.2s ease;
+}
+
+.if-database-link a:hover {
+  color: var(--accent-warm);
+  text-decoration: underline;
 }
 
 .game-title {
@@ -927,6 +990,94 @@ body {
   gap: 8px;
 }
 
+.controls {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 4px;
+  max-width: 800px;
+  width: 100%;
+  margin: 0 auto;
+}
+
+.controls-spacer {
+  flex: 1;
+  min-width: 20px;
+}
+
+.btn-nav {
+  padding: 8px 12px;
+  border: none;
+  border-radius: 6px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  background: var(--bg-elevated);
+  color: var(--text-primary);
+  border: 1px solid var(--border-subtle);
+}
+
+.btn-nav:hover {
+  background: var(--highlight-active);
+  border-color: var(--accent-muted);
+  transform: scale(1.05);
+}
+
+.btn-nav:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+/* Mic button */
+.btn-mic {
+  padding: 8px 12px;
+  border-radius: 50%;
+  border: 1px solid var(--border-subtle);
+  background: var(--bg-elevated);
+  color: var(--text-primary);
+  font-size: 20px;
+  cursor: pointer;
+  transition: transform 0.2s, background 0.3s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  --mic-intensity: 0;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+.btn-mic:hover {
+  transform: scale(1.05);
+  box-shadow: 0 4px 12px rgba(139, 157, 195, 0.4);
+  filter: brightness(1.1);
+}
+
+/* Green glow when listening - brightness based on volume */
+.btn-mic.listening {
+  background: rgb(34, 197, 94); /* green-500 */
+  box-shadow:
+    0 0 calc(10px + var(--mic-intensity) * 20px) rgba(34, 197, 94, calc(0.3 + var(--mic-intensity) * 0.5)),
+    0 0 calc(20px + var(--mic-intensity) * 40px) rgba(34, 197, 94, calc(0.2 + var(--mic-intensity) * 0.4)),
+    0 2px 8px rgba(0, 0, 0, 0.15);
+  filter: brightness(calc(1 + var(--mic-intensity) * 0.3));
+  transition: filter 0.1s ease, box-shadow 0.15s ease, background 0.3s ease;
+}
+
+.btn-mic.listening:hover {
+  transform: scale(1.05);
+  filter: brightness(calc(1.1 + var(--mic-intensity) * 0.3));
+}
+
+.btn-mic.muted {
+  background: var(--bg-elevated);
+  color: var(--text-muted);
+  border: 1px solid var(--border-subtle);
+}
+
+.btn-mic.muted:hover {
+  background: var(--bg-hover, var(--highlight-active));
+}
+
 /* Message Input Row */
 .message-input-row {
   display: flex;
@@ -935,6 +1086,10 @@ body {
   max-width: 800px;
   margin: 0 auto;
   width: 100%;
+}
+
+.message-input-row.hidden {
+  display: none;
 }
 
 .message-input {
@@ -958,6 +1113,23 @@ body {
 .message-input::placeholder {
   color: var(--text-muted);
   font-style: italic;
+}
+
+/* System entry mode - for SAVE/RESTORE/DELETE prompts */
+.message-input.system-entry {
+  border-color: var(--text-system);
+  background: rgba(126, 184, 168, 0.08);
+}
+
+.message-input.system-entry:focus {
+  border-color: var(--text-system);
+  box-shadow: 0 0 0 2px rgba(126, 184, 168, 0.2);
+}
+
+.message-input.system-entry::placeholder {
+  color: var(--text-system);
+  font-weight: 500;
+  font-style: normal;
 }
 
 .btn-send {
@@ -994,6 +1166,19 @@ body {
   width: 100%;
   margin: 0 auto;
   padding: 8px 0;
+  overflow: hidden;
+  transition: transform 0.3s ease-in-out, opacity 0.3s ease-in-out, max-height 0.3s ease-in-out;
+  transform: translateY(0);
+  opacity: 1;
+  max-height: 100px;
+}
+
+.char-input-panel.hidden {
+  transform: translateY(20px);
+  opacity: 0;
+  max-height: 0;
+  padding: 0;
+  pointer-events: none;
 }
 
 /* Spacer pushes Enter to the right (like Send button position) */

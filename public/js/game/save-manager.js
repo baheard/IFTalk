@@ -7,6 +7,24 @@
 
 import { state } from '../core/state.js';
 import { updateStatus } from '../utils/status.js';
+import { showMessageInput } from '../input/keyboard.js';
+
+/**
+ * Scroll to bottom immediately
+ * @param {HTMLElement} element - Element to scroll
+ */
+function scrollToBottom(element) {
+    if (!element) return;
+    element.scrollTop = element.scrollHeight;
+}
+
+/**
+ * Scroll to bottom (no waiting)
+ * @param {HTMLElement} element - Element to scroll
+ */
+function scrollAfterFade(element) {
+    scrollToBottom(element);
+}
 
 /**
  * Get current game signature from ZVM
@@ -244,9 +262,9 @@ export async function customLoad(saveName) {
                     if (commandLine) {
                         lowerWindowEl.appendChild(commandLine);
                     }
-                    setTimeout(() => {
-                        lowerWindowEl.scrollTop = lowerWindowEl.scrollHeight;
-                    }, 0);
+                    // Show command input immediately and scroll to bottom
+                    showMessageInput();
+                    scrollToBottom(document.getElementById('gameOutput'));
                 }
             }
 
@@ -486,16 +504,13 @@ export async function autoLoad() {
                         lowerWindowEl.appendChild(commandLine);
                     }
 
-                    // Scroll lowerWindow to bottom and focus input
-                    setTimeout(() => {
-                        lowerWindowEl.scrollTop = lowerWindowEl.scrollHeight;
-
-                        // Focus the message input
-                        const messageInput = document.getElementById('messageInput');
-                        if (messageInput) {
-                            messageInput.focus();
-                        }
-                    }, 500);
+                    // Show command input immediately, wait for fade, then scroll and focus
+                    showMessageInput();
+                    scrollAfterFade(document.getElementById('gameOutput'));
+                    const messageInput = document.getElementById('messageInput');
+                    if (messageInput) {
+                        messageInput.focus();
+                    }
                 }
                 console.log('[SaveManager] Display restored - press any key to activate input');
             }
@@ -587,10 +602,9 @@ export async function quickLoad() {
                         lowerWindowEl.appendChild(commandLine);
                     }
 
-                    // Scroll to bottom
-                    setTimeout(() => {
-                        lowerWindowEl.scrollTop = lowerWindowEl.scrollHeight;
-                    }, 0);
+                    // Show command input immediately and scroll to bottom
+                    showMessageInput();
+                    scrollToBottom(document.getElementById('gameOutput'));
                 }
             }
 

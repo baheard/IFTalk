@@ -1,6 +1,6 @@
 # Save/Restore Implementation Status
 
-**Last Updated:** December 17, 2024
+**Last Updated:** December 19, 2024
 
 ## Current Status: ✅ FULLY WORKING
 
@@ -16,6 +16,8 @@ Autosave/restore is fully functional with clean transitions.
 - ✅ Input becomes available automatically
 - ✅ Game continues from saved position
 - ✅ Clean transition with no error messages
+- ✅ **'R' key restore from intro screen** (December 19, 2024)
+- ✅ **RESTORE command triggers autosave restore**
 
 ## How It Works
 
@@ -176,4 +178,135 @@ To test autosave/restore:
 6. ✅ Input prompt appears
 7. ✅ Commands work normally
 8. ✅ No error messages or glitches
+
+---
+
+## 'R' Key Restore / Dialog.open (December 19, 2024)
+
+### Overview
+
+Games like Anchorhead show "[Press 'R' to restore; any other key to begin]" on the intro screen. Pressing 'R' now correctly triggers the game's native restore mechanism, which uses our autosave system.
+
+### The Problem (Before Fix)
+
+1. User pressed 'R' on intro screen
+2. VoxGlk sent character code as **number** (82)
+3. glkapi.js `handle_char_input()` expected a **string** ("R")
+4. `input.length` was undefined for numbers → fell into "unknown key" branch
+5. Game received `keycode_Unknown` instead of 'R'
+6. Game started instead of triggering restore
+
+### The Fix
+
+**1. Fixed char input format (`voxglk.js`)**:
+```javascript
+// Before: value: charCode (number 82)
+// After:  value: charValue (string "R")
+
+if (typeof text === 'string' && text.length === 1) {
+    charValue = text;  // Regular single character - send as-is
+} else if (typeof text === 'string') {
+    charValue = text;  // Special key name like "left", "return"
+} else {
+    charValue = String.fromCharCode(text);  // Backwards compat
+}
+```
+
+**2. Added specialinput handling (`voxglk.js`)**:
+```javascript
+if (arg.specialinput) {
+    if (arg.specialinput.type === 'fileref_prompt') {
+        Dialog.open(writable, arg.specialinput.filetype, gameid, (fileref) => {
+            acceptCallback({
+                type: 'specialresponse',
+                response: 'fileref_prompt',
+                value: fileref
+            });
+        });
+        return;
+    }
+}
+```
+
+**3. Implemented Dialog.open for restore (`dialog-stub.js`)**:
+```javascript
+function dialog_open(tosave, usage, gameid, callback) {
+    if (!tosave) {  // RESTORE
+        // Priority: autosave → quicksave → custom saves → error
+        if (autosaveExists) {
+            triggerAutorestore('autosave', gameName);
+            return;
+        }
+        if (quicksaveExists) {
+            triggerAutorestore('quicksave', signature);
+            return;
+        }
+        // ... check custom saves ...
+        alert('No saved games found.');
+        callback(null);
+    }
+}
+```
+
+**4. Added pending restore detection (`game-loader.js`)**:
+```javascript
+const pendingRestoreJson = sessionStorage.getItem('iftalk_pending_restore');
+if (pendingRestoreJson) {
+    sessionStorage.removeItem('iftalk_pending_restore');
+    const pendingRestore = JSON.parse(pendingRestoreJson);
+    window.shouldAutoRestore = true;
+    window.pendingRestoreType = pendingRestore.type;
+    window.pendingRestoreKey = pendingRestore.key;
+}
+```
+
+### Full Flow
+
+```
+1. User at intro screen: "[Press 'R' to restore; any other key to begin]"
+   ↓
+2. User presses 'R' (uppercase)
+   ↓
+3. VoxGlk.sendInput() sends: { type: 'char', value: 'R' }
+   ↓
+4. VM receives 'R', game code calls Z-machine @restore opcode
+   ↓
+5. ZVM calls glk_fileref_create_by_prompt()
+   ↓
+6. glkapi.js sets ui_specialinput = { type: 'fileref_prompt', filemode: 'read' }
+   ↓
+7. GlkOte.update() sends specialinput to VoxGlk
+   ↓
+8. VoxGlk detects specialinput, calls Dialog.open(false, ...)
+   ↓
+9. Dialog.open() checks for saves:
+   - Found autosave? → triggerAutorestore('autosave', gameName)
+   - Found quicksave? → triggerAutorestore('quicksave', signature)
+   - Found custom save? → callback(fileref) [native restore]
+   - Nothing? → alert('No saved games found.') + callback(null)
+   ↓
+10. If autosave found:
+    - sessionStorage.setItem('iftalk_pending_restore', JSON.stringify({type, key}))
+    - window.location.reload()
+    ↓
+11. Page reloads, game-loader.js detects pending restore
+    ↓
+12. Sets window.shouldAutoRestore = true
+    ↓
+13. Normal autorestore flow takes over (see "How It Works" above)
+```
+
+### Save Types
+
+| Type | Storage Key | Format | Priority |
+|------|-------------|--------|----------|
+| Autosave | `iftalk_autosave_{gameName}` | VM snapshot + HTML | 1 (highest) |
+| Quicksave | `iftalk_quicksave_{signature}` | VM snapshot + HTML | 2 |
+| Custom | `iftalk_save_{filename}` | Quetzal (native) | 3 |
+
+### Files Modified
+
+- `public/js/game/voxglk.js` - Char input format fix, specialinput handling
+- `public/lib/dialog-stub.js` - dialog_open(), triggerAutorestore(), findQuicksaveKey()
+- `public/js/game/game-loader.js` - Pending restore detection
 

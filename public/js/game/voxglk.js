@@ -196,7 +196,6 @@ export function createVoxGlk(textOutputCallback) {
 
         // Suppress output after bootstrap input (the "I beg your pardon" response)
         if (skipNextUpdateAfterBootstrap) {
-          console.log('[VoxGlk] Suppressing update after bootstrap input');
           skipNextUpdateAfterBootstrap = false;
 
           // Still process input requests so the game can continue
@@ -207,7 +206,6 @@ export function createVoxGlk(textOutputCallback) {
             if (arg.input.length > 0 && arg.input[0].id !== undefined) {
               inputWindowId = arg.input[0].id;
             }
-            console.log('[VoxGlk] Input request after bootstrap:', { type: inputType, enabled: inputEnabled });
           }
           return; // Skip rendering
         }
@@ -222,26 +220,31 @@ export function createVoxGlk(textOutputCallback) {
         // Auto-restore AFTER first update completes (VM is fully running)
         let shouldSkipAutosave = false;
         if (window.shouldAutoRestore) {
-          console.log('[VoxGlk] Will trigger auto-restore after this update completes...');
           window.shouldAutoRestore = false; // Only once
+          const restoreType = window.pendingRestoreType || 'autosave';
+          const restoreKey = window.pendingRestoreKey;
+          window.pendingRestoreType = null;
+          window.pendingRestoreKey = null;
 
           // Let this update complete normally, then restore
           setTimeout(async () => {
             try {
-              console.log('[VoxGlk] Auto-restore triggered after initial update completed');
-              const { autoLoad } = await import('./save-manager.js');
-              const restored = await autoLoad();
+              const { autoLoad, quickLoad } = await import('./save-manager.js');
+
+              // Call appropriate load function based on type
+              let restored;
+              if (restoreType === 'quicksave') {
+                restored = await quickLoad();
+              } else {
+                restored = await autoLoad();
+              }
 
               if (restored) {
-                console.log('[VoxGlk] ✅ Auto-restore successful');
-                console.log('[VoxGlk] acceptCallback exists:', !!acceptCallback);
-                console.log('[VoxGlk] zvmInstance exists:', !!window.zvmInstance);
                 // VM state and display HTML restored
                 // VoxGlk state (generation, inputWindowId) restored by save-manager
 
                 // Wake VM by sending dummy input to fulfill intro char request
                 setTimeout(() => {
-                  console.log('[VoxGlk] Sending dummy input to wake VM...');
 
                   // Set flag to suppress next update (the "I beg your pardon" response)
                   skipNextUpdateAfterBootstrap = true;
@@ -255,10 +258,8 @@ export function createVoxGlk(textOutputCallback) {
                     value: 10  // Enter key
                   });
 
-                  console.log('[VoxGlk] Dummy char input sent (gen: 1) - will suppress next update');
                 }, 100);
               } else {
-                console.log('[VoxGlk] Auto-restore returned false');
               }
             } catch (error) {
               console.error('[VoxGlk] Auto-restore failed:', error);
@@ -365,6 +366,36 @@ export function createVoxGlk(textOutputCallback) {
           }
         }
 
+        // Handle special input requests (file dialogs for save/restore)
+        if (arg.specialinput) {
+
+          if (arg.specialinput.type === 'fileref_prompt') {
+            const isRestore = arg.specialinput.filemode === 'read';
+            const isSave = arg.specialinput.filemode === 'write';
+            const gameid = arg.specialinput.gameid;
+
+
+            // For now, use Dialog.open which will show our file picker
+            // Dialog.open(tosave, usage, gameid, callback)
+            const writable = !isRestore; // false for restore (read), true for save (write)
+
+            Dialog.open(writable, arg.specialinput.filetype, gameid, (fileref) => {
+
+              // Send response back to Glk
+              if (acceptCallback) {
+                acceptCallback({
+                  type: 'specialresponse',
+                  response: 'fileref_prompt',
+                  value: fileref
+                });
+              }
+            });
+
+            // Return early - don't process other input until dialog is resolved
+            return;
+          }
+        }
+
         // Handle input requests
         if (arg.input) {
           const inputTypes = arg.input.map(i => i.type);
@@ -378,7 +409,6 @@ export function createVoxGlk(textOutputCallback) {
             inputWindowId = arg.input[0].id;
           }
 
-          console.log('[VoxGlk] Input request:', { type: inputType, enabled: inputEnabled, windowId: inputWindowId });
 
           // Note: Command line visibility is handled automatically by keyboard.js polling
 
@@ -390,7 +420,6 @@ export function createVoxGlk(textOutputCallback) {
           const shouldSkipFirstN = autosaveCounter < 2;
           if (shouldSkipFirstN && shouldAutosaveThisTurn) {
             autosaveCounter++;
-            console.log('[VoxGlk] Skipping autosave', autosaveCounter, 'of 2');
           }
 
           // Auto-save after each turn (only on line input, skip first 2)
@@ -399,19 +428,15 @@ export function createVoxGlk(textOutputCallback) {
               try {
                 const { autoSave } = await import('./save-manager.js');
                 await autoSave();
-                console.log('[VoxGlk] Auto-saved (autosave count:', autosaveCounter + 1, ')');
               } catch (error) {
                 console.error('[VoxGlk] Auto-save failed:', error);
               }
             }, 100);
           } else if (skipFirstAutosave) {
-            console.log('[VoxGlk] Skipping first autosave (will restore from saved state)');
             skipFirstAutosave = false; // Only skip once
           } else if (!shouldAutosaveThisTurn) {
-            console.log('[VoxGlk] Not autosaving (input type is', inputType, ', only save on line input)');
           }
         } else {
-          console.log('[VoxGlk] No input request in this update');
         }
 
       } catch (error) {
@@ -468,12 +493,10 @@ export function createVoxGlk(textOutputCallback) {
      * Restore VoxGlk state after VM restore
      */
     restore_state: function(savedGeneration, savedInputWindowId) {
-      console.log('[VoxGlk] Restoring VoxGlk state:', { savedGeneration, savedInputWindowId });
       generation = savedGeneration;
       inputWindowId = savedInputWindowId;
       inputEnabled = true;
       inputType = 'line';
-      console.log('[VoxGlk] VoxGlk state restored:', { generation, inputWindowId, inputEnabled, inputType });
     },
 
     /**
@@ -498,7 +521,6 @@ export function createVoxGlk(textOutputCallback) {
  * @param {string} type - Input type ('line' or 'char')
  */
 export function sendInput(text, type = 'line') {
-  console.log('[VoxGlk] sendInput called:', { text, type, generation, inputWindowId, inputEnabled });
 
   if (!acceptCallback) {
     console.error('[VoxGlk] No accept callback - game not initialized');
@@ -509,14 +531,25 @@ export function sendInput(text, type = 'line') {
   let inputEvent;
 
   if (type === 'char') {
-    // Character input: send character code
-    // text can be either a string (regular character) or a number (special keycode)
-    const charCode = typeof text === 'number' ? text : (text.length > 0 ? text.charCodeAt(0) : 0);
+    // Character input: send character as string (matching GlkOte format)
+    // GlkOte sends value as string: "R" for regular chars, "left"/"return"/etc for special keys
+    // text can be either a string (regular character) or a special key name
+    let charValue;
+    if (typeof text === 'string' && text.length === 1) {
+      // Regular single character - send as-is
+      charValue = text;
+    } else if (typeof text === 'string') {
+      // Special key name like "left", "return", "escape" - send as-is
+      charValue = text;
+    } else {
+      // Number passed - convert to character (for backwards compatibility)
+      charValue = String.fromCharCode(text);
+    }
     inputEvent = {
       type: 'char',
       gen: generation,
       window: inputWindowId,
-      value: charCode
+      value: charValue
     };
   } else {
     // Line input: send text string
@@ -529,12 +562,10 @@ export function sendInput(text, type = 'line') {
     };
   }
 
-  console.log('[VoxGlk] Sending input event to VM:', inputEvent);
 
   // Send the input event to Glk
   acceptCallback(inputEvent);
 
-  console.log('[VoxGlk] Input event sent, disabling input');
 
   // Disable input until next request
   inputEnabled = false;
@@ -574,7 +605,6 @@ export function getInputWindowId() {
  */
 export function setSkipFirstAutosave(skip) {
   skipFirstAutosave = skip;
-  console.log('[VoxGlk] skipFirstAutosave set to:', skip);
 }
 
 /**
@@ -598,5 +628,4 @@ export function getAcceptCallback() {
  */
 export function setSkipNextUpdateAfterBootstrap(skip) {
   skipNextUpdateAfterBootstrap = skip;
-  console.log('[VoxGlk] skipNextUpdateAfterBootstrap set to:', skip);
 }

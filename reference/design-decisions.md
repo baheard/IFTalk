@@ -29,6 +29,32 @@
    - Game handles all output display (including echoed commands if applicable)
    - Cleaner separation of input vs output
 
+## Screen Clear Behavior (December 18, 2024)
+
+Content is removed from DOM ONLY when the Z-machine explicitly sends a clear window command.
+
+1. **Z-machine Clear Command**: When game sends `clear: true` in update
+   - `clearGameOutput()` removes all content from DOM
+   - Frees memory since cleared content is never shown again
+   - Examples: Anchorhead clears after title screens, menu transitions
+
+2. **Normal Gameplay**: No clear command
+   - New content appends below existing content
+   - Old content scrolls up (classic IF behavior)
+   - Example: Lost Pig - intro stays, new turns add below
+
+3. **No Special "Intro" Handling**: All game text treated identically
+   - No marking first content differently
+   - No automatic removal based on turn count
+   - Let the game engine decide when to clear
+
+4. **Blank Line Preservation**: Blank lines kept with proper CSS classes
+   - `blank-line-spacer` class for styling
+   - CSS can hide on mobile to save vertical space
+   - Not removed from DOM
+
+Files: `game-output.js` (clearGameOutput), `voxglk.js` (shouldClearScreen detection)
+
 ## Text Processing Pipeline
 
 1. **Chunk Creation Always Happens**: `createNarrationChunks()` is called for ALL new game text, regardless of whether narration auto-starts

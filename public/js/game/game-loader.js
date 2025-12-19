@@ -10,7 +10,7 @@ import { updateStatus } from '../utils/status.js';
 import { updateNavButtons } from '../ui/nav-buttons.js';
 import { stopNarration } from '../narration/tts-player.js';
 import { createVoxGlk, sendInput, getInputType } from './voxglk.js';
-import { updateCurrentGameDisplay } from '../ui/settings.js';
+import { updateCurrentGameDisplay, reloadSettingsForGame } from '../ui/settings.js';
 
 /**
  * Start a game using browser-based ZVM
@@ -26,6 +26,9 @@ export async function startGame(gamePath, onOutput) {
 
     // Update game name display in settings
     updateCurrentGameDisplay(gamePath.split('/').pop());
+
+    // Reload per-game settings (voices, speech rate, etc.)
+    reloadSettingsForGame();
 
     updateStatus('Starting game...', 'processing');
 
@@ -92,20 +95,32 @@ export async function startGame(gamePath, onOutput) {
     // Check if user requested to skip autoload (restart game)
     const skipAutoload = localStorage.getItem('iftalk_skip_autoload');
     if (skipAutoload === 'true') {
-      console.log('[GameLoader] Restart requested - clearing autosave');
       localStorage.removeItem('iftalk_skip_autoload');
       localStorage.removeItem(`iftalk_autosave_${state.currentGameName}`);
     }
 
+    // Check for pending restore request (from 'R' key restore dialog)
+    const pendingRestoreJson = sessionStorage.getItem('iftalk_pending_restore');
+    if (pendingRestoreJson) {
+      sessionStorage.removeItem('iftalk_pending_restore');
+      try {
+        const pendingRestore = JSON.parse(pendingRestoreJson);
+        // Set flag for restore - VoxGlk will handle it
+        window.shouldAutoRestore = true;
+        window.pendingRestoreType = pendingRestore.type;
+        window.pendingRestoreKey = pendingRestore.key;
+      } catch (e) {
+        console.error('[GameLoader] Failed to parse pending restore:', e);
+      }
+    }
+
     // Check for autosave - will restore after VM starts (on first update)
     const autosaveKey = `iftalk_autosave_${state.currentGameName}`;
-    const hasAutosave = !skipAutoload && localStorage.getItem(autosaveKey) !== null;
+    const hasAutosave = !skipAutoload && !pendingRestoreJson && localStorage.getItem(autosaveKey) !== null;
 
-    console.log('[GameLoader] Autosave check:', { gameName: state.currentGameName, hasAutosave, skipAutoload: skipAutoload === 'true' });
 
     // Flag to trigger auto-restore on first update (after VM is running)
     if (hasAutosave) {
-      console.log('[GameLoader] Will auto-restore after VM starts...');
       window.shouldAutoRestore = true;
     }
 
@@ -122,24 +137,30 @@ export async function startGame(gamePath, onOutput) {
 
     updateStatus('Ready - Game loaded');
 
-    // Fade out loading overlay
+    // Fade out loading overlay (with delay for content to settle)
     const loadingOverlay = document.getElementById('loadingOverlay');
     if (loadingOverlay) {
-      loadingOverlay.classList.add('fade-out');
-      // Remove from DOM after animation completes
-      loadingOverlay.addEventListener('transitionend', () => {
-        loadingOverlay.remove();
+      // Wait 200ms before starting fade to let content load
+      setTimeout(() => {
+        loadingOverlay.classList.add('fade-out');
+        // Remove from DOM after animation completes
+        loadingOverlay.addEventListener('transitionend', () => {
+          loadingOverlay.remove();
 
-        // Focus command input after overlay is gone (if not restoring)
-        if (!hasAutosave) {
-          setTimeout(() => {
-            const messageInput = document.getElementById('messageInput');
-            if (messageInput) {
-              messageInput.focus();
-            }
-          }, 100);
-        }
-      }, { once: true });
+          // Dispatch event so save-manager knows fade is complete
+          window.dispatchEvent(new CustomEvent('loadingFadeComplete'));
+
+          // Focus command input after overlay is gone (if not restoring)
+          if (!hasAutosave) {
+            setTimeout(() => {
+              const messageInput = document.getElementById('messageInput');
+              if (messageInput) {
+                messageInput.focus();
+              }
+            }, 100);
+          }
+        }, { once: true });
+      }, 200);
     }
 
     // Save as last played game for auto-resume
@@ -192,6 +213,19 @@ export function initGameSelection(onOutput) {
       const gamePath = card.dataset.game;
       startGame(gamePath, onOutput);
     });
+
+    // Check for autosave and update badge
+    const gamePath = card.dataset.game;
+    if (gamePath) {
+      const gameName = gamePath.split('/').pop().replace(/\.[^.]+$/, '').toLowerCase();
+      const autosaveKey = `iftalk_autosave_${gameName}`;
+      const hasSave = localStorage.getItem(autosaveKey) !== null;
+
+      const badge = card.querySelector('[data-save-indicator]');
+      if (badge && hasSave) {
+        badge.classList.add('has-save');
+      }
+    }
   });
 
   // Select game button (reload page)

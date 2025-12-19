@@ -166,6 +166,15 @@ export function ensureChunksReady() {
     const { chunks: mainChunks, markerIDs: mainMarkerIDs } =
       extractChunksAndMarkers(mainChunksWithMarkers);
 
+    // Check if this is a system message - prefix first chunk with "System: " for narration
+    const tempDiv = document.createElement('div');
+    tempDiv.innerHTML = mainHTML;
+    const hasSystemMessage = tempDiv.querySelector('.system-message') !== null;
+
+    if (hasSystemMessage && mainChunks.length > 0 && mainChunks[0].text.trim()) {
+      mainChunks[0].text = 'System: ' + mainChunks[0].text;
+    }
+
     // Apply markers to main element (NO renumbering - keep original marker IDs!)
     mainEl.innerHTML = mainMarkedHTML;
 
@@ -268,6 +277,7 @@ export function addGameText(text, isCommand = false, isVoiceCommand = false) {
       div.innerHTML = `<span class="command-label">&gt;</span> ${icon}${escapeHtml(text)}`;
     }
   } else {
+    // Game text - cleared only when Z-machine sends clear command
     div.className = 'game-text';
 
     // Stop any active narration when new content arrives
@@ -278,29 +288,6 @@ export function addGameText(text, isCommand = false, isVoiceCommand = false) {
     // LAZY CHUNKING: Just render HTML, don't create chunks yet
     // Chunks will be created on-demand when narration is requested
     div.innerHTML = text;
-
-    // Trim excessive leading blank lines (max 1)
-    if (dom.lowerWindow && dom.lowerWindow.children.length === 0) {
-      // This is the first content in lower window
-      let leadingBlankCount = 0;
-      const children = Array.from(div.children);
-
-      for (const child of children) {
-        if (child.classList.contains('blank-line-spacer') ||
-            (child.textContent && child.textContent.trim() === '')) {
-          leadingBlankCount++;
-        } else {
-          break; // Found non-blank content
-        }
-      }
-
-      // Remove all leading blanks except first one (if any)
-      if (leadingBlankCount > 1) {
-        for (let i = 1; i < leadingBlankCount; i++) {
-          children[i].remove();
-        }
-      }
-    }
 
     // Add mic icon to glk-input spans if they were voice commands
     if (window.lastCommandWasVoice && window.lastSentCommand) {
@@ -385,21 +372,17 @@ export function addGameText(text, isCommand = false, isVoiceCommand = false) {
     }
   }
 
-  scrollToFirstText(div);
+  // Scroll behavior:
+  // - First content on screen (fresh screen): scroll to top so user reads from beginning
+  // - Otherwise: scroll to bottom
+  // Note: gameOutput is the scrollable container, not lowerWindow
+  const existingContent = dom.lowerWindow?.querySelectorAll('.game-text, .user-command');
+  const isFirstOnScreen = existingContent && existingContent.length <= 1;
 
-  // After new game text is added, ensure command line stays in view
-  // Use requestAnimationFrame to wait for DOM updates and layout
-  if (!isCommand) {
-    requestAnimationFrame(() => {
-      const commandLine = document.getElementById('commandLine');
-      const lowerWindow = dom.lowerWindow;
-
-      // If command line is visible, scroll to bottom to keep it in view
-      if (commandLine && commandLine.style.display === 'flex' && lowerWindow) {
-        // Scroll the lower window to the bottom
-        lowerWindow.scrollTop = lowerWindow.scrollHeight;
-      }
-    });
+  if (isFirstOnScreen) {
+    scrollToFirstText(div);
+  } else if (dom.gameOutput) {
+    dom.gameOutput.scrollTop = dom.gameOutput.scrollHeight;
   }
 
   // Track for highlighting (only for game text, not commands)
@@ -412,13 +395,15 @@ export function addGameText(text, isCommand = false, isVoiceCommand = false) {
 
 /**
  * Clear all game output (but preserve command line)
+ * Called when Z-machine sends a clear window command.
+ * Removes all content from DOM to free memory.
  */
 export function clearGameOutput() {
   if (dom.lowerWindow) {
     // Extract command line first (it might be nested inside a game-text div)
     const commandLine = document.getElementById('commandLine');
 
-    // Clear everything
+    // Clear everything from DOM
     dom.lowerWindow.innerHTML = '';
 
     // Re-append command line directly to lowerWindow
