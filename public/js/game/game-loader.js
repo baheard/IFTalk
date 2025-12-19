@@ -66,9 +66,29 @@ export async function startGame(gamePath, onOutput) {
     // Fetch the story file as binary data
     updateStatus('Downloading game file...', 'processing');
 
-    const response = await fetch(gamePath);
+    // Determine the fetch URL - add /games/ prefix for local files, use URL directly for remote
+    let fetchUrl = gamePath;
+    if (!gamePath.startsWith('http://') && !gamePath.startsWith('https://')) {
+      // Local file - add /games/ prefix if not already present
+      fetchUrl = gamePath.startsWith('/games/') ? gamePath : `/games/${gamePath}`;
+    }
+
+    let response;
+    try {
+      response = await fetch(fetchUrl);
+    } catch (fetchError) {
+      // Network error or CORS issue
+      if (fetchUrl.startsWith('http')) {
+        throw new Error(
+          'Could not load game from URL. This may be due to CORS restrictions. ' +
+          'Try downloading the game file and placing it in the games folder.'
+        );
+      }
+      throw fetchError;
+    }
+
     if (!response.ok) {
-      throw new Error(`Failed to load game file: ${response.statusText}`);
+      throw new Error(`Failed to load game file: ${response.status} ${response.statusText}`);
     }
     const arrayBuffer = await response.arrayBuffer();
     const storyData = arrayBuffer;
@@ -201,6 +221,77 @@ export function sendCommandToGame(cmd) {
 }
 
 /**
+ * Show resume/restart dialog for games with autosave
+ * @param {string} gamePath - Path to game file
+ * @param {string} gameName - Normalized game name
+ * @returns {Promise<string|null>} 'resume', 'restart', or null if cancelled
+ */
+function showResumeDialog(gamePath, gameName) {
+  return new Promise((resolve) => {
+    // Create modal overlay
+    const overlay = document.createElement('div');
+    overlay.className = 'resume-dialog-overlay';
+
+    // Get display name from game path (capitalize first letter of each word)
+    const displayName = gamePath.split('/').pop().replace(/\.[^.]+$/, '')
+      .replace(/([A-Z])/g, ' $1').trim()
+      .replace(/^\w/, c => c.toUpperCase());
+
+    overlay.innerHTML = `
+      <div class="resume-dialog">
+        <h3>Resume ${displayName}?</h3>
+        <p>You have a saved game in progress.</p>
+        <div class="resume-dialog-buttons">
+          <button class="btn btn-primary resume-btn" data-action="resume">
+            <span class="material-icons">play_arrow</span>
+            Resume Game
+          </button>
+          <button class="btn btn-secondary restart-btn" data-action="restart">
+            <span class="material-icons">replay</span>
+            Start Over
+          </button>
+        </div>
+        <button class="resume-dialog-cancel" data-action="cancel">&times;</button>
+      </div>
+    `;
+
+    document.body.appendChild(overlay);
+
+    // Handle button clicks
+    const handleClick = (e) => {
+      const action = e.target.closest('[data-action]')?.dataset.action;
+      if (!action) return;
+
+      if (action === 'restart') {
+        // Show warning confirmation
+        const confirmed = confirm(
+          '⚠️ Start Over?\n\n' +
+          'This will delete your autosave and start from the beginning.\n\n' +
+          'Are you sure?'
+        );
+        if (!confirmed) return;
+      }
+
+      overlay.remove();
+      resolve(action === 'cancel' ? null : action);
+    };
+
+    overlay.addEventListener('click', (e) => {
+      // Close if clicking overlay background
+      if (e.target === overlay) {
+        overlay.remove();
+        resolve(null);
+      } else {
+        handleClick(e);
+      }
+    });
+
+    // Focus resume button
+    setTimeout(() => overlay.querySelector('.resume-btn')?.focus(), 50);
+  });
+}
+
+/**
  * Initialize game selection handlers
  * @param {Function} onOutput - Callback for game output (for TTS)
  */
@@ -209,9 +300,27 @@ export function initGameSelection(onOutput) {
   const gameCards = document.querySelectorAll('.game-card');
 
   gameCards.forEach((card, index) => {
-    card.addEventListener('click', (e) => {
+    card.addEventListener('click', async (e) => {
       const gamePath = card.dataset.game;
-      startGame(gamePath, onOutput);
+      const gameName = gamePath.split('/').pop().replace(/\.[^.]+$/, '').toLowerCase();
+      const autosaveKey = `iftalk_autosave_${gameName}`;
+      const hasAutosave = localStorage.getItem(autosaveKey) !== null;
+
+      if (hasAutosave) {
+        // Show resume/restart dialog
+        const choice = await showResumeDialog(gamePath, gameName);
+        if (choice === 'resume') {
+          startGame(gamePath, onOutput);
+        } else if (choice === 'restart') {
+          // Set flag to skip autoload and clear autosave
+          localStorage.setItem('iftalk_skip_autoload', 'true');
+          startGame(gamePath, onOutput);
+        }
+        // If choice is null (cancelled), do nothing
+      } else {
+        // No autosave, just start the game
+        startGame(gamePath, onOutput);
+      }
     });
 
     // Check for autosave and update badge
@@ -254,6 +363,60 @@ export function initGameSelection(onOutput) {
         localStorage.setItem('iftalk_skip_autoload', 'true');
         // Reload to restart the game from beginning
         location.reload();
+      }
+    });
+  }
+
+  // Custom URL form handler
+  const customUrlForm = document.getElementById('customUrlForm');
+  const customUrlInput = document.getElementById('customUrlInput');
+  if (customUrlForm && customUrlInput) {
+    customUrlForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const url = customUrlInput.value.trim();
+      if (!url) return;
+
+      // Validate URL format
+      try {
+        new URL(url);
+      } catch {
+        alert('Please enter a valid URL');
+        return;
+      }
+
+      // Check for valid Z-machine file extensions
+      const validExtensions = ['.z3', '.z4', '.z5', '.z8', '.zblorb', '.zlb'];
+      const hasValidExtension = validExtensions.some(ext =>
+        url.toLowerCase().endsWith(ext)
+      );
+
+      if (!hasValidExtension) {
+        const proceed = confirm(
+          'This URL doesn\'t end with a recognized Z-machine extension (.z3, .z4, .z5, .z8, .zblorb).\n\n' +
+          'Try to load it anyway?'
+        );
+        if (!proceed) return;
+      }
+
+      // Extract game name from URL for autosave key
+      const urlPath = new URL(url).pathname;
+      const fileName = urlPath.split('/').pop() || 'custom-game';
+      const gameName = fileName.replace(/\.[^.]+$/, '').toLowerCase();
+
+      // Check for existing autosave
+      const autosaveKey = `iftalk_autosave_${gameName}`;
+      const hasAutosave = localStorage.getItem(autosaveKey) !== null;
+
+      if (hasAutosave) {
+        const choice = await showResumeDialog(url, gameName);
+        if (choice === 'resume') {
+          startGame(url, onOutput);
+        } else if (choice === 'restart') {
+          localStorage.setItem('iftalk_skip_autoload', 'true');
+          startGame(url, onOutput);
+        }
+      } else {
+        startGame(url, onOutput);
       }
     });
   }

@@ -41,6 +41,59 @@ export function createApp() {
     });
   });
 
+  // Proxy endpoint for fetching remote game files (avoids CORS issues)
+  app.get('/api/fetch-game', async (req, res) => {
+    const gameUrl = req.query.url;
+
+    if (!gameUrl) {
+      return res.status(400).json({ error: 'Missing url parameter' });
+    }
+
+    // Validate URL
+    try {
+      new URL(gameUrl);
+    } catch {
+      return res.status(400).json({ error: 'Invalid URL' });
+    }
+
+    // Only allow fetching from known safe domains
+    const allowedDomains = [
+      'ifarchive.org',
+      'www.ifarchive.org',
+      'mirror.ifarchive.org',
+      'ifdb.org',
+      'www.ifdb.org'
+    ];
+
+    const urlObj = new URL(gameUrl);
+    if (!allowedDomains.some(domain => urlObj.hostname === domain || urlObj.hostname.endsWith('.' + domain))) {
+      return res.status(403).json({
+        error: 'Domain not allowed. Only IF Archive and IFDB URLs are supported.'
+      });
+    }
+
+    try {
+      const response = await fetch(gameUrl);
+
+      if (!response.ok) {
+        return res.status(response.status).json({
+          error: `Failed to fetch: ${response.status} ${response.statusText}`
+        });
+      }
+
+      const arrayBuffer = await response.arrayBuffer();
+      const buffer = Buffer.from(arrayBuffer);
+
+      // Set appropriate headers
+      res.set('Content-Type', 'application/octet-stream');
+      res.set('Content-Length', buffer.length);
+      res.send(buffer);
+
+    } catch (error) {
+      res.status(500).json({ error: 'Failed to fetch game file: ' + error.message });
+    }
+  });
+
   // Socket.IO connection handler
   io.on('connection', (socket) => {
 

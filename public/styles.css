@@ -849,7 +849,7 @@ body {
 .welcome {
   text-align: center;
   padding: 50px 30px;
-  max-width: 800px;
+  max-width: 950px;
   margin: 0 auto;
 }
 
@@ -862,10 +862,11 @@ body {
   letter-spacing: -0.01em;
 }
 
-.welcome p {
+.welcome > p {
   font-family: var(--font-serif);
-  font-size: 20px;
-  color: var(--text-secondary);
+  font-size: 16px;
+  font-style: italic;
+  color: var(--text-muted);
   margin-bottom: 40px;
   line-height: 1.6;
 }
@@ -880,7 +881,7 @@ body {
 .game-category {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 12px;
 }
 
 .category-title {
@@ -892,10 +893,17 @@ body {
   letter-spacing: 0.02em;
 }
 
+.category-desc {
+  font-family: var(--font-sans);
+  color: var(--text-muted);
+  font-size: var(--font-s);
+  margin: -8px 0 0 0;
+}
+
 .game-category-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-  gap: 15px;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
 }
 
 .game-card {
@@ -935,31 +943,206 @@ body {
   box-shadow: 0 0 12px rgba(196, 163, 90, 0.6);
 }
 
-/* IF Database link */
-.if-database-link {
+/* IF Database section */
+.if-database-section {
   text-align: center;
   padding: 30px 20px;
   border-top: 1px solid var(--border-subtle);
   margin-top: 20px;
 }
 
-.if-database-link p {
+.if-database-section > p {
   font-family: var(--font-sans);
   font-size: 16px;
   color: var(--text-secondary);
-  margin: 0;
+  margin: 0 0 20px 0;
 }
 
-.if-database-link a {
+.if-database-section a {
   color: var(--accent-primary);
   text-decoration: none;
   font-weight: 500;
   transition: color 0.2s ease;
 }
 
-.if-database-link a:hover {
+.if-database-section a:hover {
   color: var(--accent-warm);
   text-decoration: underline;
+}
+
+/* Custom URL Input */
+.custom-url-section {
+  text-align: center;
+  padding: 0;
+}
+
+.custom-url-section h4 {
+  font-family: var(--font-serif);
+  font-size: 16px;
+  color: var(--text-secondary);
+  margin: 0 0 12px 0;
+}
+
+.custom-url-form {
+  display: flex;
+  gap: 10px;
+  max-width: 650px;
+  margin: 0 auto;
+}
+
+.custom-url-input {
+  flex: 1;
+  padding: 10px 14px;
+  border: 1px solid var(--border-subtle);
+  border-radius: 6px;
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  font-size: 14px;
+}
+
+.custom-url-input:focus {
+  outline: none;
+  border-color: var(--accent-primary);
+}
+
+.custom-url-input::placeholder {
+  color: var(--text-muted);
+}
+
+.custom-url-btn {
+  padding: 10px 20px;
+  border: none;
+  border-radius: 6px;
+  background: var(--accent-primary);
+  color: var(--bg-primary);
+  font-family: var(--font-sans);
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.custom-url-btn:hover {
+  background: var(--accent-warm);
+}
+
+.custom-url-btn .material-icons {
+  font-size: 18px;
+}
+
+/* Resume Dialog */
+.resume-dialog-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  animation: fadeIn 0.2s ease;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.resume-dialog {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: 12px;
+  padding: 30px;
+  max-width: 400px;
+  width: 90%;
+  position: relative;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+  animation: slideUp 0.2s ease;
+}
+
+@keyframes slideUp {
+  from { transform: translateY(20px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+.resume-dialog h3 {
+  font-family: var(--font-serif);
+  font-size: 24px;
+  color: var(--text-primary);
+  margin: 0 0 10px 0;
+  text-align: center;
+}
+
+.resume-dialog p {
+  font-family: var(--font-sans);
+  font-size: 16px;
+  color: var(--text-secondary);
+  margin: 0 0 24px 0;
+  text-align: center;
+}
+
+.resume-dialog-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.resume-dialog-buttons .btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 14px 20px;
+  font-size: 16px;
+  border-radius: 8px;
+}
+
+.resume-dialog-buttons .resume-btn {
+  background: var(--accent-primary);
+  color: var(--bg-primary);
+}
+
+.resume-dialog-buttons .resume-btn:hover {
+  background: var(--accent-warm);
+}
+
+.resume-dialog-buttons .restart-btn {
+  background: transparent;
+  border: 1px solid var(--border-subtle);
+  color: var(--text-secondary);
+}
+
+.resume-dialog-buttons .restart-btn:hover {
+  border-color: var(--text-muted);
+  color: var(--text-primary);
+}
+
+.resume-dialog-cancel {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  width: 30px;
+  height: 30px;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 24px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  transition: all 0.2s ease;
+}
+
+.resume-dialog-cancel:hover {
+  background: var(--bg-elevated);
+  color: var(--text-primary);
 }
 
 .game-title {

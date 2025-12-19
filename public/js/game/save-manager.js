@@ -105,8 +105,6 @@ export async function quickSave() {
         localStorage.setItem(key, JSON.stringify(saveData));
 
         updateStatus('Quick saved', 'success');
-        console.log('[SaveManager] Quick save successful');
-
         return true;
 
     } catch (error) {
@@ -184,7 +182,6 @@ export async function customSave(saveName) {
         const key = `iftalk_customsave_${state.currentGameName}_${saveName}`;
         localStorage.setItem(key, JSON.stringify(saveData));
 
-        console.log('[SaveManager] Custom save successful:', saveName);
         return true;
 
     } catch (error) {
@@ -226,20 +223,16 @@ export async function customLoad(saveName) {
         const result = window.zvmInstance.restore_file(bytes.buffer);
 
         if (result === 2) { // ZVM returns 2 on successful restore
-            console.log('[SaveManager] Custom load: VM state restored');
-
             // Restore VoxGlk state (generation, inputWindowId)
             if (saveData.voxglkState && window._voxglkInstance) {
                 window._voxglkInstance.restore_state(
                     saveData.voxglkState.generation,
                     saveData.voxglkState.inputWindowId
                 );
-                console.log('[SaveManager] Custom load: VoxGlk state restored');
             }
 
             // Restore display HTML
             if (saveData.displayHTML) {
-                console.log('[SaveManager] Custom load: Restoring display HTML...');
                 const statusBarEl = document.getElementById('statusBar');
                 const upperWindowEl = document.getElementById('upperWindow');
                 const lowerWindowEl = document.getElementById('lowerWindow');
@@ -271,7 +264,6 @@ export async function customLoad(saveName) {
             // Restore narration state if available
             if (saveData.narrationState) {
                 state.currentChunkIndex = saveData.narrationState.currentChunkIndex;
-                console.log('[SaveManager] Custom load: Narration state restored');
             }
 
             // Send bootstrap input to wake VM
@@ -282,18 +274,15 @@ export async function customLoad(saveName) {
                 setSkipNextUpdateAfterBootstrap(true);
 
                 setTimeout(() => {
-                    console.log('[SaveManager] Custom load: Sending bootstrap input...');
                     acceptCallback({
                         type: 'char',
                         gen: 1,
                         window: 1,
                         value: 10
                     });
-                    console.log('[SaveManager] Custom load: Bootstrap input sent');
                 }, 100);
             }
 
-            console.log('[SaveManager] Custom load successful:', saveName);
             return true;
         } else {
             console.error('[SaveManager] Custom load failed: Invalid save data');
@@ -318,12 +307,6 @@ export async function autoSave() {
 
         // Get Quetzal save data from ZVM
         const pc = window.zvmInstance.pc;
-
-        // Debug: Check what we're saving
-        console.log('[SaveManager] Saving with PC:', pc, '(0x' + pc.toString(16) + ')');
-        console.log('[SaveManager] Memory at PC:', '0x' + window.zvmInstance.m.getUint8(pc).toString(16));
-        console.log('[SaveManager] Next 10 bytes:', Array.from(window.zvmInstance.m.getUint8Array(pc, 10)).map(b => '0x' + b.toString(16).padStart(2, '0')).join(' '));
-
         const quetzalData = window.zvmInstance.save_file(pc);
 
         // Convert to base64 for localStorage
@@ -382,13 +365,6 @@ export async function autoSave() {
         const key = `iftalk_autosave_${state.currentGameName}`;
         localStorage.setItem(key, JSON.stringify(saveData));
 
-        console.log('[SaveManager] ✅ Auto saved:', {
-            pc: pc,
-            stackDepth: saveData.verification.stackDepth,
-            callStackDepth: saveData.verification.callStackDepth,
-            htmlLength: saveData.displayHTML.lowerWindow.length
-        });
-
         return true;
 
     } catch (error) {
@@ -437,32 +413,6 @@ export async function autoLoad() {
         const result = window.zvmInstance.restore_file(bytes.buffer);
 
         if (result === 2) { // ZVM returns 2 on successful restore
-            // Verify VM state matches saved state
-            if (saveData.verification) {
-                const restoredPC = window.zvmInstance.pc;
-                const restoredStackDepth = window.zvmInstance.stack?.length || 0;
-                const restoredCallStackDepth = window.zvmInstance.callstack?.length || 0;
-
-                const pcMatch = restoredPC === saveData.verification.pc;
-                const stackMatch = restoredStackDepth === saveData.verification.stackDepth;
-                const callStackMatch = restoredCallStackDepth === saveData.verification.callStackDepth;
-
-                console.log('[SaveManager] ✅ VM State Verification:', {
-                    pc: { saved: saveData.verification.pc, restored: restoredPC, match: pcMatch ? '✓' : '✗' },
-                    stackDepth: { saved: saveData.verification.stackDepth, restored: restoredStackDepth, match: stackMatch ? '✓' : '✗' },
-                    callStackDepth: { saved: saveData.verification.callStackDepth, restored: restoredCallStackDepth, match: callStackMatch ? '✓' : '✗' }
-                });
-
-                // Debug: Check memory at restored PC
-                console.log('[SaveManager] Restored PC:', restoredPC, '(0x' + restoredPC.toString(16) + ')');
-                console.log('[SaveManager] Memory at restored PC:', '0x' + window.zvmInstance.m.getUint8(restoredPC).toString(16));
-                console.log('[SaveManager] Next 10 bytes:', Array.from(window.zvmInstance.m.getUint8Array(restoredPC, 10)).map(b => '0x' + b.toString(16).padStart(2, '0')).join(' '));
-
-                if (!pcMatch || !stackMatch || !callStackMatch) {
-                    console.warn('[SaveManager] ⚠️ VM state mismatch detected - restore may be incomplete');
-                }
-            }
-
             updateStatus('Restored from last session', 'success');
 
             // Restore VoxGlk state (generation, inputWindowId)
@@ -475,7 +425,6 @@ export async function autoLoad() {
 
             // Restore display HTML so user sees saved content immediately
             if (saveData.displayHTML) {
-                console.log('[SaveManager] Restoring display HTML...');
                 const statusBarEl = document.getElementById('statusBar');
                 const upperWindowEl = document.getElementById('upperWindow');
                 const lowerWindowEl = document.getElementById('lowerWindow');
@@ -512,7 +461,6 @@ export async function autoLoad() {
                         messageInput.focus();
                     }
                 }
-                console.log('[SaveManager] Display restored - press any key to activate input');
             }
 
             return true;
@@ -560,20 +508,16 @@ export async function quickLoad() {
         const result = window.zvmInstance.restore_file(bytes.buffer);
 
         if (result === 2) { // ZVM returns 2 on successful restore
-            console.log('[SaveManager] Quick load: VM state restored');
-
             // Restore VoxGlk state (generation, inputWindowId)
             if (saveData.voxglkState && window._voxglkInstance) {
                 window._voxglkInstance.restore_state(
                     saveData.voxglkState.generation,
                     saveData.voxglkState.inputWindowId
                 );
-                console.log('[SaveManager] Quick load: VoxGlk state restored');
             }
 
             // Restore display HTML so user sees saved content immediately
             if (saveData.displayHTML) {
-                console.log('[SaveManager] Quick load: Restoring display HTML...');
                 const statusBarEl = document.getElementById('statusBar');
                 const upperWindowEl = document.getElementById('upperWindow');
                 const lowerWindowEl = document.getElementById('lowerWindow');
@@ -611,7 +555,6 @@ export async function quickLoad() {
             // Restore narration state if available
             if (saveData.narrationState) {
                 state.currentChunkIndex = saveData.narrationState.currentChunkIndex;
-                console.log('[SaveManager] Quick load: Narration state restored');
             }
 
             // Import voxglk to send bootstrap input and get acceptCallback
@@ -624,20 +567,16 @@ export async function quickLoad() {
 
                 // Send bootstrap char input to wake VM (same as autoload)
                 setTimeout(() => {
-                    console.log('[SaveManager] Quick load: Sending bootstrap input to wake VM...');
                     acceptCallback({
                         type: 'char',
                         gen: 1,  // Always use intro's generation
                         window: 1,
                         value: 10  // Enter key
                     });
-                    console.log('[SaveManager] Quick load: Bootstrap input sent');
                 }, 100);
             }
 
             updateStatus('Quick loaded', 'success');
-            console.log('[SaveManager] Quick load successful');
-
             return true;
         } else {
             updateStatus('Quick load failed: Invalid save data', 'error');
