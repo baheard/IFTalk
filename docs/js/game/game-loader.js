@@ -11,6 +11,7 @@ import { updateNavButtons } from '../ui/nav-buttons.js';
 import { stopNarration } from '../narration/tts-player.js';
 import { createVoxGlk, sendInput, getInputType } from './voxglk.js';
 import { updateCurrentGameDisplay, reloadSettingsForGame } from '../ui/settings.js';
+import { activateIfEnabled } from '../utils/wake-lock.js';
 
 /**
  * Start a game using browser-based ZVM
@@ -29,6 +30,9 @@ export async function startGame(gamePath, onOutput) {
 
     // Reload per-game settings (voices, speech rate, etc.)
     reloadSettingsForGame();
+
+    // Activate keep awake if enabled (requires user gesture - game click qualifies)
+    activateIfEnabled();
 
     updateStatus('Starting game...', 'processing');
 

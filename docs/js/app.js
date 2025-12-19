@@ -31,6 +31,9 @@ import { sendCommand, sendCommandDirect } from './game/commands.js';
 import { initSaveHandlers, quickSave, quickLoad } from './game/save-manager.js';
 import { initGameSelection } from './game/game-loader.js';
 
+// Utility modules
+import { initKeepAwake, enableKeepAwake, disableKeepAwake, isKeepAwakeEnabled, activateIfEnabled } from './utils/wake-lock.js';
+
 // Voice command handlers
 const voiceCommandHandlers = {
   restart: () => skipToStart(() => speakTextChunked(null, state.currentChunkIndex)),
@@ -230,6 +233,22 @@ async function initApp() {
   initVoiceSelection();
   initHistoryButtons();
   initSaveHandlers();
+
+  // Initialize keep awake (pocket mode)
+  initKeepAwake();
+  const keepAwakeToggle = document.getElementById('keepAwakeToggle');
+  if (keepAwakeToggle) {
+    keepAwakeToggle.checked = isKeepAwakeEnabled();
+    keepAwakeToggle.addEventListener('change', (e) => {
+      if (e.target.checked) {
+        enableKeepAwake();
+        updateStatus('Pocket mode enabled - TTS continues when screen off');
+      } else {
+        disableKeepAwake();
+        updateStatus('Pocket mode disabled');
+      }
+    });
+  }
 
   // Initialize mute button state to match default (muted)
   if (dom.muteBtn) {
