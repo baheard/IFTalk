@@ -32,7 +32,7 @@ export function createApp() {
   const io = new Server(httpServer);
 
   // Serve static files
-  app.use(express.static('public'));
+  app.use(express.static('docs'));
 
   // API endpoint to get config
   app.get('/api/config', (req, res) => {
