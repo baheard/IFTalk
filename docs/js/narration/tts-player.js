@@ -11,6 +11,80 @@ import { updateStatus } from '../utils/status.js';
 import { fixPronunciation } from '../utils/pronunciation.js';
 import { recordSpokenChunk } from '../voice/echo-detection.js';
 import { updateTextHighlight, removeHighlight } from './highlighting.js';
+import { getDefaultVoice } from '../ui/settings.js';
+
+// Keep-alive audio context for mobile background playback
+let keepAliveAudio = null;
+let keepAliveContext = null;
+
+/**
+ * Start silent audio to keep browser active during phone sleep
+ * Uses Web Audio API to generate inaudible tone
+ */
+export function startKeepAlive() {
+  if (keepAliveContext) return; // Already running
+
+  try {
+    keepAliveContext = new (window.AudioContext || window.webkitAudioContext)();
+
+    // Create a very quiet oscillator (inaudible but keeps audio context alive)
+    const oscillator = keepAliveContext.createOscillator();
+    const gainNode = keepAliveContext.createGain();
+
+    oscillator.connect(gainNode);
+    gainNode.connect(keepAliveContext.destination);
+
+    // Set volume to nearly zero (inaudible)
+    gainNode.gain.value = 0.001;
+    oscillator.frequency.value = 1; // Very low frequency
+
+    oscillator.start();
+
+    // Set up Media Session API for lock screen controls
+    if ('mediaSession' in navigator) {
+      navigator.mediaSession.metadata = new MediaMetadata({
+        title: 'IFTalk Narration',
+        artist: 'Interactive Fiction',
+        album: state.currentGameName || 'Game'
+      });
+
+      navigator.mediaSession.setActionHandler('play', () => {
+        // Resume narration if paused
+        if (state.narrationEnabled && !state.isNarrating) {
+          import('./navigation.js').then(nav => nav.resumeNarration());
+        }
+      });
+
+      navigator.mediaSession.setActionHandler('pause', () => {
+        stopNarration();
+      });
+
+      navigator.mediaSession.setActionHandler('stop', () => {
+        stopNarration();
+        stopKeepAlive();
+      });
+    }
+
+    console.log('[KeepAlive] Started background audio context');
+  } catch (err) {
+    console.warn('[KeepAlive] Failed to start:', err);
+  }
+}
+
+/**
+ * Stop the keep-alive audio
+ */
+export function stopKeepAlive() {
+  if (keepAliveContext) {
+    try {
+      keepAliveContext.close();
+    } catch (err) {
+      // Ignore
+    }
+    keepAliveContext = null;
+    console.log('[KeepAlive] Stopped background audio context');
+  }
+}
 
 /**
  * Play audio (supports both base64 audio from ElevenLabs and browser TTS)
@@ -90,12 +164,17 @@ export async function playWithBrowserTTS(text, voiceType = 'narrator') {
   return new Promise((resolve) => {
     const utterance = new SpeechSynthesisUtterance(fixedText);
 
-    // Find configured voice based on voice type
+    // Find configured voice based on voice type (fall back to default if not set)
     const voices = speechSynthesis.getVoices();
     const voiceName = voiceType === 'app'
       ? state.browserVoiceConfig?.appVoice
       : state.browserVoiceConfig?.voice;
-    const selectedVoice = voices.find(v => v.name === voiceName);
+
+    // Use configured voice, or fall back to our preferred default
+    let selectedVoice = voiceName ? voices.find(v => v.name === voiceName) : null;
+    if (!selectedVoice) {
+      selectedVoice = getDefaultVoice(voices);
+    }
 
     if (selectedVoice) {
       utterance.voice = selectedVoice;
@@ -198,6 +277,10 @@ export async function speakTextChunked(text, startFromIndex = 0) {
   state.currentChunkIndex = startFromIndex;
   state.isPaused = false;
   state.isNarrating = true;
+
+  // Start keep-alive for mobile background playback
+  startKeepAlive();
+
   console.log('[TTS] Starting narration from chunk index:', state.currentChunkIndex);
 
   const totalChunks = state.narrationChunks.length;
@@ -298,6 +381,9 @@ export async function stopNarration(preserveHighlight = false) {
   state.isNarrating = false;
   state.isPaused = true;
 
+  // Stop keep-alive audio (saves battery when not narrating)
+  stopKeepAlive();
+
   // Only update status if not showing something else
   const statusText = dom.status?.textContent || '';
   if (statusText.includes('Speaking')) {
@@ -325,7 +411,13 @@ export function speakAppMessage(text) {
   state.appVoicePromise = new Promise((resolve) => {
     const utterance = new SpeechSynthesisUtterance(text);
     const voices = speechSynthesis.getVoices();
-    const appVoice = voices.find(v => v.name === state.browserVoiceConfig?.appVoice);
+    const appVoiceName = state.browserVoiceConfig?.appVoice;
+
+    // Use configured app voice, or fall back to our preferred default
+    let appVoice = appVoiceName ? voices.find(v => v.name === appVoiceName) : null;
+    if (!appVoice) {
+      appVoice = getDefaultVoice(voices);
+    }
 
     if (appVoice) {
       utterance.voice = appVoice;

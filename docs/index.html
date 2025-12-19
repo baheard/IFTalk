@@ -31,8 +31,13 @@
     <div class="settings-content">
       <!-- Current Game Display -->
       <div class="current-game-display" id="currentGameDisplay">
-        <span class="current-game-label">Currently playing:</span>
-        <span class="current-game-name" id="currentGameName">No game loaded</span>
+        <span class="current-game-info">
+          <span class="current-game-label">Currently playing:</span>
+          <span class="current-game-name" id="currentGameName">No game loaded</span>
+        </span>
+        <button class="btn btn-sm btn-secondary" id="selectGameBtn">
+          <span class="material-icons">folder_open</span> Change
+        </button>
       </div>
 
       <!-- Game Settings -->
@@ -47,13 +52,6 @@
             </button>
             <button class="btn btn-primary btn-half-width" id="quickRestoreBtn" title="F9">
               <span class="material-icons">restore</span> Quick Restore
-            </button>
-          </div>
-
-          <!-- Return to Game Select -->
-          <div class="game-actions">
-            <button class="btn btn-secondary btn-full-width" id="selectGameBtn">
-              <span class="material-icons">folder_open</span> Select Different Game
             </button>
           </div>
 
@@ -130,7 +128,7 @@
           </select>
           <button id="testAppVoiceBtn" class="btn-test-voice" title="Preview app voice">▶️</button>
         </div>
-        <p class="settings-help">⭐ = High-quality native voice (recommended). Only English voices shown.</p>
+        <p class="settings-help">Only English voices shown.</p>
         </div>
       </div>
 
@@ -214,89 +212,179 @@
     <!-- Welcome Screen -->
     <div class="welcome" id="welcome">
       <h2>Welcome to IF Talk</h2>
-      <p>Play interactive fiction with voice control and narration.</p>
+      <p>Interactive fiction with voice control and narration.</p>
 
       <div class="game-list">
         <!-- Category 1: Your First Adventure -->
         <div class="game-category">
           <h3 class="category-title">📜 Your First Adventure</h3>
-          <p class="category-desc">Short, forgiving games that are easy to pick up</p>
+          <p class="category-desc">Welcoming games for new players</p>
           <div class="game-category-grid">
-            <button class="game-card" data-game="LostPig.z8">
+            <button class="game-card" data-game="dreamhold.z8">
               <span class="save-badge" data-save-indicator></span>
-              <div class="game-title">Lost Pig</div>
-              <div class="game-desc">Comedy adventure where you play an orc looking for a pig</div>
-            </button>
-            <button class="game-card" data-game="Dreamhold.z8">
-              <span class="save-badge" data-save-indicator></span>
-              <div class="game-title">The Dreamhold</div>
+              <div class="game-title">The Dreamhold <span class="game-year">(2004)</span></div>
               <div class="game-desc">Tutorial game designed to teach IF step-by-step</div>
             </button>
-            <button class="game-card" data-game="Photopia.z5">
+            <button class="game-card" data-game="lostpig.z8">
               <span class="save-badge" data-save-indicator></span>
-              <div class="game-title">Photopia</div>
-              <div class="game-desc">Award-winning story-driven experience</div>
+              <div class="game-title">Lost Pig <span class="game-year">(2007)</span></div>
+              <div class="game-desc">Comedy adventure where you play an orc looking for a pig</div>
             </button>
             <button class="game-card" data-game="905.z5">
               <span class="save-badge" data-save-indicator></span>
-              <div class="game-title">9:05</div>
+              <div class="game-title">9:05 <span class="game-year">(2000)</span></div>
               <div class="game-desc">Short game with a twist - perfect intro to IF</div>
+            </button>
+            <button class="game-card" data-game="photopia.z5">
+              <span class="save-badge" data-save-indicator></span>
+              <div class="game-title">Photopia <span class="game-year">(1998)</span></div>
+              <div class="game-desc">Award-winning story-driven experience</div>
             </button>
           </div>
         </div>
 
-        <!-- Category 2: IF Masterpieces -->
+        <!-- Category 2: Ready for More -->
+        <div class="game-category">
+          <h3 class="category-title">🚀 Ready for More</h3>
+          <p class="category-desc">Step into more playful and surprising stories</p>
+          <div class="game-category-grid">
+            <button class="game-card" data-game="leathergoddesses.z5">
+              <span class="save-badge" data-save-indicator></span>
+              <div class="game-title">Leather Goddesses of Phobos <span class="game-year">(1986)</span></div>
+              <div class="game-desc">Campy sci-fi comedy from Infocom</div>
+            </button>
+            <button class="game-card" data-game="wishbringer.z3">
+              <span class="save-badge" data-save-indicator></span>
+              <div class="game-title">Wishbringer <span class="game-year">(1985)</span></div>
+              <div class="game-desc">Beginner-friendly Infocom fantasy adventure</div>
+            </button>
+            <button class="game-card" data-game="theatre.z5">
+              <span class="save-badge" data-save-indicator></span>
+              <div class="game-title">Theatre <span class="game-year">(1995)</span></div>
+              <div class="game-desc">Backstage mystery at an old playhouse</div>
+            </button>
+            <button class="game-card" data-game="galatea.zblorb">
+              <span class="save-badge" data-save-indicator></span>
+              <div class="game-title">Galatea <span class="game-year">(2000)</span></div>
+              <div class="game-desc">Deep conversation with a statue come to life</div>
+            </button>
+          </div>
+        </div>
+
+        <!-- Category 3: IF Masterpieces -->
         <div class="game-category">
           <h3 class="category-title">⭐ IF Masterpieces</h3>
-          <p class="category-desc">Iconic stories that show what IF can do</p>
+          <p class="category-desc">The pinnacle of the medium</p>
           <div class="game-category-grid">
-            <button class="game-card" data-game="SpiderWeb.z5">
+            <button class="game-card" data-game="spiderandweb.z5">
               <span class="save-badge" data-save-indicator></span>
-              <div class="game-title">Spider and Web</div>
+              <div class="game-title">Spider and Web <span class="game-year">(1998)</span></div>
               <div class="game-desc">Espionage thriller with clever narrative puzzles</div>
             </button>
-            <button class="game-card" data-game="Anchorhead.z8">
+            <button class="game-card" data-game="anchorhead.z8">
               <span class="save-badge" data-save-indicator></span>
-              <div class="game-title">Anchorhead</div>
+              <div class="game-title">Anchorhead <span class="game-year">(1998)</span></div>
               <div class="game-desc">Lovecraftian horror - atmospheric masterpiece</div>
             </button>
-            <button class="game-card" data-game="Trinity.z4">
+            <button class="game-card" data-game="trinity.z4">
               <span class="save-badge" data-save-indicator></span>
-              <div class="game-title">Trinity</div>
+              <div class="game-title">Trinity <span class="game-year">(1986)</span></div>
               <div class="game-desc">Cold War time travel - thought-provoking</div>
             </button>
-            <button class="game-card" data-game="Curses.z5">
+            <button class="game-card" data-game="curses.z5">
               <span class="save-badge" data-save-indicator></span>
-              <div class="game-title">Curses</div>
+              <div class="game-title">Curses <span class="game-year">(1993)</span></div>
               <div class="game-desc">Classic exploration - first modern IF game</div>
             </button>
           </div>
         </div>
 
-        <!-- Category 3: Ready for More -->
-        <div class="game-category">
-          <h3 class="category-title">🚀 Ready for More</h3>
-          <p class="category-desc">Continue your journey with these excellent adventures</p>
-          <div class="game-category-grid">
-            <button class="game-card" data-game="Planetfall.z3">
+        <!-- Classics Expander -->
+        <div class="classics-expander" id="classicsExpander">
+          <button class="classics-toggle" id="classicsToggle">
+            <span>Classics &amp; Other Favorites</span>
+            <span class="toggle-arrow">▼</span>
+          </button>
+          <div class="classics-content">
+            <button class="game-card" data-game="weather.z5">
               <span class="save-badge" data-save-indicator></span>
-              <div class="game-title">Planetfall</div>
-              <div class="game-desc">Sci-fi adventure - meet Floyd the robot</div>
+              <div class="game-title">A Change in the Weather <span class="game-year">(1995)</span></div>
+              <div class="game-desc">Plotkin's debut - a walk in the park</div>
             </button>
-            <button class="game-card" data-game="Violet.zblorb">
+            <button class="game-card" data-game="aisle.z5">
               <span class="save-badge" data-save-indicator></span>
-              <div class="game-title">Violet</div>
-              <div class="game-desc">One-room puzzle game with a unique voice</div>
+              <div class="game-title">Aisle <span class="game-year">(1999)</span></div>
+              <div class="game-desc">One move, many endings</div>
             </button>
-            <button class="game-card" data-game="WizardSniffer.zblorb">
+            <button class="game-card" data-game="allroads.z5">
               <span class="save-badge" data-save-indicator></span>
-              <div class="game-title">The Wizard Sniffer</div>
-              <div class="game-desc">Comedy fantasy - play as a pig finding wizards</div>
+              <div class="game-title">All Roads <span class="game-year">(2001)</span></div>
+              <div class="game-desc">Venice time-loop mystery</div>
             </button>
-            <button class="game-card" data-game="Bronze.zblorb">
+            <button class="game-card" data-game="bronze.zblorb">
               <span class="save-badge" data-save-indicator></span>
-              <div class="game-title">Bronze</div>
+              <div class="game-title">Bronze <span class="game-year">(2006)</span></div>
               <div class="game-desc">Fairy tale retelling - Beauty and the Beast</div>
+            </button>
+            <button class="game-card" data-game="zork.z5">
+              <span class="save-badge" data-save-indicator></span>
+              <div class="game-title">Dungeon (Zork) <span class="game-year">(1977)</span></div>
+              <div class="game-desc">The original MIT mainframe classic</div>
+            </button>
+            <button class="game-card" data-game="hitchhik.z5">
+              <span class="save-badge" data-save-indicator></span>
+              <div class="game-title">Hitchhiker's Guide <span class="game-year">(1984)</span></div>
+              <div class="game-desc">Douglas Adams' comedic sci-fi classic</div>
+            </button>
+            <button class="game-card" data-game="jigsaw.z8">
+              <span class="save-badge" data-save-indicator></span>
+              <div class="game-title">Jigsaw <span class="game-year">(1995)</span></div>
+              <div class="game-desc">Time-travel through historical moments</div>
+            </button>
+            <button class="game-card" data-game="metamorphoses.z5">
+              <span class="save-badge" data-save-indicator></span>
+              <div class="game-title">Metamorphoses <span class="game-year">(2000)</span></div>
+              <div class="game-desc">Surreal transformations and discovery</div>
+            </button>
+            <button class="game-card" data-game="planetfall.z3">
+              <span class="save-badge" data-save-indicator></span>
+              <div class="game-title">Planetfall <span class="game-year">(1983)</span></div>
+              <div class="game-desc">Sci-fi comedy with Floyd the robot</div>
+            </button>
+            <button class="game-card" data-game="savoirfaire.zblorb">
+              <span class="save-badge" data-save-indicator></span>
+              <div class="game-title">Savoir-Faire <span class="game-year">(2002)</span></div>
+              <div class="game-desc">Magical puzzle adventure</div>
+            </button>
+            <button class="game-card" data-game="shade.z5">
+              <span class="save-badge" data-save-indicator></span>
+              <div class="game-title">Shade <span class="game-year">(2000)</span></div>
+              <div class="game-desc">Surreal one-room mystery by Plotkin</div>
+            </button>
+            <button class="game-card" data-game="slouching.z5">
+              <span class="save-badge" data-save-indicator></span>
+              <div class="game-title">Slouching Towards Bedlam <span class="game-year">(2003)</span></div>
+              <div class="game-desc">Steampunk mystery - award winner</div>
+            </button>
+            <button class="game-card" data-game="sofar.z8">
+              <span class="save-badge" data-save-indicator></span>
+              <div class="game-title">So Far <span class="game-year">(1996)</span></div>
+              <div class="game-desc">Surreal dream journey by Plotkin</div>
+            </button>
+            <button class="game-card" data-game="edifice.z5">
+              <span class="save-badge" data-save-indicator></span>
+              <div class="game-title">The Edifice <span class="game-year">(1997)</span></div>
+              <div class="game-desc">Evolution of language puzzles</div>
+            </button>
+            <button class="game-card" data-game="varicella.z8">
+              <span class="save-badge" data-save-indicator></span>
+              <div class="game-title">Varicella <span class="game-year">(1999)</span></div>
+              <div class="game-desc">Palace intrigue time-loop thriller</div>
+            </button>
+            <button class="game-card" data-game="violet.zblorb">
+              <span class="save-badge" data-save-indicator></span>
+              <div class="game-title">Violet <span class="game-year">(2008)</span></div>
+              <div class="game-desc">One-room puzzle game with a unique voice</div>
             </button>
           </div>
         </div>
@@ -310,7 +398,7 @@
               <input type="url"
                      class="custom-url-input"
                      id="customUrlInput"
-                     placeholder="https://ifarchive.org/if-archive/games/zcode/game.z8"
+                     placeholder="https://ifarchive.org/if-archive/games/zcode/LostPig.z8"
                      autocomplete="off">
               <button type="submit" class="custom-url-btn">
                 <span class="material-icons">play_arrow</span>

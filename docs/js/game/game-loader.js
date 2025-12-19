@@ -66,28 +66,27 @@ export async function startGame(gamePath, onOutput) {
     // Fetch the story file as binary data
     updateStatus('Downloading game file...', 'processing');
 
-    // Determine the fetch URL - add /games/ prefix for local files, use URL directly for remote
+    // Determine the fetch URL
     let fetchUrl = gamePath;
-    if (!gamePath.startsWith('http://') && !gamePath.startsWith('https://')) {
+    let isRemoteUrl = gamePath.startsWith('http://') || gamePath.startsWith('https://');
+
+    if (!isRemoteUrl) {
       // Local file - add /games/ prefix if not already present
       fetchUrl = gamePath.startsWith('/games/') ? gamePath : `/games/${gamePath}`;
+    } else {
+      // Remote URL - use proxy endpoint to avoid CORS issues
+      fetchUrl = `/api/fetch-game?url=${encodeURIComponent(gamePath)}`;
     }
 
-    let response;
-    try {
-      response = await fetch(fetchUrl);
-    } catch (fetchError) {
-      // Network error or CORS issue
-      if (fetchUrl.startsWith('http')) {
-        throw new Error(
-          'Could not load game from URL. This may be due to CORS restrictions. ' +
-          'Try downloading the game file and placing it in the games folder.'
-        );
-      }
-      throw fetchError;
-    }
+    const response = await fetch(fetchUrl);
 
     if (!response.ok) {
+      // Check if it's a JSON error response from our proxy
+      const contentType = response.headers.get('content-type');
+      if (contentType && contentType.includes('application/json')) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || `Failed to load game file: ${response.status}`);
+      }
       throw new Error(`Failed to load game file: ${response.status} ${response.statusText}`);
     }
     const arrayBuffer = await response.arrayBuffer();
@@ -200,6 +199,24 @@ export async function startGame(gamePath, onOutput) {
     console.error('[StartGame] Error:', error);
     console.error('[StartGame] Stack:', error.stack);
     updateStatus('Error: ' + error.message);
+
+    // Return to welcome screen on error
+    const loadingOverlay = document.getElementById('loadingOverlay');
+    if (loadingOverlay) {
+      loadingOverlay.remove();
+    }
+
+    // Show welcome screen, hide game output
+    const welcome = document.getElementById('welcome');
+    const gameOutput = document.getElementById('gameOutput');
+    if (welcome) welcome.classList.remove('hidden');
+    if (gameOutput) gameOutput.classList.add('hidden');
+
+    // Clear last game so we don't auto-retry on refresh
+    localStorage.removeItem('iftalk_last_game');
+
+    // Show error to user
+    alert('Failed to load game: ' + error.message);
   }
 }
 
@@ -220,11 +237,159 @@ export function sendCommandToGame(cmd) {
   sendInput(text, type);
 }
 
+// List of predefined game files (to exclude from "recently played" section)
+const PREDEFINED_GAMES = [
+  'lostpig', 'dreamhold', 'photopia', '905',
+  'spiderweb', 'anchorhead', 'trinity', 'curses',
+  'planetfall', 'violet', 'wizardsniffer', 'bronze'
+];
+
+/**
+ * Track a custom game (played via URL input)
+ * @param {string} url - Full URL to the game
+ * @param {string} gameName - Normalized game name
+ */
+function trackCustomGame(url, gameName) {
+  // Don't track predefined games
+  if (PREDEFINED_GAMES.includes(gameName.toLowerCase())) return;
+
+  const customGames = JSON.parse(localStorage.getItem('iftalk_custom_games') || '{}');
+  customGames[gameName] = {
+    url: url,
+    name: gameName,
+    displayName: gameName.replace(/([A-Z])/g, ' $1').trim().replace(/^\w/, c => c.toUpperCase()),
+    lastPlayed: Date.now()
+  };
+  localStorage.setItem('iftalk_custom_games', JSON.stringify(customGames));
+}
+
+/**
+ * Remove a custom game from tracking
+ * @param {string} gameName - Normalized game name
+ */
+function removeCustomGame(gameName) {
+  const customGames = JSON.parse(localStorage.getItem('iftalk_custom_games') || '{}');
+  delete customGames[gameName];
+  localStorage.setItem('iftalk_custom_games', JSON.stringify(customGames));
+}
+
+/**
+ * Get custom games that have autosaves
+ * @returns {Array} Array of custom game objects with autosaves
+ */
+function getCustomGamesWithAutosaves() {
+  const customGames = JSON.parse(localStorage.getItem('iftalk_custom_games') || '{}');
+  const gamesWithSaves = [];
+
+  for (const [gameName, gameData] of Object.entries(customGames)) {
+    const autosaveKey = `iftalk_autosave_${gameName}`;
+    if (localStorage.getItem(autosaveKey) !== null) {
+      gamesWithSaves.push(gameData);
+    }
+  }
+
+  // Sort by last played (most recent first)
+  gamesWithSaves.sort((a, b) => (b.lastPlayed || 0) - (a.lastPlayed || 0));
+
+  return gamesWithSaves;
+}
+
+/**
+ * Render the "Recently Played" section on the welcome screen
+ * @param {Function} onOutput - Callback for game output
+ */
+function renderRecentlyPlayedSection(onOutput) {
+  const customGames = getCustomGamesWithAutosaves();
+
+  // Remove existing section if present
+  const existingSection = document.getElementById('recentlyPlayedSection');
+  if (existingSection) {
+    existingSection.remove();
+  }
+
+  // Don't show section if no custom games with autosaves
+  if (customGames.length === 0) return;
+
+  // Find the game list container
+  const gameList = document.querySelector('.game-list');
+  if (!gameList) return;
+
+  // Find the if-database-section to insert before it
+  const ifDbSection = document.querySelector('.if-database-section');
+
+  // Create the section
+  const section = document.createElement('div');
+  section.className = 'game-category';
+  section.id = 'recentlyPlayedSection';
+
+  section.innerHTML = `
+    <h3 class="category-title">🕐 Recently Played</h3>
+    <p class="category-desc">Games you've started from URLs</p>
+    <div class="game-category-grid">
+      ${customGames.map(game => `
+        <button class="game-card custom-game-card" data-game="${game.url}" data-game-name="${game.name}">
+          <span class="save-badge has-save" data-save-indicator title="Game in progress"></span>
+          <div class="game-title">${game.displayName}</div>
+          <div class="game-desc">Custom game from URL</div>
+        </button>
+      `).join('')}
+    </div>
+  `;
+
+  // Insert before the if-database-section
+  if (ifDbSection) {
+    gameList.insertBefore(section, ifDbSection);
+  } else {
+    gameList.appendChild(section);
+  }
+
+  // Add click handlers for the new cards
+  section.querySelectorAll('.custom-game-card').forEach(card => {
+    card.addEventListener('click', async () => {
+      const gameUrl = card.dataset.game;
+      const gameName = card.dataset.gameName;
+      const autosaveKey = `iftalk_autosave_${gameName}`;
+
+      const choice = await showResumeDialog(gameUrl, gameName);
+      if (choice === 'resume') {
+        showLoadingOverlay();
+        startGame(gameUrl, onOutput);
+      } else if (choice === 'restart') {
+        localStorage.setItem('iftalk_skip_autoload', 'true');
+        showLoadingOverlay();
+        startGame(gameUrl, onOutput);
+      } else if (choice === 'delete') {
+        localStorage.removeItem(autosaveKey);
+        removeCustomGame(gameName);
+        renderRecentlyPlayedSection(onOutput);
+      }
+    });
+  });
+}
+
+/**
+ * Show loading overlay for transition effect
+ */
+function showLoadingOverlay() {
+  // Remove any existing overlay first
+  const existing = document.getElementById('loadingOverlay');
+  if (existing) existing.remove();
+
+  // Create new overlay
+  const overlay = document.createElement('div');
+  overlay.className = 'loading-overlay';
+  overlay.id = 'loadingOverlay';
+  document.body.appendChild(overlay);
+
+  // Force reflow to ensure the overlay is visible before any transition
+  overlay.offsetHeight;
+}
+
 /**
  * Show resume/restart dialog for games with autosave
  * @param {string} gamePath - Path to game file
  * @param {string} gameName - Normalized game name
- * @returns {Promise<string|null>} 'resume', 'restart', or null if cancelled
+ * @returns {Promise<string|null>} 'resume', 'restart', 'delete', or null if cancelled
  */
 function showResumeDialog(gamePath, gameName) {
   return new Promise((resolve) => {
@@ -250,6 +415,10 @@ function showResumeDialog(gamePath, gameName) {
             <span class="material-icons">replay</span>
             Start Over
           </button>
+          <button class="btn btn-danger delete-btn" data-action="delete">
+            <span class="material-icons">delete</span>
+            Delete Autosave
+          </button>
         </div>
         <button class="resume-dialog-cancel" data-action="cancel">&times;</button>
       </div>
@@ -263,10 +432,18 @@ function showResumeDialog(gamePath, gameName) {
       if (!action) return;
 
       if (action === 'restart') {
-        // Show warning confirmation
         const confirmed = confirm(
           '⚠️ Start Over?\n\n' +
           'This will delete your autosave and start from the beginning.\n\n' +
+          'Are you sure?'
+        );
+        if (!confirmed) return;
+      }
+
+      if (action === 'delete') {
+        const confirmed = confirm(
+          '⚠️ Delete Autosave?\n\n' +
+          'This will permanently delete your saved progress for this game.\n\n' +
           'Are you sure?'
         );
         if (!confirmed) return;
@@ -310,15 +487,26 @@ export function initGameSelection(onOutput) {
         // Show resume/restart dialog
         const choice = await showResumeDialog(gamePath, gameName);
         if (choice === 'resume') {
+          showLoadingOverlay();
           startGame(gamePath, onOutput);
         } else if (choice === 'restart') {
           // Set flag to skip autoload and clear autosave
           localStorage.setItem('iftalk_skip_autoload', 'true');
+          showLoadingOverlay();
           startGame(gamePath, onOutput);
+        } else if (choice === 'delete') {
+          // Delete autosave and update UI
+          localStorage.removeItem(autosaveKey);
+          const badge = card.querySelector('[data-save-indicator]');
+          if (badge) {
+            badge.classList.remove('has-save');
+            badge.title = '';
+          }
         }
         // If choice is null (cancelled), do nothing
       } else {
         // No autosave, just start the game
+        showLoadingOverlay();
         startGame(gamePath, onOutput);
       }
     });
@@ -333,9 +521,19 @@ export function initGameSelection(onOutput) {
       const badge = card.querySelector('[data-save-indicator]');
       if (badge && hasSave) {
         badge.classList.add('has-save');
+        badge.title = 'Game in progress';
       }
     }
   });
+
+  // Classics expander toggle
+  const classicsToggle = document.getElementById('classicsToggle');
+  const classicsExpander = document.getElementById('classicsExpander');
+  if (classicsToggle && classicsExpander) {
+    classicsToggle.addEventListener('click', () => {
+      classicsExpander.classList.toggle('expanded');
+    });
+  }
 
   // Select game button (reload page)
   if (dom.selectGameBtn) {
@@ -410,25 +608,47 @@ export function initGameSelection(onOutput) {
       if (hasAutosave) {
         const choice = await showResumeDialog(url, gameName);
         if (choice === 'resume') {
+          showLoadingOverlay();
+          trackCustomGame(url, gameName);
           startGame(url, onOutput);
         } else if (choice === 'restart') {
           localStorage.setItem('iftalk_skip_autoload', 'true');
+          showLoadingOverlay();
+          trackCustomGame(url, gameName);
           startGame(url, onOutput);
+        } else if (choice === 'delete') {
+          // Delete autosave and remove from custom games
+          localStorage.removeItem(autosaveKey);
+          removeCustomGame(gameName);
+          renderRecentlyPlayedSection(onOutput);
         }
       } else {
+        showLoadingOverlay();
+        trackCustomGame(url, gameName);
         startGame(url, onOutput);
       }
     });
   }
 
-  // Auto-load last played game if it exists
+  // Auto-load last played game if it exists AND has an autosave
   const lastGame = localStorage.getItem('iftalk_last_game');
-  if (lastGame) {
+  const lastGameName = lastGame ? lastGame.split('/').pop().replace(/\.[^.]+$/, '').toLowerCase() : null;
+  const hasAutosave = lastGameName ? localStorage.getItem(`iftalk_autosave_${lastGameName}`) !== null : false;
+
+  if (lastGame && hasAutosave) {
     // Use setTimeout to ensure DOM is ready
     setTimeout(() => {
       startGame(lastGame, onOutput);
     }, 100);
   } else {
+    // Clear last game if no autosave (user should pick from welcome screen)
+    if (lastGame && !hasAutosave) {
+      localStorage.removeItem('iftalk_last_game');
+    }
+
+    // Render recently played section for custom games
+    renderRecentlyPlayedSection(onOutput);
+
     // Fade out loading overlay to reveal welcome screen
     setTimeout(() => {
       const loadingOverlay = document.getElementById('loadingOverlay');

@@ -1,0 +1,125 @@
+Voice Error: not-allowed
+===========================
+
+This error means the browser is blocking microphone access.
+
+COMMON CAUSES:
+
+1. HTTPS Required
+   Mobile browsers require HTTPS for microphone access.
+   Localhost is exempt from this requirement.
+
+2. Permission Denied
+   User previously blocked mic permission for this site.
+   Check browser settings to reset permissions.
+
+3. No User Gesture
+   Some mobile browsers require mic to be started from a direct tap.
+
+SOLUTIONS:
+
+If accessing via HTTP:
+- Use HTTPS (self-signed cert or ngrok)
+- Chrome Android workaround:
+  chrome://flags/#unsafely-treat-insecure-origin-as-secure
+  Add your URL there
+
+If permissions blocked:
+- Tap the lock/info icon in address bar
+- Reset microphone permission to 'Ask'
+
+OPTIONAL CODE FIX:
+Update error message in recognition.js to be more helpful:
+'Microphone blocked - check permissions or use HTTPS'
+
+
+ACCESSING VIA IP ADDRESS (e.g., http://192.168.1.50:3000):
+
+Chrome Android workaround:
+
+1. Open chrome://flags in Chrome
+2. Search for 'insecure origins'
+3. Find 'Insecure origins treated as secure'
+4. Add your full URL (e.g., http://192.168.1.50:3000)
+5. Tap 'Relaunch'
+
+After relaunch, Chrome will treat that IP as secure
+and allow microphone access.
+
+
+iPHONE / iOS SAFARI:
+
+Unfortunately Safari has no flags workaround like Chrome.
+Microphone requires HTTPS with no exceptions.
+
+SOLUTIONS:
+
+1. ngrok (easiest)
+   - Install: npm install -g ngrok
+   - Run: ngrok http 3000
+   - Use the https:// URL it gives you
+
+2. localtunnel (alternative)
+   - Install: npm install -g localtunnel
+   - Run: lt --port 3000
+   - Use the https:// URL
+
+3. Self-signed HTTPS cert (more involved)
+   - Generate cert, configure Express for HTTPS
+   - Safari will warn but can proceed
+
+
+CHROME ON iPHONE:
+
+Chrome on iOS uses Safari's WebKit engine underneath
+(Apple requires this for all iOS browsers).
+
+So Chrome on iPhone has the same restrictions as Safari -
+no flags option, HTTPS required for microphone.
+
+You'll need ngrok or similar for HTTPS.
+
+
+LOCALTUNNEL RUNNING:
+
+URL: https://full-dolls-bathe.loca.lt
+
+Note: First visit may show a 'click to continue' page.
+
+YOU CAN STILL USE THE IP ADDRESS for everything else.
+The HTTPS URL is only required for microphone access on iOS.
+All other features (gameplay, TTS, keyboard input) work fine on HTTP.
+
+
+HOW LOCALTUNNEL IS FREE:
+
+- Open source community project
+- Trade-offs for free tier:
+  * URL changes every time you restart it
+  * 'Click to continue' interstitial page
+  * Can be slow/unreliable at peak times
+  * Rate limited
+
+- For proper/stable hosting, you'd want:
+  * ngrok paid plan
+  * Real HTTPS hosting (Vercel, Netlify, etc.)
+  * Your own domain with SSL cert
+
+
+UPDATED URL (tunnel restarted):
+
+URL: https://small-heads-yawn.loca.lt
+Password: 163.252.194.53
+
+Tunnel is running - tested and working.
+
+
+WHY LOCALTUNNEL KEEPS CLOSING:
+
+- Idle timeout (drops after inactivity)
+- Rate limits on free tier
+- Network hiccups kill the connection
+- Their free infrastructure is unreliable
+- Not designed for sustained connections
+
+For stable tunneling, need paid ngrok or proper hosting.

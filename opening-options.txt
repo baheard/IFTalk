@@ -1,0 +1,10 @@
+Opening Line Options
+====================
+
+Current: "Play interactive fiction with voice control and narration."
+
+Options:
+1. "Voice-controlled interactive fiction"
+2. "Play IF with voice and narration"
+3. "Interactive fiction, narrated"
+4. "IF with voice control and TTS"

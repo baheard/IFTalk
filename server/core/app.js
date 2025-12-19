@@ -62,7 +62,9 @@ export function createApp() {
       'www.ifarchive.org',
       'mirror.ifarchive.org',
       'ifdb.org',
-      'www.ifdb.org'
+      'www.ifdb.org',
+      'web.archive.org',
+      'archive.org'
     ];
 
     const urlObj = new URL(gameUrl);
@@ -73,7 +75,13 @@ export function createApp() {
     }
 
     try {
-      const response = await fetch(gameUrl);
+      const response = await fetch(gameUrl, {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+          'Accept': '*/*'
+        },
+        redirect: 'follow'
+      });
 
       if (!response.ok) {
         return res.status(response.status).json({

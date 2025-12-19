@@ -1,0 +1,46 @@
+Game Descriptions - Review for Mobile
+=======================================
+
+LIKELY TOO LONG (40+ chars):
+
+Lost Pig:
+  Current: "Comedy adventure where you play an orc looking for a pig"
+  Options: 
+    - "Comedy adventure as an orc chasing a pig"
+    - "Play an orc on a pig hunt"
+
+Dreamhold:
+  Current: "Tutorial game designed to teach IF step-by-step"
+  Options:
+    - "Tutorial game that teaches IF basics"
+    - "Learn IF step-by-step"
+
+Spider and Web:
+  Current: "Espionage thriller with clever narrative puzzles"
+  Options:
+    - "Espionage thriller with clever twists"
+    - "Spy thriller with narrative puzzles"
+
+Galatea:
+  Current: "Deep conversation with a statue come to life"
+  Options:
+    - "Converse with a statue come to life"
+    - "Talk with a living statue"
+
+Wishbringer:
+  Current: "Beginner-friendly Infocom fantasy adventure"
+  Options:
+    - "Beginner-friendly Infocom fantasy"
+    - "Accessible Infocom fantasy"
+
+Violet:
+  Current: "One-room puzzle game with a unique voice"
+  Options:
+    - "One-room puzzler with a unique voice"
+    - "Witty one-room puzzle game"
+
+Bronze:
+  Current: "Fairy tale retelling - Beauty and the Beast"
+  Options:
+    - "A Beauty and the Beast retelling"
+    - "Dark fairy tale retelling"

@@ -415,14 +415,14 @@ export function createVoxGlk(textOutputCallback) {
           // Only autosave on line input (not char input)
           const shouldAutosaveThisTurn = inputType === 'line';
 
-          // Skip first 2 autosaves (intro + first blank command)
+          // Skip first 3 autosaves (title screen interactions)
           // This counter resets on every page load (including restore)
-          const shouldSkipFirstN = autosaveCounter < 2;
+          const shouldSkipFirstN = autosaveCounter < 3;
           if (shouldSkipFirstN && shouldAutosaveThisTurn) {
             autosaveCounter++;
           }
 
-          // Auto-save after each turn (only on line input, skip first 2)
+          // Auto-save after each turn (only on line input, skip first 3)
           if (!shouldSkipAutosave && !skipFirstAutosave && shouldAutosaveThisTurn && !shouldSkipFirstN) {
             setTimeout(async () => {
               try {

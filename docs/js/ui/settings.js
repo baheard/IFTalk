@@ -160,11 +160,14 @@ export function initSettings() {
 export function updateCurrentGameDisplay(gameName) {
   const currentGameNameEl = document.getElementById('currentGameName');
   if (currentGameNameEl) {
-    // Format game name nicely (capitalize, remove extension)
+    // Format game name nicely: remove extension, PascalCase
     const formattedName = gameName
       .replace(/\.[^.]+$/, '') // Remove extension
       .replace(/([A-Z])/g, ' $1') // Add space before capitals
-      .trim();
+      .trim()
+      .split(/[\s_-]+/) // Split on spaces, underscores, hyphens
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+      .join(' ');
     currentGameNameEl.textContent = formattedName;
   }
 }
@@ -202,6 +205,53 @@ function loadPronunciationUI() {
   }
 }
 
+// Preferred voices in order of preference (researched quality voices)
+// Chrome uses Google voices, other browsers use system voices
+const VOICE_PREFERENCES = [
+  // Chrome/Google voices (best quality)
+  'Google UK English Male',
+  'Google UK English Female',
+  'Google US English',
+  // Microsoft voices (Windows)
+  'Microsoft Hazel - English (United Kingdom)',
+  'Microsoft George - English (United Kingdom)',
+  'Microsoft Susan - English (United Kingdom)',
+  'Microsoft Ryan - English (United Kingdom)',
+  'Microsoft Sonia - English (United Kingdom)',
+  'Microsoft Zira - English (United States)',
+  'Microsoft Mark - English (United States)',
+  'Microsoft David - English (United States)',
+  // macOS voices
+  'Daniel',
+  'Karen',
+  'Samantha',
+  'Alex',
+  // Fallbacks
+  'English United Kingdom',
+  'English United States'
+];
+
+/**
+ * Get the best available voice from preferences
+ * @param {Array} voices - Available voices
+ * @returns {SpeechSynthesisVoice|null} Best matching voice or null
+ */
+export function getDefaultVoice(voices) {
+  const englishVoices = voices.filter(v => v.lang.startsWith('en'));
+
+  // Try each preferred voice in order
+  for (const preferred of VOICE_PREFERENCES) {
+    const match = englishVoices.find(v =>
+      v.name === preferred ||
+      v.name.includes(preferred)
+    );
+    if (match) return match;
+  }
+
+  // Fallback: first English voice
+  return englishVoices[0] || null;
+}
+
 /**
  * Filter and sort voices
  * - Show only English voices
@@ -221,10 +271,6 @@ function filterAndSortVoices(voices) {
     return a.name.localeCompare(b.name);
   });
 
-  filtered.forEach((voice, index) => {
-    const quality = voice.localService ? 'HIGH-QUALITY' : 'network';
-  });
-
   return filtered;
 }
 
@@ -242,19 +288,23 @@ export function populateVoiceDropdown() {
   // Filter to English voices only
   const filteredVoices = filterAndSortVoices(voices);
 
+  // Get default voice for fallback
+  const defaultVoice = getDefaultVoice(voices);
 
   // Populate narrator voice dropdown
   if (dom.voiceSelect) {
     dom.voiceSelect.innerHTML = '';
 
+    // Get saved voice (undefined means use default)
+    const savedVoice = state.browserVoiceConfig?.voice;
+    const selectedVoice = savedVoice || defaultVoice?.name;
+
     filteredVoices.forEach((voice) => {
       const option = document.createElement('option');
       option.value = voice.name;
-      // Show quality indicator
-      const quality = voice.localService ? '⭐ ' : '';
-      option.textContent = `${quality}${voice.name} (${voice.lang})`;
+      option.textContent = `${voice.name} (${voice.lang})`;
 
-      if (voice.name === state.browserVoiceConfig?.voice) {
+      if (voice.name === selectedVoice) {
         option.selected = true;
       }
 
@@ -266,21 +316,22 @@ export function populateVoiceDropdown() {
   if (dom.appVoiceSelect) {
     dom.appVoiceSelect.innerHTML = '';
 
+    // Get saved voice (undefined means use default)
+    const savedAppVoice = state.browserVoiceConfig?.appVoice;
+    const selectedAppVoice = savedAppVoice || defaultVoice?.name;
+
     filteredVoices.forEach((voice) => {
       const option = document.createElement('option');
       option.value = voice.name;
-      // Show quality indicator
-      const quality = voice.localService ? '⭐ ' : '';
-      option.textContent = `${quality}${voice.name} (${voice.lang})`;
+      option.textContent = `${voice.name} (${voice.lang})`;
 
-      if (voice.name === state.browserVoiceConfig?.appVoice) {
+      if (voice.name === selectedAppVoice) {
         option.selected = true;
       }
 
       dom.appVoiceSelect.appendChild(option);
     });
   }
-
 }
 
 /**

@@ -17,8 +17,14 @@
 
   --text-primary: #e6e4e0;
   --text-secondary: #a8a5a0;
-  --text-muted: #6b6966;
-  --text-system: #7eb8a8; /* Muted teal for system/app messages */
+  --text-muted: #8a8785;
+
+  /* Text colors (theme-specific) */
+  --color-user-typed: #60a5fa;    /* Blue - typed commands */
+  --color-user-spoken: #a78bfa;   /* Purple - voice commands */
+  --color-app-system: #2dd4bf;    /* Teal - IFTalk system messages */
+  --color-game-text: #f5f5f5;     /* Off-white - game narrative */
+  --color-game-system: #fbbf24;   /* Amber - game system messages */
 
   --border-subtle: rgba(255, 255, 255, 0.08);
   --border-accent: rgba(139, 157, 195, 0.3);
@@ -36,7 +42,9 @@
   --font-xl: 1.4rem;
   --font-l: 1.2rem;
   --font-m: 1rem;
-  --font-s: 0.8rem;
+  --font-s: 0.875rem;
+  --font-xs: 0.75rem;
+  --font-xxs: 0.65rem;
 
   --html-font-size: var(--font-m);
 }
@@ -516,14 +524,21 @@ body {
 
 /* Game Section */
 .current-game-display {
-  padding: 0 0 20px 0;
-  margin-bottom: 20px;
+  padding: 12px 0;
+  margin-bottom: 16px;
   border-bottom: 1px solid var(--border-subtle);
   display: flex;
-  gap: 8px;
-  align-items: baseline;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
   font-size: 14px;
   color: var(--text-secondary);
+}
+
+.current-game-info {
+  display: flex;
+  gap: 6px;
+  align-items: baseline;
 }
 
 .current-game-label {
@@ -533,6 +548,15 @@ body {
 .current-game-name {
   color: var(--text-primary);
   font-weight: 500;
+}
+
+.btn-sm {
+  padding: 6px 12px;
+  font-size: 13px;
+}
+
+.btn-sm .material-icons {
+  font-size: 16px;
 }
 
 .game-actions {
@@ -795,19 +819,24 @@ body {
   white-space: normal;
   word-wrap: break-word;
   text-align: left;
-  color: var(--text-primary);
+  color: var(--color-game-text);
   letter-spacing: 0.01em;
 }
 
 /* System/app messages - distinct from game text */
 .system-message {
   font-family: var(--font-mono);
-  color: var(--text-system);
-  background: rgba(126, 184, 168, 0.05);
+  color: var(--color-app-system);
+  background: rgba(45, 212, 191, 0.05);
   padding: 8px 12px;
-  border-left: 2px solid var(--text-system);
+  border-left: 2px solid var(--color-app-system);
   margin: 4px 0;
   border-radius: 4px;
+}
+
+/* Game system messages (parser errors, etc) */
+.game-system-message {
+  color: var(--color-game-system);
 }
 
 /* Blank line spacer for vertical spacing between paragraphs */
@@ -827,16 +856,16 @@ body {
 }
 
 .user-command {
-  color: var(--text-primary);
+  color: var(--color-user-typed);
   font-weight: normal;
   margin-bottom: 0;
   padding: 0;
   font-family: var(--font-mono);
 }
 
-/* Voice command styling - subtle difference */
+/* Voice command styling - purple for spoken commands */
 .user-command.voice-command {
-  color: var(--text-primary);
+  color: var(--color-user-spoken);
 }
 
 .command-label {
@@ -857,7 +886,7 @@ body {
   font-family: var(--font-serif);
   font-size: 36px;
   font-weight: 600;
-  margin-bottom: 24px;
+  margin-bottom: 16px;
   color: var(--text-primary);
   letter-spacing: -0.01em;
 }
@@ -902,7 +931,7 @@ body {
 
 .game-category-grid {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
   gap: 12px;
 }
 
@@ -941,6 +970,72 @@ body {
   opacity: 1;
   background: var(--accent-warm);
   box-shadow: 0 0 12px rgba(196, 163, 90, 0.6);
+}
+
+/* Classics Expander */
+.classics-expander {
+  margin-top: 10px;
+}
+
+.classics-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  padding: 12px 20px;
+  background: transparent;
+  border: 1px solid var(--border-subtle);
+  border-radius: 8px;
+  color: var(--text-muted);
+  font-family: var(--font-sans);
+  font-size: var(--font-s);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.classics-toggle:hover {
+  border-color: var(--accent-muted);
+  color: var(--text-secondary);
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.classics-toggle .toggle-arrow {
+  font-size: 12px;
+  transition: transform 0.3s ease;
+}
+
+.classics-expander.expanded .classics-toggle .toggle-arrow {
+  transform: rotate(180deg);
+}
+
+.classics-content {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 12px;
+  max-height: 0;
+  overflow: hidden;
+  opacity: 0;
+  transition: max-height 0.4s ease, opacity 0.3s ease, margin 0.3s ease;
+  margin-top: 0;
+}
+
+.classics-expander.expanded .classics-content {
+  max-height: 2000px;
+  opacity: 1;
+  margin-top: 16px;
+}
+
+.classics-content .game-card {
+  padding: 16px;
+}
+
+.classics-content .game-title {
+  font-size: var(--font-s);
+}
+
+.classics-content .game-desc {
+  font-size: 12px;
 }
 
 /* IF Database section */
@@ -985,6 +1080,7 @@ body {
 
 .custom-url-form {
   display: flex;
+  flex-wrap: wrap;
   gap: 10px;
   max-width: 650px;
   margin: 0 auto;
@@ -1122,6 +1218,20 @@ body {
   color: var(--text-primary);
 }
 
+.resume-dialog-buttons .delete-btn {
+  background: transparent;
+  border: 1px solid var(--border-subtle);
+  color: var(--text-muted);
+  font-size: 14px;
+  padding: 10px 16px;
+}
+
+.resume-dialog-buttons .delete-btn:hover {
+  border-color: #c44;
+  color: #e66;
+  background: rgba(204, 68, 68, 0.1);
+}
+
 .resume-dialog-cancel {
   position: absolute;
   top: 12px;
@@ -1152,6 +1262,13 @@ body {
   color: var(--text-primary);
   margin-bottom: 10px;
   letter-spacing: -0.01em;
+}
+
+.game-year {
+  font-weight: 400;
+  font-size: var(--font-xxs);
+  color: var(--text-muted);
+  margin-left: 0.3em;
 }
 
 .game-desc {
@@ -1300,17 +1417,17 @@ body {
 
 /* System entry mode - for SAVE/RESTORE/DELETE prompts */
 .message-input.system-entry {
-  border-color: var(--text-system);
-  background: rgba(126, 184, 168, 0.08);
+  border-color: var(--color-app-system);
+  background: rgba(45, 212, 191, 0.08);
 }
 
 .message-input.system-entry:focus {
-  border-color: var(--text-system);
-  box-shadow: 0 0 0 2px rgba(126, 184, 168, 0.2);
+  border-color: var(--color-app-system);
+  box-shadow: 0 0 0 2px rgba(45, 212, 191, 0.2);
 }
 
 .message-input.system-entry::placeholder {
-  color: var(--text-system);
+  color: var(--color-app-system);
   font-weight: 500;
   font-style: normal;
 }
@@ -1797,13 +1914,13 @@ body {
   /* Convert grid layout to normal flow on mobile */
   .grid-status.multiline {
     display: block !important;
-    text-align: center;
+    text-align: left;
     word-wrap: break-word;
   }
 
   .grid-status .grid-line {
-    display: inline !important;
-    text-align: center;
+    display: block !important;
+    text-align: left;
     margin: 0;
     line-height: 1.4;
     word-spacing: normal !important;
@@ -1831,8 +1948,13 @@ body {
     white-space: normal !important;
   }
 
-  /* Hide spans that are purely whitespace */
+  /* Hide spans that are purely whitespace (trims leading whitespace) */
   .grid-status span.whitespace-only {
+    display: none !important;
+  }
+
+  /* Lower window: collapse consecutive blank lines to just one */
+  #lowerWindow .blank-line-spacer + .blank-line-spacer {
     display: none !important;
   }
 }
@@ -1885,7 +2007,7 @@ body {
 
 .glk-input {
   font-weight: 700;
-  color: var(--accent-primary);
+  color: var(--color-user-typed);
   font-family: var(--font-mono);
   font-size: var(--font-m);
 }
@@ -1929,7 +2051,7 @@ body {
 #statusBar {
   font-family: var(--font-serif);
   font-size: var(--font-m);
-  color: var(--accent-warm);
+  color: var(--color-game-system);
   line-height: 1.4;
   width: 100%;
   flex-shrink: 0; /* Don't shrink when space is tight */
@@ -2049,25 +2171,25 @@ body {
 
 /* System input styling (when responding to meta-commands) */
 .command-line.system-input {
-  background: rgba(126, 184, 168, 0.08);
-  border-left: 3px solid var(--text-system);
+  background: rgba(45, 212, 191, 0.08);
+  border-left: 3px solid var(--color-app-system);
   padding-left: 4px;
 }
 
 .command-prompt.system-input {
-  color: var(--text-system);
+  color: var(--color-app-system);
 }
 
 .command-text.system-input {
-  color: var(--text-system);
-  caret-color: var(--text-system);
+  color: var(--color-app-system);
+  caret-color: var(--color-app-system);
   font-weight: 500;
   animation: blink-caret 1s step-end infinite;
 }
 
 /* Animated blinking cursor for system input */
 @keyframes blink-caret {
-  0%, 49% { caret-color: var(--text-system); }
+  0%, 49% { caret-color: var(--color-app-system); }
   50%, 100% { caret-color: transparent; }
 }
 
@@ -2153,7 +2275,7 @@ body {
 
 /* #mainWindow styles removed - VoxGlk now uses #lowerWindow with frotz styling */
 
-/* Force mobile styles on desktop for testing - add class="force-mobile" to body tag */
+/* Mobile styles via class - applies same styles as media query */
 body.force-mobile .game-output {
   overflow-y: auto !important;
   overflow-x: hidden;
@@ -2186,19 +2308,16 @@ body.force-mobile #lowerWindow {
 
 body.force-mobile .grid-status.multiline {
   display: block !important;
+  text-align: left;
+  word-wrap: break-word;
 }
 
 body.force-mobile .grid-status .grid-line {
-  display: inline !important;
-  text-align: center;
+  display: block !important;
+  text-align: left;
   margin: 0;
   line-height: 1.4;
-}
-
-body.force-mobile .grid-status.multiline {
-  display: block !important;
-  text-align: center;
-  word-wrap: break-word;
+  word-spacing: normal !important;
 }
 
 body.force-mobile .grid-status .grid-line.empty-line-single {
@@ -2218,13 +2337,13 @@ body.force-mobile .grid-status .grid-line.empty-line-first {
 body.force-mobile .grid-status span[style*="grid-column"] {
   display: inline !important;
   grid-column: unset !important;
-  white-space: normal !important; /* Collapse whitespace */
+  white-space: normal !important;
 }
 
 body.force-mobile .grid-status span.whitespace-only {
   display: none !important;
 }
 
-body.force-mobile .grid-status .grid-line {
-  word-spacing: normal !important;
+body.force-mobile #lowerWindow .blank-line-spacer + .blank-line-spacer {
+  display: none !important;
 }
