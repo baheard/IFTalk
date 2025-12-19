@@ -71,8 +71,8 @@ export async function startGame(gamePath, onOutput) {
     let isRemoteUrl = gamePath.startsWith('http://') || gamePath.startsWith('https://');
 
     if (!isRemoteUrl) {
-      // Local file - add /games/ prefix if not already present
-      fetchUrl = gamePath.startsWith('/games/') ? gamePath : `/games/${gamePath}`;
+      // Local file - add games/ prefix if not already present (relative path for GitHub Pages compatibility)
+      fetchUrl = gamePath.startsWith('games/') ? gamePath : `games/${gamePath}`;
     } else {
       // Remote URL - use proxy endpoint to avoid CORS issues
       fetchUrl = `/api/fetch-game?url=${encodeURIComponent(gamePath)}`;
