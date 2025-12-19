@@ -1,0 +1,33 @@
+CLAUDE CODE TEXT RENDERING ISSUE
+==================================
+
+SYMPTOM:
+Bullet points and some text showing as blank/invisible.
+Example: Text after 'Examples:' shows as empty lines.
+
+POSSIBLE CAUSES:
+
+1. Terminal font missing glyphs
+   - Try different font (Cascadia Code, Consolas, etc.)
+
+2. Terminal encoding issue
+   - Check terminal is set to UTF-8
+
+3. Windows Terminal settings
+   - Settings > Profiles > Defaults > Appearance
+   - Try different font/renderer
+
+4. Claude Code version bug
+   - Current version: 2.0.73
+   - Try: npm update -g @anthropic-ai/claude-code
+
+5. Clear Claude cache
+   - Delete C:\Users\bahea\.claude.json
+   - Restart Claude
+
+QUICK FIXES TO TRY:
+
+1. Change terminal font
+2. Run: chcp 65001 (sets UTF-8 codepage)
+3. Update Claude: npm update -g @anthropic-ai/claude-code
+4. Try different terminal (CMD vs PowerShell vs Windows Terminal)
