@@ -1,12 +1,13 @@
 /**
  * Voice Meter Module
  *
- * Audio visualization and sound detection for voice input.
- * Monitors microphone levels and auto-pauses narration when user speaks.
+ * Audio visualization for voice input.
+ * Monitors microphone levels for visual feedback.
  */
 
 import { state, constants } from '../core/state.js';
 import { dom } from '../core/dom.js';
+import { setVoiceSpeaking, updateVoiceTranscript } from '../input/keyboard.js';
 
 /**
  * Start voice meter (audio visualization and sound detection)
@@ -45,61 +46,15 @@ export async function startVoiceMeter() {
           dom.muteBtn.classList.add('listening');
         }
 
+        // Update voice indicator speaking state
         if (percentage > 20) {
-          if (dom.voiceTranscript) {
-            dom.voiceTranscript.textContent = 'Speaking... (say "Pause" to stop)';
-          }
+          setVoiceSpeaking(true);
         } else {
-          if (dom.voiceTranscript) {
-            dom.voiceTranscript.textContent = 'Listening...';
-          }
+          setVoiceSpeaking(false);
         }
       }
 
-      // Sound detection for auto-pause narration
-      if (percentage > constants.SOUND_THRESHOLD) {
-        // Sound detected above threshold
-        if (!state.soundDetected) {
-          state.soundDetected = true;
-
-          // Pause narration if it's playing
-          if (state.isNarrating && !state.pausedForSound && !state.isMuted) {
-            state.pausedForSound = true;
-            state.pendingCommandProcessed = false;
-            if ('speechSynthesis' in window) {
-              speechSynthesis.pause();
-            }
-          }
-        }
-
-        // Clear any pending resume timeout
-        if (state.soundPauseTimeout) {
-          clearTimeout(state.soundPauseTimeout);
-          state.soundPauseTimeout = null;
-        }
-      } else {
-        // Sound below threshold (silence)
-        if (state.soundDetected) {
-          state.soundDetected = false;
-
-          // Start timeout to resume narration after silence
-          if (state.pausedForSound && !state.soundPauseTimeout) {
-            state.soundPauseTimeout = setTimeout(() => {
-              state.soundPauseTimeout = null;
-
-              // Always resume after silence, unless explicitly paused
-              state.pausedForSound = false;
-              state.pendingCommandProcessed = false;
-              if (state.narrationEnabled && !state.isPaused) {
-                if ('speechSynthesis' in window) {
-                  speechSynthesis.resume();
-                }
-              } else if (state.isPaused) {
-              }
-            }, constants.SILENCE_DELAY);
-          }
-        }
-      }
+      // Sound detection (for voice visualization only, no longer pauses narration)
     }, 50);
 
   } catch (error) {

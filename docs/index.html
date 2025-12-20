@@ -41,8 +41,8 @@
       </div>
 
       <!-- Game Settings -->
-      <div class="settings-section collapsible collapsed">
-        <h3 class="section-header">🎮 Game</h3>
+      <div class="settings-section collapsible collapsed" id="gameSettingsSection">
+        <h3 class="section-header" id="gameSettingsHeader">🎮 Game</h3>
         <div class="section-content">
 
           <!-- Quick Save/Restore Buttons -->
@@ -97,24 +97,24 @@
             </button>
           </div>
 
-          <!-- Clear All Data -->
+          <!-- Clear Data -->
           <div class="save-restore-info">
             <h4>⚠️ Danger Zone</h4>
-            <p>Permanently delete all saved games for all IF games:</p>
+            <p id="clearDataDescription">Permanently delete all saved games for all IF games:</p>
           </div>
           <div class="game-actions">
             <button class="btn btn-danger btn-full-width" id="clearAllDataBtn">
-              <span class="material-icons">delete_forever</span> Clear All Save Data
+              <span class="material-icons">delete_forever</span> <span id="clearDataBtnText">Delete All Data</span>
             </button>
           </div>
         </div>
       </div>
 
       <!-- Voice Settings -->
-      <div class="settings-section collapsible collapsed">
-        <h3 class="section-header">🎙️ Voice Settings</h3>
+      <div class="settings-section collapsible collapsed" id="voiceSettingsSection">
+        <h3 class="section-header" id="voiceSettingsHeader">🎙️ Voice Settings</h3>
         <div class="section-content">
-        <p class="settings-description">Configure different voices for narration and app messages</p>
+        <p class="settings-description" id="voiceSettingsDescription">Configure different voices for narration and app messages</p>
         <div class="voice-setting">
           <label for="speechRate">Speech Speed:</label>
           <div class="slider-container">
@@ -454,10 +454,13 @@
 
     <!-- Message Input Row -->
     <div class="message-input-row hidden" id="messageInputRow">
+      <!-- Text input (shown when muted) -->
       <input type="text" class="message-input" id="messageInput" placeholder="Type a command..." autocomplete="off" spellcheck="false">
-      <button id="sendMessageBtn" class="btn-send" title="Send command">
-        <span class="material-icons">send</span>
-      </button>
+      <!-- Voice listening indicator (shown when unmuted) -->
+      <div class="voice-listening-indicator hidden" id="voiceListeningIndicator">
+        <span class="voice-meter-dot" id="voiceMeterDot"></span>
+        <span class="voice-transcript" id="voiceTranscript">Listening...</span>
+      </div>
     </div>
 
     <!-- Char Input Panel (replaces message input in char mode) -->

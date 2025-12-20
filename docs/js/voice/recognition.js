@@ -9,6 +9,39 @@ import { state } from '../core/state.js';
 import { dom } from '../core/dom.js';
 import { updateStatus } from '../utils/status.js';
 import { isEchoOfSpokenText } from './echo-detection.js';
+import { updateVoiceTranscript } from '../input/keyboard.js';
+
+// Audio context for bell sound
+let bellContext = null;
+
+/**
+ * Play a short bell/chime sound to indicate command was sent
+ */
+function playBellSound() {
+  try {
+    if (!bellContext) {
+      bellContext = new (window.AudioContext || window.webkitAudioContext)();
+    }
+
+    const oscillator = bellContext.createOscillator();
+    const gainNode = bellContext.createGain();
+
+    oscillator.connect(gainNode);
+    gainNode.connect(bellContext.destination);
+
+    // Bell-like sound: high frequency, quick decay
+    oscillator.frequency.value = 880; // A5 note
+    oscillator.type = 'sine';
+
+    gainNode.gain.setValueAtTime(0.3, bellContext.currentTime);
+    gainNode.gain.exponentialRampToValueAtTime(0.01, bellContext.currentTime + 0.15);
+
+    oscillator.start(bellContext.currentTime);
+    oscillator.stop(bellContext.currentTime + 0.15);
+  } catch (err) {
+    // Ignore audio errors
+  }
+}
 
 /**
  * Update the last heard text in voice panel
@@ -33,35 +66,43 @@ export function updateLastHeard(text, isNavCommand = false) {
 }
 
 /**
- * Show confirmed transcript then reset to Listening after 5 seconds
+ * Show confirmed transcript then reset to Listening after 3 seconds
  * @param {string} text - Confirmed transcript text
  * @param {boolean} isNavCommand - Whether this was a navigation command
  */
 export function showConfirmedTranscript(text, isNavCommand = false) {
-  if (!dom.voiceTranscript) return;
-
   // Clear any pending reset
   if (state.transcriptResetTimeout) {
     clearTimeout(state.transcriptResetTimeout);
   }
 
-  dom.voiceTranscript.textContent = text;
-  dom.voiceTranscript.classList.remove('interim');
-  dom.voiceTranscript.classList.add('confirmed');
-  if (isNavCommand) {
-    dom.voiceTranscript.classList.add('nav-command');
-  } else {
-    dom.voiceTranscript.classList.remove('nav-command');
+  // Update both DOM transcript and keyboard indicator
+  const mode = isNavCommand ? 'nav' : 'confirmed';
+  updateVoiceTranscript(text, mode);
+
+  // Also update old DOM element if it exists
+  if (dom.voiceTranscript) {
+    dom.voiceTranscript.textContent = text;
+    dom.voiceTranscript.classList.remove('interim');
+    dom.voiceTranscript.classList.add('confirmed');
+    if (isNavCommand) {
+      dom.voiceTranscript.classList.add('nav-command');
+    } else {
+      dom.voiceTranscript.classList.remove('nav-command');
+    }
   }
 
   // Also update lastHeard for history
   updateLastHeard(text, isNavCommand);
 
-  // Reset transcript after 5 seconds
+  // Reset transcript after 3 seconds
   state.transcriptResetTimeout = setTimeout(() => {
-    dom.voiceTranscript.textContent = state.isMuted ? 'Muted' : 'Listening...';
-    dom.voiceTranscript.classList.remove('confirmed', 'nav-command');
-  }, 5000);
+    updateVoiceTranscript(state.isMuted ? 'Muted' : 'Listening...', 'listening');
+    if (dom.voiceTranscript) {
+      dom.voiceTranscript.textContent = state.isMuted ? 'Muted' : 'Listening...';
+      dom.voiceTranscript.classList.remove('confirmed', 'nav-command');
+    }
+  }, 3000);
 }
 
 /**
@@ -110,7 +151,7 @@ export function initVoiceRecognition(processVoiceKeywords) {
     }
 
     // Show live transcript (but not when muted)
-    if (interimTranscript && !state.isMuted && dom.voiceTranscript) {
+    if (interimTranscript && !state.isMuted) {
       // Cancel any pending confirmed transition
       if (state.confirmedTranscriptTimeout) {
         clearTimeout(state.confirmedTranscriptTimeout);
@@ -126,9 +167,15 @@ export function initVoiceRecognition(processVoiceKeywords) {
         console.error('[Voice] Echo detection error (interim):', e);
       }
 
-      dom.voiceTranscript.textContent = interimTranscript;
-      dom.voiceTranscript.classList.remove('confirmed');
-      dom.voiceTranscript.classList.add('interim');
+      // Update voice indicator with interim text
+      updateVoiceTranscript(interimTranscript, 'interim');
+
+      // Also update old DOM element if it exists
+      if (dom.voiceTranscript) {
+        dom.voiceTranscript.textContent = interimTranscript;
+        dom.voiceTranscript.classList.remove('confirmed');
+        dom.voiceTranscript.classList.add('interim');
+      }
     }
 
     // Process final result
@@ -136,6 +183,7 @@ export function initVoiceRecognition(processVoiceKeywords) {
       // Check for echo
       try {
         if (isEchoOfSpokenText(finalTranscript)) {
+          updateVoiceTranscript(state.isMuted ? 'Muted' : 'Listening...', 'listening');
           if (dom.voiceTranscript) {
             dom.voiceTranscript.textContent = state.isMuted ? 'Muted' : 'Listening...';
             dom.voiceTranscript.classList.remove('interim', 'confirmed');
@@ -163,10 +211,12 @@ export function initVoiceRecognition(processVoiceKeywords) {
         }
 
         state.hasManualTyping = false;
-        updateStatus('Recognized: ' + finalTranscript);
 
         // Auto-submit after brief delay to show user what was recognized
         setTimeout(() => {
+          // Play bell sound to indicate command sent
+          playBellSound();
+
           // Import and call sendCommandDirect
           import('../game/commands.js').then(({ sendCommandDirect }) => {
             sendCommandDirect(processed, true); // true = is voice command
@@ -179,7 +229,7 @@ export function initVoiceRecognition(processVoiceKeywords) {
               dom.voiceIndicator.classList.remove('active');
             }
           });
-        }, 500); // 500ms delay to show the recognized command
+        }, 400); // 400ms delay to show the recognized command
       } else {
         // Navigation command was handled
         state.hasManualTyping = false;
@@ -216,6 +266,7 @@ export function initVoiceRecognition(processVoiceKeywords) {
           try {
             // Clear transcript display if not showing confirmed text
             if (dom.voiceTranscript && !dom.voiceTranscript.classList.contains('confirmed')) {
+              updateVoiceTranscript(state.isMuted ? 'Muted' : 'Listening...', 'listening');
               dom.voiceTranscript.textContent = state.isMuted ? 'Muted' : 'Listening...';
               dom.voiceTranscript.classList.remove('interim');
             }
@@ -228,7 +279,7 @@ export function initVoiceRecognition(processVoiceKeywords) {
             }
           }
         }
-      }, 300);
+      }, 200); // Reduced from 300ms
     }
   };
 

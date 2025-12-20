@@ -9,8 +9,10 @@ import { sendCommandDirect } from '../game/commands.js';
 import { getInputType, sendInput } from '../game/voxglk.js';
 
 let messageInputEl = null;
-let sendMessageBtnEl = null;
 let messageInputRowEl = null;
+let voiceListeningIndicatorEl = null;
+let voiceTranscriptEl = null;
+let voiceMeterDotEl = null;
 
 // Char input panel elements
 let charInputPanelEl = null;
@@ -37,8 +39,10 @@ const mqHover = window.matchMedia('(hover: hover)');
 export function initKeyboardInput() {
   // Query DOM elements for messaging interface
   messageInputEl = document.getElementById('messageInput');
-  sendMessageBtnEl = document.getElementById('sendMessageBtn');
   messageInputRowEl = document.getElementById('messageInputRow');
+  voiceListeningIndicatorEl = document.getElementById('voiceListeningIndicator');
+  voiceTranscriptEl = document.getElementById('voiceTranscript');
+  voiceMeterDotEl = document.getElementById('voiceMeterDot');
 
   // Query DOM elements for char input panel
   charInputPanelEl = document.getElementById('charInputPanel');
@@ -74,13 +78,6 @@ export function initKeyboardInput() {
         e.preventDefault();
         sendCommand();
       }
-    });
-  }
-
-  // Listen for send button click
-  if (sendMessageBtnEl) {
-    sendMessageBtnEl.addEventListener('click', () => {
-      sendCommand();
     });
   }
 
@@ -267,26 +264,38 @@ function hasPhysicalKeyboard() {
 }
 
 /**
- * Update input visibility based on input type
+ * Update input visibility based on input type and mute state
  */
 function updateInputVisibility() {
   const inputType = getInputType();
   const hasKeyboard = hasPhysicalKeyboard();
+  const isMuted = state.isMuted;
 
-  // Show/hide message input (line mode only)
+  // Show/hide message input row (line mode only)
   if (messageInputRowEl) {
     const wasHidden = messageInputRowEl.classList.contains('hidden');
 
     if (inputType === 'line') {
-      // Line mode - show message input
+      // Line mode - show message input row
       messageInputRowEl.classList.remove('hidden');
 
-      // Auto-focus when input becomes visible
-      if (wasHidden && messageInputEl) {
-        messageInputEl.focus();
+      // Toggle between text input and voice indicator based on mute state
+      if (isMuted) {
+        // Muted - show text input, hide voice indicator
+        if (messageInputEl) messageInputEl.classList.remove('hidden');
+        if (voiceListeningIndicatorEl) voiceListeningIndicatorEl.classList.add('hidden');
+
+        // Auto-focus when input becomes visible
+        if (wasHidden && messageInputEl) {
+          messageInputEl.focus();
+        }
+      } else {
+        // Unmuted - hide text input, show voice indicator
+        if (messageInputEl) messageInputEl.classList.add('hidden');
+        if (voiceListeningIndicatorEl) voiceListeningIndicatorEl.classList.remove('hidden');
       }
     } else {
-      // Char mode or no input - hide message input
+      // Char mode or no input - hide message input row
       messageInputRowEl.classList.add('hidden');
     }
   }
@@ -299,6 +308,40 @@ function updateInputVisibility() {
     } else {
       // Line mode, or has physical keyboard - hide char input panel
       charInputPanelEl.classList.add('hidden');
+    }
+  }
+}
+
+/**
+ * Update voice indicator state (for speaking animation)
+ * @param {boolean} isSpeaking - Whether user is currently speaking
+ */
+export function setVoiceSpeaking(isSpeaking) {
+  if (voiceListeningIndicatorEl) {
+    if (isSpeaking) {
+      voiceListeningIndicatorEl.classList.add('speaking');
+    } else {
+      voiceListeningIndicatorEl.classList.remove('speaking');
+    }
+  }
+}
+
+/**
+ * Update voice transcript text
+ * @param {string} text - Text to display
+ * @param {string} mode - 'listening', 'interim', 'confirmed', or 'nav'
+ */
+export function updateVoiceTranscript(text, mode = 'listening') {
+  if (voiceTranscriptEl) {
+    voiceTranscriptEl.textContent = text;
+    voiceTranscriptEl.classList.remove('interim', 'confirmed', 'nav-command');
+
+    if (mode === 'interim') {
+      voiceTranscriptEl.classList.add('interim');
+    } else if (mode === 'confirmed') {
+      voiceTranscriptEl.classList.add('confirmed');
+    } else if (mode === 'nav') {
+      voiceTranscriptEl.classList.add('nav-command');
     }
   }
 }

@@ -35,6 +35,8 @@ export const dom = {
   // Voice feedback
   voiceFeedback: null,
   voiceTranscript: null,
+  voiceListeningIndicator: null,
+  voiceMeterDot: null,
   voicePanel: null,
   lastHeard: null,
   lastResponse: null,
@@ -106,6 +108,8 @@ export function initDOM() {
   // Voice feedback
   dom.voiceFeedback = document.getElementById('voiceFeedback');
   dom.voiceTranscript = document.getElementById('voiceTranscript');
+  dom.voiceListeningIndicator = document.getElementById('voiceListeningIndicator');
+  dom.voiceMeterDot = document.getElementById('voiceMeterDot');
   dom.voicePanel = document.querySelector('.voice-panel');
   dom.lastHeard = document.getElementById('lastHeard');
   dom.lastResponse = document.getElementById('lastResponse');
