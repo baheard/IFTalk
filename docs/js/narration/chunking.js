@@ -69,11 +69,30 @@ export function insertTemporaryMarkers(html, skipLineBreaks = false) {
 export function createNarrationChunks(html) {
   if (!html) return [];
 
+  // Debug: Log incoming HTML to see glk-input spans
+  const hasGlkInput = html.includes('glk-input');
+  const hasDataVoice = html.includes('data-voice="app"');
+  if (hasGlkInput || hasDataVoice) {
+    console.log('[Chunking] Found glk-input:', hasGlkInput, 'data-voice:', hasDataVoice);
+    console.log('[Chunking] HTML sample:', html.substring(0, 500));
+  }
+
   // Mark app voice spans before converting to plain text
   // Add ⚑APP⚑ markers around text that should use app voice
-  let markedHTML = html.replace(/<span([^>]*data-voice="app"[^>]*)>(.*?)<\/span>/gi, (match, attrs, content) => {
-    return `⚑APP⚑${content}⚑APP⚑`;
-  });
+  // Match both data-voice="app" AND glk-input class (game echoes user commands)
+  let markedHTML = html
+    // First, mark any span with data-voice="app"
+    .replace(/<span([^>]*data-voice="app"[^>]*)>(.*?)<\/span>/gi, (match, attrs, content) => {
+      console.log('[Chunking] Marked data-voice span:', content);
+      return `⚑APP⚑${content}⚑APP⚑`;
+    })
+    // Also mark glk-input spans (echoed commands) even if data-voice is missing
+    .replace(/<span[^>]*class="[^"]*glk-input[^"]*"[^>]*>(.*?)<\/span>/gi, (match, content) => {
+      // Skip if already marked as APP
+      if (content.includes('⚑APP⚑')) return match;
+      console.log('[Chunking] Marked glk-input span:', content);
+      return `⚑APP⚑${content}⚑APP⚑`;
+    });
 
   // Process HTML to plain text (keeps ⚐N⚐ markers and ⚑APP⚑ markers)
   const tempDiv = document.createElement('div');
@@ -109,8 +128,13 @@ export function createNarrationChunks(html) {
         voice: useAppVoice ? 'app' : 'narrator'
       };
     })
-    // Filter out app voice chunks - user commands are displayed but never narrated
-    .filter(chunk => chunk.voice !== 'app');
+    // Filter out app voice chunks and empty chunks
+    .filter(chunk => chunk.voice !== 'app' && chunk.text.trim() !== '');
+
+  // Debug: Log final chunks
+  if (hasGlkInput || hasDataVoice) {
+    console.log('[Chunking] Final chunks:', chunks.map(c => ({ text: c.text.substring(0, 30), voice: c.voice })));
+  }
 
   return chunks;
 }
@@ -120,8 +144,9 @@ export function createNarrationChunks(html) {
  * @param {HTMLElement} container - Container element
  * @param {number[]} markerIDs - Array of marker IDs that survived chunking
  * @param {number} chunkOffset - Offset to add to chunk indices (for multi-container scenarios)
+ * @param {boolean} skipFinalStartMarker - If true, don't create start[N+1] for the last marker (used when another container follows)
  */
-export function insertRealMarkersAtIDs(container, markerIDs, chunkOffset = 0) {
+export function insertRealMarkersAtIDs(container, markerIDs, chunkOffset = 0, skipFinalStartMarker = false) {
   if (!markerIDs || markerIDs.length === 0) return;
 
   // Walk through all text nodes to find temporary markers
@@ -174,18 +199,23 @@ export function insertRealMarkersAtIDs(container, markerIDs, chunkOffset = 0) {
         endMarker.dataset.chunk = finalChunkIndex;
         endMarker.style.cssText = 'display: none; position: absolute;';
 
-        const startMarker = document.createElement('span');
-        startMarker.className = 'chunk-marker-start';
-        startMarker.dataset.chunk = finalChunkIndex + 1;
-        startMarker.style.cssText = 'display: none; position: absolute;';
-
-        // Replace text node with: before + endMarker + startMarker + after
+        // Replace text node with: before + endMarker + [startMarker] + after
         const parent = textNode.parentNode;
         if (!parent) continue;
 
         parent.insertBefore(beforeNode, textNode);
         parent.insertBefore(endMarker, textNode);
-        parent.insertBefore(startMarker, textNode);
+
+        // Create start marker for next chunk UNLESS this is the last marker and skipFinalStartMarker is true
+        const isLastMarker = (chunkIndex === markerIDs.length - 1);
+        if (!(isLastMarker && skipFinalStartMarker)) {
+          const startMarker = document.createElement('span');
+          startMarker.className = 'chunk-marker-start';
+          startMarker.dataset.chunk = finalChunkIndex + 1;
+          startMarker.style.cssText = 'display: none; position: absolute;';
+          parent.insertBefore(startMarker, textNode);
+        }
+
         parent.insertBefore(afterNode, textNode);
         parent.removeChild(textNode);
 

@@ -806,6 +806,8 @@ function highlightSpokenText(text) {
       return;
     }
 
+    // Clear existing highlight first (fixes iOS WebKit issue where old highlight persists)
+    CSS.highlights.delete('speaking');
     const highlight = new Highlight(range);
     CSS.highlights.set('speaking', highlight);
 
@@ -2460,50 +2462,7 @@ async function startVoiceMeter() {
         }
       }
 
-      // Sound detection for auto-pause narration
-      if (percentage > SOUND_THRESHOLD) {
-        // Sound detected above threshold
-        if (!soundDetected) {
-          soundDetected = true;
-          console.log('[Sound] Detected above threshold:', percentage.toFixed(1) + '%');
-
-          // Pause narration if it's playing
-          if (isNarrating && !pausedForSound && !isMuted) {
-            pausedForSound = true;
-            pendingCommandProcessed = false;
-            speechSynthesis.pause();
-            console.log('[Sound] Paused narration for voice input');
-          }
-        }
-
-        // Clear any pending resume timeout
-        if (soundPauseTimeout) {
-          clearTimeout(soundPauseTimeout);
-          soundPauseTimeout = null;
-        }
-      } else {
-        // Sound below threshold (silence)
-        if (soundDetected) {
-          soundDetected = false;
-
-          // Start timeout to resume narration after silence
-          if (pausedForSound && !soundPauseTimeout) {
-            soundPauseTimeout = setTimeout(() => {
-              soundPauseTimeout = null;
-
-              // Always resume after silence, unless explicitly paused
-              pausedForSound = false;
-              pendingCommandProcessed = false;
-              if (narrationEnabled && !isPaused) {
-                speechSynthesis.resume();
-                console.log('[Sound] Resumed narration after silence');
-              } else if (isPaused) {
-                console.log('[Sound] Not resuming - explicitly paused');
-              }
-            }, SILENCE_DELAY);
-          }
-        }
-      }
+      // Sound detection (for voice visualization only, no longer pauses narration)
     }, 50);
 
     console.log('[Voice Meter] Started');

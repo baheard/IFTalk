@@ -10,38 +10,8 @@ import { dom } from '../core/dom.js';
 import { updateStatus } from '../utils/status.js';
 import { isEchoOfSpokenText } from './echo-detection.js';
 import { updateVoiceTranscript } from '../input/keyboard.js';
-
-// Audio context for bell sound
-let bellContext = null;
-
-/**
- * Play a short bell/chime sound to indicate command was sent
- */
-function playBellSound() {
-  try {
-    if (!bellContext) {
-      bellContext = new (window.AudioContext || window.webkitAudioContext)();
-    }
-
-    const oscillator = bellContext.createOscillator();
-    const gainNode = bellContext.createGain();
-
-    oscillator.connect(gainNode);
-    gainNode.connect(bellContext.destination);
-
-    // Bell-like sound: high frequency, quick decay
-    oscillator.frequency.value = 880; // A5 note
-    oscillator.type = 'sine';
-
-    gainNode.gain.setValueAtTime(0.3, bellContext.currentTime);
-    gainNode.gain.exponentialRampToValueAtTime(0.01, bellContext.currentTime + 0.15);
-
-    oscillator.start(bellContext.currentTime);
-    oscillator.stop(bellContext.currentTime + 0.15);
-  } catch (err) {
-    // Ignore audio errors
-  }
-}
+import { playCommandSent, playAppCommand, playLowConfidence, LOW_CONFIDENCE_THRESHOLD } from '../utils/audio-feedback.js';
+import { scrollToBottom } from '../utils/scroll.js';
 
 /**
  * Update the last heard text in voice panel
@@ -139,12 +109,17 @@ export function initVoiceRecognition(processVoiceKeywords) {
   recognition.onresult = (event) => {
     let interimTranscript = '';
     let finalTranscript = '';
+    let finalConfidence = 1.0; // Default to full confidence
 
     // Collect both interim and final results
     for (let i = 0; i < event.results.length; i++) {
       const result = event.results[i];
       if (result.isFinal) {
         finalTranscript += result[0].transcript;
+        // Capture confidence (use lowest if multiple final results)
+        if (result[0].confidence !== undefined) {
+          finalConfidence = Math.min(finalConfidence, result[0].confidence);
+        }
       } else {
         interimTranscript += result[0].transcript;
       }
@@ -194,15 +169,35 @@ export function initVoiceRecognition(processVoiceKeywords) {
         console.error('[Voice] Echo detection error (final):', e);
       }
 
-      // Process voice keywords
-      const processed = processVoiceKeywords(finalTranscript);
+      // Check for low confidence
+      const isLowConfidence = finalConfidence < LOW_CONFIDENCE_THRESHOLD;
+
+      if (isLowConfidence) {
+        // Low confidence: display but don't act
+        playLowConfidence();
+        console.log(`[Voice] Low confidence (${(finalConfidence * 100).toFixed(0)}%) - not executing: "${finalTranscript}"`);
+
+        // Show in transcript area
+        showConfirmedTranscript(finalTranscript, false);
+
+        // Display in game window with muted styling (but don't send to game)
+        import('../ui/game-output.js').then(({ addGameText }) => {
+          addGameText(finalTranscript, true, true, false, finalConfidence);
+        });
+
+        state.hasManualTyping = false;
+        return; // Don't process further
+      }
+
+      // Normal confidence: process and execute
+      const processed = processVoiceKeywords(finalTranscript, finalConfidence);
       const isNavCommand = (processed === false);
 
       // Show as confirmed
       showConfirmedTranscript(finalTranscript, isNavCommand);
 
       if (processed !== false) {
-        // Voice command processed - populate input and show indicator
+        // Game command - populate input and show indicator
         if (dom.userInput) {
           dom.userInput.value = processed;
         }
@@ -214,12 +209,11 @@ export function initVoiceRecognition(processVoiceKeywords) {
 
         // Auto-submit after brief delay to show user what was recognized
         setTimeout(() => {
-          // Play bell sound to indicate command sent
-          playBellSound();
+          playCommandSent();
 
-          // Import and call sendCommandDirect
+          // Import and call sendCommandDirect with confidence info
           import('../game/commands.js').then(({ sendCommandDirect }) => {
-            sendCommandDirect(processed, true); // true = is voice command
+            sendCommandDirect(processed, true, finalConfidence);
 
             // Clear input and hide indicator after sending
             if (dom.userInput) {
@@ -228,10 +222,14 @@ export function initVoiceRecognition(processVoiceKeywords) {
             if (dom.voiceIndicator) {
               dom.voiceIndicator.classList.remove('active');
             }
+
+            // Scroll to bottom after command
+            scrollToBottom();
           });
         }, 400); // 400ms delay to show the recognized command
       } else {
         // Navigation command was handled
+        playAppCommand();
         state.hasManualTyping = false;
       }
     }

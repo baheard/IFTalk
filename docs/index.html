@@ -24,7 +24,7 @@
   <!-- Settings Panel -->
   <div class="settings-panel" id="settingsPanel">
     <div class="settings-header">
-      <h2>🎮 IF Talk - Settings</h2>
+      <h2>📖 IF Talk - Settings</h2>
       <button id="closeSettingsBtn" class="close-settings-btn">✕</button>
     </div>
 
@@ -42,7 +42,7 @@
 
       <!-- Game Settings -->
       <div class="settings-section collapsible collapsed" id="gameSettingsSection">
-        <h3 class="section-header" id="gameSettingsHeader">🎮 Game</h3>
+        <h3 class="section-header" id="gameSettingsHeader">📖 Game</h3>
         <div class="section-content">
 
           <!-- Quick Save/Restore Buttons -->
@@ -117,26 +117,28 @@
         <p class="settings-description" id="voiceSettingsDescription">Configure different voices for narration and app messages</p>
         <div class="voice-setting">
           <label for="speechRate">Speech Speed:</label>
-          <div class="slider-container">
-            <span class="slider-label">0.5x</span>
-            <input type="range" id="speechRate" min="0.5" max="1.5" step="0.1" value="1.1" class="speech-slider">
-            <span class="slider-label">1.5x</span>
+          <div class="slider-wrapper">
+            <div class="slider-container">
+              <span class="slider-label">0.5x</span>
+              <input type="range" id="speechRate" min="0.5" max="1.5" step="0.1" value="1.1" class="speech-slider">
+              <span class="slider-label">1.5x</span>
+            </div>
+            <span id="speechRateValue" class="slider-value">1.1x</span>
           </div>
-          <span id="speechRateValue" class="slider-value">1.1x</span>
         </div>
         <div class="voice-setting">
           <label for="voiceSelect">Narration Voice:</label>
           <select id="voiceSelect" class="voice-dropdown">
             <option value="">Loading voices...</option>
           </select>
-          <button id="testVoiceBtn" class="btn-test-voice" title="Preview voice">▶️</button>
+          <button id="testVoiceBtn" class="btn-test-voice" title="Preview voice"><span class="material-icons">play_arrow</span></button>
         </div>
         <div class="voice-setting">
           <label for="appVoiceSelect">App Voice (system messages):</label>
           <select id="appVoiceSelect" class="voice-dropdown">
             <option value="">Loading voices...</option>
           </select>
-          <button id="testAppVoiceBtn" class="btn-test-voice" title="Preview app voice">▶️</button>
+          <button id="testAppVoiceBtn" class="btn-test-voice" title="Preview app voice"><span class="material-icons">play_arrow</span></button>
         </div>
         <p class="settings-help">Only English voices shown.</p>
         </div>
@@ -232,22 +234,22 @@
           <div class="game-category-grid">
             <button class="game-card" data-game="dreamhold.z8">
               <span class="save-badge" data-save-indicator></span>
-              <div class="game-title">The Dreamhold <span class="game-year">(2004)</span></div>
+              <div class="game-title">The Dreamhold <span class="game-meta" data-year="2004" data-author="Andrew Plotkin" data-length="Medium (~1.5-4 hrs)">ⓘ</span></div>
               <div class="game-desc">Tutorial game designed to teach IF step-by-step</div>
             </button>
             <button class="game-card" data-game="lostpig.z8">
               <span class="save-badge" data-save-indicator></span>
-              <div class="game-title">Lost Pig <span class="game-year">(2007)</span></div>
-              <div class="game-desc">Comedy adventure where you play an orc looking for a pig</div>
+              <div class="game-title">Lost Pig <span class="game-meta" data-year="2007" data-author="Admiral Jota" data-length="Medium (~1.5-4 hrs)">ⓘ</span></div>
+              <div class="game-desc">Comedy adventure - play an orc looking for a pig</div>
             </button>
             <button class="game-card" data-game="905.z5">
               <span class="save-badge" data-save-indicator></span>
-              <div class="game-title">9:05 <span class="game-year">(2000)</span></div>
+              <div class="game-title">9:05 <span class="game-meta" data-year="2000" data-author="Adam Cadre" data-length="Very short (~15-30 min)">ⓘ</span></div>
               <div class="game-desc">Short game with a twist - perfect intro to IF</div>
             </button>
             <button class="game-card" data-game="photopia.z5">
               <span class="save-badge" data-save-indicator></span>
-              <div class="game-title">Photopia <span class="game-year">(1998)</span></div>
+              <div class="game-title">Photopia <span class="game-meta" data-year="1998" data-author="Adam Cadre" data-length="Short (~30 min - 1.5 hrs)">ⓘ</span></div>
               <div class="game-desc">Award-winning story-driven experience</div>
             </button>
           </div>
@@ -258,25 +260,25 @@
           <h3 class="category-title">🚀 Ready for More</h3>
           <p class="category-desc">Step into more playful and surprising stories</p>
           <div class="game-category-grid">
-            <button class="game-card" data-game="leathergoddesses.z5">
-              <span class="save-badge" data-save-indicator></span>
-              <div class="game-title">Leather Goddesses of Phobos <span class="game-year">(1986)</span></div>
-              <div class="game-desc">Campy sci-fi comedy from Infocom</div>
-            </button>
             <button class="game-card" data-game="wishbringer.z3">
               <span class="save-badge" data-save-indicator></span>
-              <div class="game-title">Wishbringer <span class="game-year">(1985)</span></div>
+              <div class="game-title">Wishbringer <span class="game-meta" data-year="1985" data-author="Brian Moriarty" data-length="Medium (~1.5-4 hrs)">ⓘ</span></div>
               <div class="game-desc">Beginner-friendly Infocom fantasy adventure</div>
+            </button>
+            <button class="game-card" data-game="varicella.z8">
+              <span class="save-badge" data-save-indicator></span>
+              <div class="game-title">Varicella <span class="game-meta" data-year="1999" data-author="Adam Cadre" data-length="Medium (~1.5-4 hrs)">ⓘ</span></div>
+              <div class="game-desc">Palace intrigue time-loop thriller</div>
             </button>
             <button class="game-card" data-game="theatre.z5">
               <span class="save-badge" data-save-indicator></span>
-              <div class="game-title">Theatre <span class="game-year">(1995)</span></div>
+              <div class="game-title">Theatre <span class="game-meta" data-year="1995" data-author="Brendon Wyber" data-length="Medium (~1.5-4 hrs)">ⓘ</span></div>
               <div class="game-desc">Backstage mystery at an old playhouse</div>
             </button>
-            <button class="game-card" data-game="galatea.zblorb">
+            <button class="game-card" data-game="bronze.zblorb">
               <span class="save-badge" data-save-indicator></span>
-              <div class="game-title">Galatea <span class="game-year">(2000)</span></div>
-              <div class="game-desc">Deep conversation with a statue come to life</div>
+              <div class="game-title">Bronze <span class="game-meta" data-year="2006" data-author="Emily Short" data-length="Medium (~1.5-4 hrs)">ⓘ</span></div>
+              <div class="game-desc">Fairy tale retelling - Beauty and the Beast</div>
             </button>
           </div>
         </div>
@@ -288,23 +290,23 @@
           <div class="game-category-grid">
             <button class="game-card" data-game="spiderandweb.z5">
               <span class="save-badge" data-save-indicator></span>
-              <div class="game-title">Spider and Web <span class="game-year">(1998)</span></div>
+              <div class="game-title">Spider and Web <span class="game-meta" data-year="1998" data-author="Andrew Plotkin" data-length="Medium (~1.5-4 hrs)">ⓘ</span></div>
               <div class="game-desc">Espionage thriller with clever narrative puzzles</div>
+            </button>
+            <button class="game-card" data-game="curses.z5">
+              <span class="save-badge" data-save-indicator></span>
+              <div class="game-title">Curses <span class="game-meta" data-year="1993" data-author="Graham Nelson" data-length="Very long (~10+ hrs)">ⓘ</span></div>
+              <div class="game-desc">Classic exploration - first modern IF game</div>
             </button>
             <button class="game-card" data-game="anchorhead.z8">
               <span class="save-badge" data-save-indicator></span>
-              <div class="game-title">Anchorhead <span class="game-year">(1998)</span></div>
+              <div class="game-title">Anchorhead <span class="game-meta" data-year="1998" data-author="Michael Gentry" data-length="Long (~4-8 hrs)">ⓘ</span></div>
               <div class="game-desc">Lovecraftian horror - atmospheric masterpiece</div>
             </button>
             <button class="game-card" data-game="trinity.z4">
               <span class="save-badge" data-save-indicator></span>
-              <div class="game-title">Trinity <span class="game-year">(1986)</span></div>
+              <div class="game-title">Trinity <span class="game-meta" data-year="1986" data-author="Brian Moriarty" data-length="Long (~4-8 hrs)">ⓘ</span></div>
               <div class="game-desc">Cold War time travel - thought-provoking</div>
-            </button>
-            <button class="game-card" data-game="curses.z5">
-              <span class="save-badge" data-save-indicator></span>
-              <div class="game-title">Curses <span class="game-year">(1993)</span></div>
-              <div class="game-desc">Classic exploration - first modern IF game</div>
             </button>
           </div>
         </div>
@@ -316,85 +318,85 @@
             <span class="toggle-arrow">▼</span>
           </button>
           <div class="classics-content">
-            <button class="game-card" data-game="weather.z5">
-              <span class="save-badge" data-save-indicator></span>
-              <div class="game-title">A Change in the Weather <span class="game-year">(1995)</span></div>
-              <div class="game-desc">Plotkin's debut - a walk in the park</div>
-            </button>
             <button class="game-card" data-game="aisle.z5">
               <span class="save-badge" data-save-indicator></span>
-              <div class="game-title">Aisle <span class="game-year">(1999)</span></div>
+              <div class="game-title">Aisle <span class="game-meta" data-year="1999" data-author="Sam Barlow" data-length="Very short (~15-30 min)">ⓘ</span></div>
               <div class="game-desc">One move, many endings</div>
             </button>
             <button class="game-card" data-game="allroads.z5">
               <span class="save-badge" data-save-indicator></span>
-              <div class="game-title">All Roads <span class="game-year">(2001)</span></div>
+              <div class="game-title">All Roads <span class="game-meta" data-year="2001" data-author="Jon Ingold" data-length="Short (~30 min - 1.5 hrs)">ⓘ</span></div>
               <div class="game-desc">Venice time-loop mystery</div>
             </button>
-            <button class="game-card" data-game="bronze.zblorb">
+            <button class="game-card" data-game="witness.z3">
               <span class="save-badge" data-save-indicator></span>
-              <div class="game-title">Bronze <span class="game-year">(2006)</span></div>
-              <div class="game-desc">Fairy tale retelling - Beauty and the Beast</div>
+              <div class="game-title">The Witness <span class="game-meta" data-year="1983" data-author="Stu Galley" data-length="Medium (~1.5-4 hrs)">ⓘ</span></div>
+              <div class="game-desc">Infocom noir detective - murder mystery</div>
             </button>
             <button class="game-card" data-game="zork.z5">
               <span class="save-badge" data-save-indicator></span>
-              <div class="game-title">Dungeon (Zork) <span class="game-year">(1977)</span></div>
+              <div class="game-title">Dungeon (Zork) <span class="game-meta" data-year="1977" data-author="MIT (Lebling, Blank, et al.)" data-length="Very long (~10+ hrs)">ⓘ</span></div>
               <div class="game-desc">The original MIT mainframe classic</div>
             </button>
             <button class="game-card" data-game="hitchhik.z5">
               <span class="save-badge" data-save-indicator></span>
-              <div class="game-title">Hitchhiker's Guide <span class="game-year">(1984)</span></div>
+              <div class="game-title">Hitchhiker's Guide <span class="game-meta" data-year="1984" data-author="Douglas Adams & Steve Meretzky" data-length="Long (~4-8 hrs)">ⓘ</span></div>
               <div class="game-desc">Douglas Adams' comedic sci-fi classic</div>
             </button>
             <button class="game-card" data-game="jigsaw.z8">
               <span class="save-badge" data-save-indicator></span>
-              <div class="game-title">Jigsaw <span class="game-year">(1995)</span></div>
+              <div class="game-title">Jigsaw <span class="game-meta" data-year="1995" data-author="Graham Nelson" data-length="Very long (~10+ hrs)">ⓘ</span></div>
               <div class="game-desc">Time-travel through historical moments</div>
             </button>
             <button class="game-card" data-game="metamorphoses.z5">
               <span class="save-badge" data-save-indicator></span>
-              <div class="game-title">Metamorphoses <span class="game-year">(2000)</span></div>
+              <div class="game-title">Metamorphoses <span class="game-meta" data-year="2000" data-author="Emily Short" data-length="Short (~30 min - 1.5 hrs)">ⓘ</span></div>
               <div class="game-desc">Surreal transformations and discovery</div>
             </button>
             <button class="game-card" data-game="planetfall.z3">
               <span class="save-badge" data-save-indicator></span>
-              <div class="game-title">Planetfall <span class="game-year">(1983)</span></div>
+              <div class="game-title">Planetfall <span class="game-meta" data-year="1983" data-author="Steve Meretzky" data-length="Medium (~1.5-4 hrs)">ⓘ</span></div>
               <div class="game-desc">Sci-fi comedy with Floyd the robot</div>
             </button>
             <button class="game-card" data-game="savoirfaire.zblorb">
               <span class="save-badge" data-save-indicator></span>
-              <div class="game-title">Savoir-Faire <span class="game-year">(2002)</span></div>
+              <div class="game-title">Savoir-Faire <span class="game-meta" data-year="2002" data-author="Emily Short" data-length="Medium (~1.5-4 hrs)">ⓘ</span></div>
               <div class="game-desc">Magical puzzle adventure</div>
             </button>
             <button class="game-card" data-game="shade.z5">
               <span class="save-badge" data-save-indicator></span>
-              <div class="game-title">Shade <span class="game-year">(2000)</span></div>
+              <div class="game-title">Shade <span class="game-meta" data-year="2000" data-author="Andrew Plotkin" data-length="Short (~30 min - 1.5 hrs)">ⓘ</span></div>
               <div class="game-desc">Surreal one-room mystery by Plotkin</div>
             </button>
             <button class="game-card" data-game="slouching.z5">
               <span class="save-badge" data-save-indicator></span>
-              <div class="game-title">Slouching Towards Bedlam <span class="game-year">(2003)</span></div>
+              <div class="game-title">Slouching Towards Bedlam <span class="game-meta" data-year="2003" data-author="Star Foster & Daniel Ravipinto" data-length="Short (~30 min - 1.5 hrs)">ⓘ</span></div>
               <div class="game-desc">Steampunk mystery - award winner</div>
             </button>
             <button class="game-card" data-game="sofar.z8">
               <span class="save-badge" data-save-indicator></span>
-              <div class="game-title">So Far <span class="game-year">(1996)</span></div>
+              <div class="game-title">So Far <span class="game-meta" data-year="1996" data-author="Andrew Plotkin" data-length="Medium (~1.5-4 hrs)">ⓘ</span></div>
               <div class="game-desc">Surreal dream journey by Plotkin</div>
             </button>
             <button class="game-card" data-game="edifice.z5">
               <span class="save-badge" data-save-indicator></span>
-              <div class="game-title">The Edifice <span class="game-year">(1997)</span></div>
+              <div class="game-title">The Edifice <span class="game-meta" data-year="1997" data-author="Lucian Smith" data-length="Short (~30 min - 1.5 hrs)">ⓘ</span></div>
               <div class="game-desc">Evolution of language puzzles</div>
-            </button>
-            <button class="game-card" data-game="varicella.z8">
-              <span class="save-badge" data-save-indicator></span>
-              <div class="game-title">Varicella <span class="game-year">(1999)</span></div>
-              <div class="game-desc">Palace intrigue time-loop thriller</div>
             </button>
             <button class="game-card" data-game="violet.zblorb">
               <span class="save-badge" data-save-indicator></span>
-              <div class="game-title">Violet <span class="game-year">(2008)</span></div>
+              <div class="game-title">Violet <span class="game-meta" data-year="2008" data-author="Jeremy Freese" data-length="Short (~30 min - 1.5 hrs)">ⓘ</span></div>
               <div class="game-desc">One-room puzzle game with a unique voice</div>
+            </button>
+            <button class="game-card" data-game="galatea.zblorb">
+              <span class="save-badge" data-save-indicator></span>
+              <div class="game-title">Galatea <span class="game-meta" data-year="2000" data-author="Emily Short" data-length="Very short (~15-30 min)">ⓘ</span></div>
+              <div class="game-desc">Deep conversation with a statue come to life</div>
+            </button>
+            <button class="game-card" data-game="amfv.z4">
+              <span class="save-badge" data-save-indicator></span>
+              <div class="game-title">A Mind Forever Voyaging <span class="game-meta" data-year="1985" data-author="Steve Meretzky" data-length="Long (~4-8 hrs)">ⓘ</span></div>
+              <div class="game-desc">Dystopian AI simulation - Infocom's boldest</div>
             </button>
           </div>
         </div>

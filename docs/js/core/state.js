@@ -39,6 +39,7 @@ const _state = {
   currentChunkStartTime: 0,
   lastStatusBarText: null,  // Track previous status bar text to avoid re-reading
   restoredChunkIndex: null,  // Chunk index restored from autosave (used once after autoload)
+  skipNarrationAfterLoad: false,  // When true, position at end of chunks after load (don't read transcript)
 
   // TTS state
   ttsIsSpeaking: false,

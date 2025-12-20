@@ -12,12 +12,15 @@ import { addGameText } from '../ui/game-output.js';
 import { sendCommandToGame } from './game-loader.js';
 import { enterSystemEntryMode, exitSystemEntryMode } from '../input/keyboard.js';
 
+import { LOW_CONFIDENCE_THRESHOLD } from '../utils/audio-feedback.js';
+
 /**
  * Send command directly to game (no AI translation)
  * @param {string} cmd - Command to send
  * @param {boolean} isVoiceCommand - Whether this is a voice command (optional, auto-detected if not provided)
+ * @param {number} confidence - Voice recognition confidence (0.0-1.0), null for keyboard input
  */
-export async function sendCommandDirect(cmd, isVoiceCommand = null) {
+export async function sendCommandDirect(cmd, isVoiceCommand = null, confidence = null) {
   const input = cmd !== undefined ? cmd : '';
 
   // Detect if this is a voice command (not manually typed)
@@ -34,17 +37,20 @@ export async function sendCommandDirect(cmd, isVoiceCommand = null) {
 
   updateStatus('Sending...', 'processing');
 
+  // Determine if this is a low confidence command
+  const isLowConfidence = confidence !== null && confidence < LOW_CONFIDENCE_THRESHOLD;
+
   // Add to command history (show [ENTER] for empty commands)
-  addToCommandHistory(input || '[ENTER]', null, null, isVoiceCommand);
+  // History params: original, translated, confidence, isVoiceCommand
+  addToCommandHistory(input || '[ENTER]', null, confidence, isVoiceCommand);
 
-  // For empty commands, display a visual prompt in game output
-  // (Non-empty commands are echoed by the game itself)
-  if (input === '') {
-    addGameText('[ENTER]', true, isVoiceCommand);
-  }
+  // Always display the command with proper styling (voice/typed, confidence)
+  // The game will also echo it, but we'll filter that out of narration
+  addGameText(input || '[ENTER]', true, isVoiceCommand, false, confidence);
 
-  // Track for echo detection
+  // Track for echo detection (so we can skip the game's glk-input echo)
   window.lastCommandWasVoice = isVoiceCommand;
+  window.lastCommandConfidence = confidence;
 
   // Intercept meta-commands before sending to game
   const intercepted = await interceptMetaCommand(input.toLowerCase().trim(), input);

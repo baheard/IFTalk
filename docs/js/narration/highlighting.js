@@ -6,6 +6,7 @@
  */
 
 import { state } from '../core/state.js';
+import { scrollIntoViewWithBuffer } from '../utils/scroll.js';
 
 /**
  * Highlight text using marker elements
@@ -87,6 +88,8 @@ export function highlightUsingMarkers(chunkIndex) {
 
     // Apply CSS Highlight API with multiple ranges
     if (CSS.highlights) {
+      // Clear existing highlight first (fixes iOS WebKit issue where old highlight persists)
+      CSS.highlights.delete('speaking');
       const highlight = new Highlight(...textRanges);
       CSS.highlights.set('speaking', highlight);
       return true;
@@ -143,6 +146,7 @@ export function updateTextHighlight(chunkIndex) {
 
 /**
  * Scroll to the currently highlighted text
+ * Uses buffer-based scrolling to keep text readable (not at exact edge)
  * @param {number} chunkIndex - Chunk index to scroll to
  */
 function scrollToHighlightedText(chunkIndex) {
@@ -159,10 +163,6 @@ function scrollToHighlightedText(chunkIndex) {
     if (!container) continue;
     const startMarker = container.querySelector(startSelector);
     if (startMarker) {
-      // Get the scrollable container (the main .container element, not #gameOutput)
-      const scrollContainer = document.querySelector('.container');
-      if (!scrollContainer) break;
-
       // Find the next visible element or text node after the marker
       let targetElement = startMarker.nextSibling;
       while (targetElement && targetElement.nodeType === Node.TEXT_NODE && !targetElement.textContent.trim()) {
@@ -170,20 +170,18 @@ function scrollToHighlightedText(chunkIndex) {
       }
       if (!targetElement) break;
 
-      // Get positions - use the visible element, not the invisible marker
-      const targetRect = targetElement.getBoundingClientRect ? targetElement.getBoundingClientRect() :
-                         targetElement.parentElement.getBoundingClientRect();
-      const containerRect = scrollContainer.getBoundingClientRect();
+      // Get the actual element (if text node, use parent)
+      const scrollTarget = targetElement.nodeType === Node.TEXT_NODE
+        ? targetElement.parentElement
+        : targetElement;
 
-      // Calculate scroll position to center the target
-      const relativeTop = targetRect.top - containerRect.top;
-      const targetScroll = scrollContainer.scrollTop + relativeTop - (containerRect.height / 2);
-
-      // Smooth scroll to target position
-      scrollContainer.scrollTo({
-        top: targetScroll,
-        behavior: 'smooth'
-      });
+      if (scrollTarget) {
+        // Use buffer-based scrolling (30% from top, smooth)
+        scrollIntoViewWithBuffer(scrollTarget, document.getElementById('gameOutput'), {
+          bufferRatio: 0.3,
+          smooth: true
+        });
+      }
       break;
     }
   }

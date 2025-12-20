@@ -10,6 +10,8 @@ import { dom } from '../core/dom.js';
 import { escapeHtml } from '../utils/text-processing.js';
 import { insertTemporaryMarkers, createNarrationChunks, insertRealMarkersAtIDs, removeTemporaryMarkers } from '../narration/chunking.js';
 import { stopNarration } from '../narration/tts-player.js';
+import { scrollToTop, scrollToNewContent } from '../utils/scroll.js';
+import { LOW_CONFIDENCE_THRESHOLD } from '../utils/audio-feedback.js';
 
 /**
  * Extract chunks and marker IDs in a single pass
@@ -55,6 +57,11 @@ export function ensureChunksReady() {
   const upperHTML = upperEl ? upperEl.innerHTML : '';
   const mainHTML = mainEl ? mainEl.innerHTML : '';
 
+  // Debug: Log if we find glk-input in the main HTML
+  if (mainHTML && mainHTML.includes('glk-input')) {
+    console.log('[ensureChunksReady] Main HTML has glk-input:', mainHTML.substring(0, 300));
+  }
+
   const hasStatus = statusHTML && statusHTML.trim();
   const hasUpper = upperHTML && upperHTML.trim();
   const hasMain = mainHTML && mainHTML.trim();
@@ -83,31 +90,21 @@ export function ensureChunksReady() {
 
     // Apply markers to status element
     statusEl.innerHTML = statusMarkedHTML;
-    insertRealMarkersAtIDs(statusEl, statusMarkerIDs);
 
-    // Insert start marker for chunk 0 BEFORE first marker position
-    if (statusMarkerIDs.length > 0) {
-      const firstMarkerID = statusMarkerIDs[0];
-      const tempMarkerRegex = new RegExp(`⚐${firstMarkerID}⚐`);
-      const walker = document.createTreeWalker(statusEl, NodeFilter.SHOW_TEXT);
-      let textNode;
-      while (textNode = walker.nextNode()) {
-        if (tempMarkerRegex.test(textNode.textContent)) {
-          const startMarker = document.createElement('span');
-          startMarker.className = 'chunk-marker-start';
-          startMarker.dataset.chunk = 0;
-          startMarker.style.cssText = 'display: none; position: absolute;';
-          textNode.parentNode.insertBefore(startMarker, textNode);
-          break;
-        }
-      }
-    } else if (statusEl.firstChild) {
+    // Insert start marker for chunk 0 at the BEGINNING of the container
+    // (temp markers are at sentence endings, so start[0] must be inserted separately)
+    if (statusEl.firstChild) {
       const startMarker = document.createElement('span');
       startMarker.className = 'chunk-marker-start';
       startMarker.dataset.chunk = 0;
       startMarker.style.cssText = 'display: none; position: absolute;';
       statusEl.insertBefore(startMarker, statusEl.firstChild);
     }
+
+    // Now insert real markers (this removes temp markers from DOM)
+    // Skip creating final start marker if another container follows (upper window or main content)
+    const statusHasFollowingContainer = hasUpper || hasMain;
+    insertRealMarkersAtIDs(statusEl, statusMarkerIDs, 0, statusHasFollowingContainer);
 
     removeTemporaryMarkers(statusEl, statusChunks);
 
@@ -126,32 +123,19 @@ export function ensureChunksReady() {
     // Apply markers to upper window element (NO renumbering - keep original marker IDs!)
     upperEl.innerHTML = upperMarkedHTML;
 
-    // Pass original marker IDs with chunk offset info
-    insertRealMarkersAtIDs(upperEl, upperMarkerIDs, chunkOffset);
-
-    // Insert start marker BEFORE first marker position
-    if (upperMarkerIDs.length > 0) {
-      const firstMarkerID = upperMarkerIDs[0];
-      const tempMarkerRegex = new RegExp(`⚐${firstMarkerID}⚐`);
-      const walker = document.createTreeWalker(upperEl, NodeFilter.SHOW_TEXT);
-      let textNode;
-      while (textNode = walker.nextNode()) {
-        if (tempMarkerRegex.test(textNode.textContent)) {
-          const startMarker = document.createElement('span');
-          startMarker.className = 'chunk-marker-start';
-          startMarker.dataset.chunk = chunkOffset;
-          startMarker.style.cssText = 'display: none; position: absolute;';
-          textNode.parentNode.insertBefore(startMarker, textNode);
-          break;
-        }
-      }
-    } else if (upperEl.firstChild) {
+    // Insert start marker at the BEGINNING of the container
+    // (temp markers are at sentence endings, so first chunk's start must be inserted separately)
+    if (upperEl.firstChild) {
       const startMarker = document.createElement('span');
       startMarker.className = 'chunk-marker-start';
       startMarker.dataset.chunk = chunkOffset;
       startMarker.style.cssText = 'display: none; position: absolute;';
       upperEl.insertBefore(startMarker, upperEl.firstChild);
     }
+
+    // Now insert real markers (this removes temp markers from DOM)
+    // Skip creating final start marker if main content follows
+    insertRealMarkersAtIDs(upperEl, upperMarkerIDs, chunkOffset, hasMain);
 
     removeTemporaryMarkers(upperEl, upperChunks);
 
@@ -161,7 +145,15 @@ export function ensureChunksReady() {
 
   // Process main content third (if exists)
   if (hasMain && mainEl) {
-    let mainMarkedHTML = insertTemporaryMarkers(mainHTML);
+    // CRITICAL: Remove glk-input (command echo) and user-command divs from HTML before chunking
+    // The narrator should NEVER read user commands - only game responses
+    let cleanedMainHTML = mainHTML
+      // Remove glk-input spans (game's command echo - styled blue command text)
+      .replace(/<span[^>]*class="[^"]*glk-input[^"]*"[^>]*>[\s\S]*?<\/span>/gi, '')
+      // Remove user-command divs (our own command display)
+      .replace(/<div[^>]*class="[^"]*user-command[^"]*"[^>]*>[\s\S]*?<\/div>/gi, '');
+
+    let mainMarkedHTML = insertTemporaryMarkers(cleanedMainHTML);
     const mainChunksWithMarkers = createNarrationChunks(mainMarkedHTML);
     const { chunks: mainChunks, markerIDs: mainMarkerIDs } =
       extractChunksAndMarkers(mainChunksWithMarkers);
@@ -178,38 +170,19 @@ export function ensureChunksReady() {
     // Apply markers to main element (NO renumbering - keep original marker IDs!)
     mainEl.innerHTML = mainMarkedHTML;
 
-    // Pass original marker IDs (not sequential indices) with chunk offset info
-    insertRealMarkersAtIDs(mainEl, mainMarkerIDs, chunkOffset);
-
-    // Insert start marker for first chunk
-    // IMPORTANT: Insert it BEFORE the first marker position, not at container beginning
-    // This ensures chunk 0 doesn't include filtered-out app voice content
-    if (mainMarkerIDs.length > 0) {
-      // Find the first temp marker in the DOM
-      const firstMarkerID = mainMarkerIDs[0];
-      const tempMarkerRegex = new RegExp(`⚐${firstMarkerID}⚐`);
-
-      const walker = document.createTreeWalker(mainEl, NodeFilter.SHOW_TEXT);
-      let textNode;
-      while (textNode = walker.nextNode()) {
-        if (tempMarkerRegex.test(textNode.textContent)) {
-          // Found the first marker - insert start[chunkOffset] right before this text node
-          const startMarker = document.createElement('span');
-          startMarker.className = 'chunk-marker-start';
-          startMarker.dataset.chunk = chunkOffset;
-          startMarker.style.cssText = 'display: none; position: absolute;';
-          textNode.parentNode.insertBefore(startMarker, textNode);
-          break;
-        }
-      }
-    } else if (mainEl.firstChild) {
-      // No markers (shouldn't happen, but fallback to old behavior)
+    // Insert start marker at the BEGINNING of the container
+    // (temp markers are at sentence endings, so first chunk's start must be inserted separately)
+    if (mainEl.firstChild) {
       const startMarker = document.createElement('span');
       startMarker.className = 'chunk-marker-start';
       startMarker.dataset.chunk = chunkOffset;
       startMarker.style.cssText = 'display: none; position: absolute;';
       mainEl.insertBefore(startMarker, mainEl.firstChild);
     }
+
+    // Now insert real markers (this removes temp markers from DOM)
+    // Main content is last container, so don't skip any start markers
+    insertRealMarkersAtIDs(mainEl, mainMarkerIDs, chunkOffset, false);
 
     removeTemporaryMarkers(mainEl, mainChunks);
 
@@ -220,6 +193,14 @@ export function ensureChunksReady() {
 
   // Mark chunks as valid
   state.chunksValid = true;
+
+  // If we're loading from a save, position at end (don't read whole transcript)
+  // User can use back/restart to hear content if desired
+  if (state.skipNarrationAfterLoad) {
+    state.currentChunkIndex = allChunks.length;  // Position past last chunk
+    state.skipNarrationAfterLoad = false;  // Clear flag
+  }
+
   return true;
 }
 
@@ -228,54 +209,56 @@ export function ensureChunksReady() {
  * @param {string} text - Text to add (HTML or plain text)
  * @param {boolean} isCommand - Whether this is a user command
  * @param {boolean} isVoiceCommand - Whether this was a voice command
+ * @param {boolean} isAppCommand - Whether this is an app/navigation command
+ * @param {number|null} confidence - Voice recognition confidence (0.0-1.0), null for keyboard
  * @returns {HTMLElement} The created element
  */
-export function addGameText(text, isCommand = false, isVoiceCommand = false) {
-  // Skip if this is the game echoing our last command via glk-input style
+export function addGameText(text, isCommand = false, isVoiceCommand = false, isAppCommand = false, confidence = null) {
+  // For game text (not commands), remove glk-input echoes before displaying
   if (!isCommand) {
-    // Check if this is ONLY a glk-input echo (no other content)
-    const glkInputMatch = text.match(/<span class="glk-input"[^>]*>(.*?)<\/span>/);
-    if (glkInputMatch && text.replace(/<[^>]*>/g, '').trim() === glkInputMatch[1].trim()) {
-      return null;
+    // Remove glk-input spans (game's command echo) - we display commands ourselves
+    text = text.replace(/<span[^>]*class="[^"]*glk-input[^"]*"[^>]*>.*?<\/span>/gi, '');
+
+    // Also remove any leading ">command" text that might not be in a span
+    if (window.lastSentCommand) {
+      const lastCmd = window.lastSentCommand.trim();
+      // Remove patterns like ">look\n" or "> look\n" at the start
+      text = text.replace(new RegExp(`^\\s*&gt;\\s*${lastCmd}\\s*(<br\\s*/?>|\\n)?`, 'i'), '');
+      text = text.replace(new RegExp(`^\\s*>\\s*${lastCmd}\\s*(<br\\s*/?>|\\n)?`, 'i'), '');
+      window.lastSentCommand = null; // Clear after use
     }
 
-    // Also check against last sent command
-    if (window.lastSentCommand) {
-      const plainText = text.replace(/<[^>]*>/g, '').trim().toLowerCase();
-      const lastCmd = window.lastSentCommand.trim().toLowerCase();
-
-
-      // Check various echo patterns
-      const isEcho =
-        plainText === lastCmd ||
-        plainText === `>${lastCmd}` ||
-        plainText === `> ${lastCmd}` ||
-        plainText.startsWith(`>${lastCmd}\n`) ||
-        plainText.startsWith(`> ${lastCmd}\n`) ||
-        // Check if it's ONLY the command (not followed by other text)
-        (plainText.split('\n')[0].trim() === lastCmd && plainText.split('\n').length === 1);
-
-      if (isEcho) {
-        window.lastSentCommand = null; // Clear so we don't skip future legitimate text
-        return null;
-      }
+    // If nothing left after removing echo, skip display
+    const plainText = text.replace(/<[^>]*>/g, '').trim();
+    if (!plainText) {
+      return null;
     }
   }
 
   const div = document.createElement('div');
 
-  if (isCommand) {
-    // Add voice-command class if this was spoken
-    div.className = isVoiceCommand ? 'user-command voice-command' : 'user-command';
+  // Determine if low confidence
+  const isLowConfidence = confidence !== null && confidence < LOW_CONFIDENCE_THRESHOLD;
 
-    // Don't show [ENTER] for empty commands - just show >
-    if (text === '' || text === '[ENTER]') {
-      const icon = isVoiceCommand ? '🎤 ' : '';
-      div.innerHTML = `<span class="command-label">&gt;</span> ${icon}<span style="color: #999;">[ENTER]</span>`;
-    } else {
-      const icon = isVoiceCommand ? '🎤 ' : '';
-      div.innerHTML = `<span class="command-label">&gt;</span> ${icon}${escapeHtml(text)}`;
-    }
+  if (isCommand) {
+    // Build class list based on command type
+    let classNames = ['user-command'];
+    if (isVoiceCommand) classNames.push('voice-command');
+    if (isAppCommand) classNames.push('app-command');
+    if (isLowConfidence) classNames.push('low-confidence');
+    div.className = classNames.join(' ');
+
+    console.log('[addGameText] Command:', text, 'isVoice:', isVoiceCommand, 'confidence:', confidence, 'classes:', div.className);
+
+    // Build the command display
+    // Format: ">command" for typed, ">command (85%)" for voice with confidence
+    const displayText = (text === '' || text === '[ENTER]') ? '[ENTER]' : escapeHtml(text);
+    // Show confidence for ALL voice commands (not just low confidence)
+    const confidenceLabel = (isVoiceCommand && confidence !== null)
+      ? ` (${Math.round(confidence * 100)}%)`
+      : '';
+
+    div.innerHTML = `<span class="command-label">&gt;</span><span class="command-text">${displayText}</span>${confidenceLabel}`;
   } else {
     // Game text - cleared only when Z-machine sends clear command
     div.className = 'game-text';
@@ -289,26 +272,9 @@ export function addGameText(text, isCommand = false, isVoiceCommand = false) {
     // Chunks will be created on-demand when narration is requested
     div.innerHTML = text;
 
-    // Add mic icon to glk-input spans if they were voice commands
-    if (window.lastCommandWasVoice && window.lastSentCommand) {
-      const glkInputs = div.querySelectorAll('span.glk-input');
-      const lastCmd = window.lastSentCommand.trim().toLowerCase();
-
-      glkInputs.forEach(span => {
-        const spanText = span.textContent.trim().toLowerCase();
-        // Check if this glk-input matches the last voice command
-        if (spanText === lastCmd || spanText === `>${lastCmd}` || spanText === `> ${lastCmd}`) {
-          // Add mic icon before the text
-          const micIcon = document.createElement('span');
-          micIcon.className = 'voice-command-icon';
-          micIcon.textContent = '🎤 ';
-          micIcon.style.cssText = 'opacity: 0.7; margin-right: 0.3em;';
-          span.insertBefore(micIcon, span.firstChild);
-
-          // Clear the flag so we don't keep adding icons
-          window.lastCommandWasVoice = false;
-        }
-      });
+    // Debug: Log if glk-input is in incoming HTML
+    if (text.includes('glk-input')) {
+      console.log('[addGameText] Received HTML with glk-input:', text.substring(0, 300));
     }
 
     // Invalidate existing chunks - they're for old content
@@ -328,61 +294,18 @@ export function addGameText(text, isCommand = false, isVoiceCommand = false) {
     }
   }
 
-  // Smart scroll: skip blank lines and scroll to first actual text
-  function scrollToFirstText(container) {
-    if (!container) return;
-
-    // Find first descendant (not just direct child) with visible text
-    const walker = document.createTreeWalker(
-      container,
-      NodeFilter.SHOW_ELEMENT,
-      {
-        acceptNode: (node) => {
-          // Skip spacer divs
-          if (node.classList?.contains('blank-line-spacer')) {
-            return NodeFilter.FILTER_SKIP;
-          }
-          // Check if this element has visible text
-          const text = node.textContent?.trim();
-          if (text && text.length > 0) {
-            return NodeFilter.FILTER_ACCEPT;
-          }
-          return NodeFilter.FILTER_SKIP;
-        }
-      }
-    );
-
-    const firstTextElement = walker.nextNode();
-    const scrollTarget = firstTextElement || container;
-    // Check if element is already visible in viewport
-    const rect = scrollTarget.getBoundingClientRect();
-    const gameOutput = document.getElementById('gameOutput');
-    if (!gameOutput) return;
-
-    const containerRect = gameOutput.getBoundingClientRect();
-    const isVisible = (
-      rect.top >= containerRect.top &&
-      rect.bottom <= containerRect.bottom
-    );
-
-    // Only scroll if not already visible
-    // Use 'nearest' to preserve existing scroll position and margins
-    if (!isVisible) {
-      scrollTarget.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-    }
-  }
-
-  // Scroll behavior:
-  // - First content on screen (fresh screen): scroll to top so user reads from beginning
-  // - Otherwise: scroll to bottom
-  // Note: gameOutput is the scrollable container, not lowerWindow
+  // Scroll behavior (see reference/design-decisions.md):
+  // - First content on screen (fresh screen): scroll to top
+  // - Subsequent content (after command): scroll to show top of new text
   const existingContent = dom.lowerWindow?.querySelectorAll('.game-text, .user-command');
   const isFirstOnScreen = existingContent && existingContent.length <= 1;
 
   if (isFirstOnScreen) {
-    scrollToFirstText(div);
+    // Fresh screen: scroll to top so user reads from beginning
+    scrollToTop(dom.gameOutput);
   } else if (dom.gameOutput) {
-    dom.gameOutput.scrollTop = dom.gameOutput.scrollHeight;
+    // After command: scroll toward bottom, but keep top of new text visible
+    scrollToNewContent(div, dom.gameOutput);
   }
 
   // Track for highlighting (only for game text, not commands)
@@ -412,4 +335,13 @@ export function clearGameOutput() {
     }
   }
   resetNarrationState();
+}
+
+/**
+ * Display an app/navigation command in the game output
+ * @param {string} command - The command text (e.g., "back", "pause", "skip")
+ * @param {number|null} confidence - Voice recognition confidence, null for keyboard
+ */
+export function displayAppCommand(command, confidence = null) {
+  addGameText(command, true, true, true, confidence);
 }

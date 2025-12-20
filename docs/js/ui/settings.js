@@ -9,7 +9,99 @@ import { state } from '../core/state.js';
 import { dom } from '../core/dom.js';
 import { updateStatus } from '../utils/status.js';
 import { getPronunciationMap, savePronunciationMap, addPronunciation, removePronunciation } from '../utils/pronunciation.js';
-import { getGameSetting, setGameSetting, loadGameSettings } from '../utils/game-settings.js';
+import {
+  getGameSetting, setGameSetting, loadGameSettings,
+  getAppDefault, setAppDefault, clearAllGameData, clearAllAppData
+} from '../utils/game-settings.js';
+
+/**
+ * Check if we're on the welcome screen (no game loaded)
+ * @returns {boolean} True if on welcome screen
+ */
+export function isOnWelcomeScreen() {
+  return !state.currentGameName;
+}
+
+/**
+ * Update settings panel labels based on context (welcome vs in-game)
+ * Called when settings panel opens and when game loads/unloads
+ */
+export function updateSettingsContext() {
+  const onWelcome = isOnWelcomeScreen();
+  const gameName = state.currentGameName;
+  const displayName = getGameDisplayName(gameName);
+
+  // Game section header
+  const gameHeader = document.getElementById('gameSettingsHeader');
+  if (gameHeader) {
+    gameHeader.textContent = onWelcome ? '📖 App Defaults' : `📖 ${displayName}`;
+  }
+
+  // Voice settings header
+  const voiceHeader = document.getElementById('voiceSettingsHeader');
+  if (voiceHeader) {
+    voiceHeader.textContent = onWelcome ? '🎙️ Default Voice' : '🎙️ Voice Settings';
+  }
+
+  // Voice settings description
+  const voiceDesc = document.getElementById('voiceSettingsDescription');
+  if (voiceDesc) {
+    voiceDesc.textContent = onWelcome
+      ? 'Set default voice settings for all new games'
+      : `Voice settings for ${displayName} (overrides defaults)`;
+  }
+
+  // Clear data description
+  const clearDesc = document.getElementById('clearDataDescription');
+  if (clearDesc) {
+    clearDesc.textContent = onWelcome
+      ? 'Permanently delete all data for all games:'
+      : `Delete all data for ${displayName}:`;
+  }
+
+  // Clear data button text
+  const clearBtnText = document.getElementById('clearDataBtnText');
+  if (clearBtnText) {
+    clearBtnText.textContent = onWelcome
+      ? 'Delete All App Data'
+      : 'Delete Game Data';
+  }
+
+  // Hide in-game only elements when on welcome screen
+  const quickSaveBtn = document.getElementById('quickSaveBtn');
+  const quickRestoreBtn = document.getElementById('quickRestoreBtn');
+  const restartBtn = document.getElementById('restartGameBtn');
+  const exportBtn = document.getElementById('exportSaveBtn');
+  const importBtn = document.getElementById('importSaveBtn');
+  const keepAwakeToggle = document.getElementById('keepAwakeToggle');
+
+  // Hide game action buttons
+  const inGameElements = [quickSaveBtn, quickRestoreBtn, restartBtn, exportBtn, importBtn];
+  inGameElements.forEach(el => {
+    if (el) {
+      el.closest('.game-actions')?.classList.toggle('hidden', onWelcome);
+    }
+  });
+
+  // Hide keep awake toggle and its description
+  if (keepAwakeToggle) {
+    keepAwakeToggle.closest('.setting-toggle')?.classList.toggle('hidden', onWelcome);
+    // Also hide the help text after it
+    const helpText = keepAwakeToggle.closest('.setting-toggle')?.nextElementSibling;
+    if (helpText?.classList.contains('settings-help')) {
+      helpText.classList.toggle('hidden', onWelcome);
+    }
+  }
+
+  // Hide save/restore instructions on welcome screen
+  const saveInfo = document.querySelectorAll('.save-restore-info');
+  saveInfo.forEach((el, i) => {
+    // Keep danger zone visible, hide others on welcome
+    if (i < saveInfo.length - 1) {
+      el.classList.toggle('hidden', onWelcome);
+    }
+  });
+}
 
 /**
  * Initialize settings panel
@@ -19,6 +111,8 @@ export function initSettings() {
   if (dom.settingsBtn) {
     dom.settingsBtn.addEventListener('click', () => {
       if (dom.settingsPanel) {
+        // Update labels based on context before showing
+        updateSettingsContext();
         dom.settingsPanel.classList.toggle('open');
       }
     });
@@ -71,61 +165,64 @@ export function initSettings() {
   // Note: Quick Save/Restore button handlers are in save-manager.js
   // to avoid duplicate handlers
 
-  // Clear All Data button
+  // Clear Data button - behavior depends on context
   const clearAllDataBtn = document.getElementById('clearAllDataBtn');
   if (clearAllDataBtn) {
     clearAllDataBtn.addEventListener('click', () => {
-      // Show confirmation dialog
-      const confirmed = confirm(
-        '⚠️ WARNING: This will permanently delete ALL data for ALL games.\n\n' +
-        'This includes:\n' +
-        '• Quick saves and autosaves\n' +
-        '• In-game saves\n' +
-        '• All game progress\n' +
-        '• Per-game settings (voices, speed)\n\n' +
-        'This action cannot be undone!\n\n' +
-        'Are you sure you want to continue?'
-      );
+      const onWelcome = isOnWelcomeScreen();
+      const gameName = state.currentGameName;
+
+      // Different confirmation based on context
+      let confirmed;
+      if (onWelcome) {
+        // Welcome screen: clear ALL app data
+        confirmed = confirm(
+          '⚠️ WARNING: This will permanently delete ALL data for ALL games.\n\n' +
+          'This includes:\n' +
+          '• All saves and autosaves\n' +
+          '• All game progress\n' +
+          '• All settings (voices, speed)\n' +
+          '• App defaults\n\n' +
+          'This action cannot be undone!\n\n' +
+          'Are you sure you want to continue?'
+        );
+      } else {
+        // In-game: clear only this game's data
+        const displayName = getGameDisplayName(gameName);
+        confirmed = confirm(
+          `⚠️ Delete all data for "${displayName}"?\n\n` +
+          'This includes:\n' +
+          '• Saves and autosave\n' +
+          '• Game progress\n' +
+          '• Voice/speed settings for this game\n\n' +
+          'App defaults and other games will NOT be affected.\n\n' +
+          'Are you sure?'
+        );
+      }
 
       if (confirmed) {
         try {
-          // Get all localStorage keys
-          const keysToRemove = [];
-          for (let i = 0; i < localStorage.length; i++) {
-            const key = localStorage.key(i);
-            // Remove IFTalk saves, autosaves, and Glkote/ZVM saves
-            if (key.startsWith('iftalk_quicksave_') ||
-                key.startsWith('iftalk_autosave_') ||
-                key.startsWith('glkote_quetzal_') ||
-                key.startsWith('zvm_autosave_') ||
-                key.startsWith('gameSettings_')) {
-              keysToRemove.push(key);
-            }
+          if (onWelcome) {
+            // Clear everything
+            const count = clearAllAppData();
+            updateStatus(`✓ Cleared all app data`);
+            alert('Successfully deleted all app data.\n\nAll saves, progress, and settings have been cleared.');
+          } else {
+            // Clear only current game
+            clearAllGameData(gameName);
+            updateStatus(`✓ Cleared data for ${gameName}`);
+            alert(`Successfully deleted data for "${gameName}".\n\nThis game will use app defaults on next load.`);
           }
-
-          // Remove all save data keys
-          keysToRemove.forEach(key => localStorage.removeItem(key));
-
-          // Remove last game tracking so we don't auto-load on refresh
-          localStorage.removeItem('iftalk_last_game');
-          localStorage.removeItem('iftalk_custom_games');
-
-          // Show success message
-          const count = keysToRemove.length + 2; // +2 for last_game and custom_games
-          updateStatus(`✓ Cleared all game data`);
 
           // Close settings panel
           if (dom.settingsPanel) {
             dom.settingsPanel.classList.remove('open');
           }
 
-          // Show alert confirming deletion
-          alert(`Successfully deleted all game data.\n\nAll saves, progress, and settings have been cleared.`);
-
         } catch (error) {
           console.error('[Settings] Failed to clear data:', error);
           updateStatus('Error clearing data');
-          alert('Failed to clear save data: ' + error.message);
+          alert('Failed to clear data: ' + error.message);
         }
       } else {
         updateStatus('Clear data cancelled');
@@ -137,7 +234,7 @@ export function initSettings() {
   const speechRateSlider = document.getElementById('speechRate');
   const speechRateValue = document.getElementById('speechRateValue');
   if (speechRateSlider && speechRateValue) {
-    // Load saved speech rate for current game
+    // Load saved speech rate (uses hierarchy: game -> app defaults -> 1.0)
     const savedRate = getGameSetting('speechRate', 1.0);
     speechRateSlider.value = savedRate;
     speechRateValue.textContent = savedRate.toFixed(1) + 'x';
@@ -154,28 +251,58 @@ export function initSettings() {
         state.browserVoiceConfig.rate = rate;
       }
 
-      // Save per-game
-      setGameSetting('speechRate', rate);
+      // Save to appropriate location based on context
+      if (isOnWelcomeScreen()) {
+        setAppDefault('speechRate', rate);
+        updateStatus(`Default speed: ${rate.toFixed(1)}x`);
+      } else {
+        setGameSetting('speechRate', rate);
+      }
     });
   }
 }
 
 /**
+ * Get display name for a game (looks up proper title from game card, with fallback)
+ * @param {string} gameName - Game filename (with or without extension)
+ * @returns {string} Formatted display name
+ */
+export function getGameDisplayName(gameName) {
+  if (!gameName) return '';
+
+  // Try to find the proper display name from game card
+  const gameCard = document.querySelector(`.game-card[data-game="${gameName}"]`) ||
+                   document.querySelector(`.game-card[data-game$="/${gameName}"]`);
+
+  if (gameCard) {
+    const titleEl = gameCard.querySelector('.game-title');
+    if (titleEl) {
+      // Get text without the meta span (year, length)
+      const metaSpan = titleEl.querySelector('.game-meta');
+      return metaSpan
+        ? titleEl.textContent.replace(metaSpan.textContent, '').trim()
+        : titleEl.textContent.trim();
+    }
+  }
+
+  // Fallback: format filename nicely
+  return gameName
+    .replace(/\.[^.]+$/, '') // Remove extension
+    .replace(/([A-Z])/g, ' $1') // Add space before capitals
+    .trim()
+    .split(/[\s_-]+/) // Split on spaces, underscores, hyphens
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+    .join(' ');
+}
+
+/**
  * Update current game name display in settings
- * @param {string} gameName - Name of the current game
+ * @param {string} gameName - Name of the current game (filename with or without extension)
  */
 export function updateCurrentGameDisplay(gameName) {
   const currentGameNameEl = document.getElementById('currentGameName');
   if (currentGameNameEl) {
-    // Format game name nicely: remove extension, PascalCase
-    const formattedName = gameName
-      .replace(/\.[^.]+$/, '') // Remove extension
-      .replace(/([A-Z])/g, ' $1') // Add space before capitals
-      .trim()
-      .split(/[\s_-]+/) // Split on spaces, underscores, hyphens
-      .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
-      .join(' ');
-    currentGameNameEl.textContent = formattedName;
+    currentGameNameEl.textContent = getGameDisplayName(gameName);
   }
 }
 
@@ -494,9 +621,15 @@ export function initVoiceSelection() {
     dom.voiceSelect.addEventListener('change', (e) => {
       if (!state.browserVoiceConfig) state.browserVoiceConfig = {};
       state.browserVoiceConfig.voice = e.target.value;
-      setGameSetting('narratorVoice', e.target.value);
-      const gameName = state.currentGameName || 'default';
-      updateStatus(`Narrator voice: ${e.target.value} (${gameName})`);
+
+      // Save to appropriate location based on context
+      if (isOnWelcomeScreen()) {
+        setAppDefault('narratorVoice', e.target.value);
+        updateStatus(`Default narrator: ${e.target.value}`);
+      } else {
+        setGameSetting('narratorVoice', e.target.value);
+        updateStatus(`Narrator voice: ${e.target.value} (${getGameDisplayName(state.currentGameName)})`);
+      }
     });
   }
 
@@ -505,9 +638,15 @@ export function initVoiceSelection() {
     dom.appVoiceSelect.addEventListener('change', (e) => {
       if (!state.browserVoiceConfig) state.browserVoiceConfig = {};
       state.browserVoiceConfig.appVoice = e.target.value;
-      setGameSetting('appVoice', e.target.value);
-      const gameName = state.currentGameName || 'default';
-      updateStatus(`App voice: ${e.target.value} (${gameName})`);
+
+      // Save to appropriate location based on context
+      if (isOnWelcomeScreen()) {
+        setAppDefault('appVoice', e.target.value);
+        updateStatus(`Default app voice: ${e.target.value}`);
+      } else {
+        setGameSetting('appVoice', e.target.value);
+        updateStatus(`App voice: ${e.target.value} (${getGameDisplayName(state.currentGameName)})`);
+      }
     });
   }
 

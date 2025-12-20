@@ -2,10 +2,16 @@
  * Game Settings Module
  *
  * Manages per-game settings with localStorage persistence.
- * Each game can have its own preferences (voices, speech rate, etc.)
+ *
+ * Hierarchy:
+ * 1. Per-game settings (gameSettings_{name}) - overrides for specific game
+ * 2. App defaults (iftalk_app_defaults) - inherited by all games
+ * 3. Hardcoded defaults - fallback if nothing else set
  */
 
 import { state } from '../core/state.js';
+
+const APP_DEFAULTS_KEY = 'iftalk_app_defaults';
 
 /**
  * Get localStorage key for current game's settings
@@ -18,6 +24,69 @@ function getGameSettingsKey() {
   }
   return 'gameSettings_default';
 }
+
+// =============================================================================
+// APP DEFAULTS (inherited by all games)
+// =============================================================================
+
+/**
+ * Load app-wide default settings
+ * @returns {Object} App defaults object
+ */
+export function loadAppDefaults() {
+  const json = localStorage.getItem(APP_DEFAULTS_KEY);
+  if (json) {
+    try {
+      return JSON.parse(json);
+    } catch (error) {
+      console.error('[GameSettings] Failed to parse app defaults:', error);
+      return {};
+    }
+  }
+  return {};
+}
+
+/**
+ * Save app-wide default settings
+ * @param {Object} defaults - Defaults object to save
+ */
+export function saveAppDefaults(defaults) {
+  localStorage.setItem(APP_DEFAULTS_KEY, JSON.stringify(defaults));
+}
+
+/**
+ * Get a specific app default value
+ * @param {string} settingName - Name of the setting
+ * @param {*} hardcodedDefault - Fallback if not in app defaults
+ * @returns {*} Setting value
+ */
+export function getAppDefault(settingName, hardcodedDefault = null) {
+  const defaults = loadAppDefaults();
+  const value = defaults[settingName];
+  return value !== undefined ? value : hardcodedDefault;
+}
+
+/**
+ * Set a specific app default value
+ * @param {string} settingName - Name of the setting
+ * @param {*} value - Value to save
+ */
+export function setAppDefault(settingName, value) {
+  const defaults = loadAppDefaults();
+  defaults[settingName] = value;
+  saveAppDefaults(defaults);
+}
+
+/**
+ * Clear all app defaults
+ */
+export function clearAppDefaults() {
+  localStorage.removeItem(APP_DEFAULTS_KEY);
+}
+
+// =============================================================================
+// PER-GAME SETTINGS (overrides for specific game)
+// =============================================================================
 
 /**
  * Load all settings for current game
@@ -52,14 +121,36 @@ export function saveGameSettings(settings) {
 
 /**
  * Get a specific setting value for current game
+ * Falls back to app defaults, then to hardcoded default
  * @param {string} settingName - Name of the setting (e.g., "narratorVoice")
- * @param {*} defaultValue - Default value if not found
- * @returns {*} Setting value or default
+ * @param {*} hardcodedDefault - Default value if not found anywhere
+ * @returns {*} Setting value
  */
-export function getGameSetting(settingName, defaultValue = null) {
+export function getGameSetting(settingName, hardcodedDefault = null) {
+  // 1. Check per-game override
   const settings = loadGameSettings();
-  const value = settings[settingName];
-  return value !== undefined ? value : defaultValue;
+  if (settings[settingName] !== undefined) {
+    return settings[settingName];
+  }
+
+  // 2. Fall back to app defaults
+  const appDefault = getAppDefault(settingName);
+  if (appDefault !== null) {
+    return appDefault;
+  }
+
+  // 3. Fall back to hardcoded default
+  return hardcodedDefault;
+}
+
+/**
+ * Check if current game has an override for a setting
+ * @param {string} settingName - Name of the setting
+ * @returns {boolean} True if game has its own value
+ */
+export function hasGameOverride(settingName) {
+  const settings = loadGameSettings();
+  return settings[settingName] !== undefined;
 }
 
 /**
@@ -170,7 +261,7 @@ export function hasGameData(gameName) {
 }
 
 /**
- * Clear ALL data for a specific game (settings + saves)
+ * Clear ALL data for a specific game (settings + saves + autosave)
  * @param {string} gameName - Game name (optional, defaults to current game)
  */
 export function clearAllGameData(gameName = null) {
@@ -178,8 +269,33 @@ export function clearAllGameData(gameName = null) {
 
   localStorage.removeItem(`gameSettings_${name}`);
   localStorage.removeItem(`iftalk_quicksave_${name}`);
+  localStorage.removeItem(`iftalk_autosave_${name}`);
   localStorage.removeItem(`glkote_quetzal_${name}`);
+  localStorage.removeItem(`zvm_autosave_${name}`);
+}
 
+/**
+ * Clear ALL app data (all games + app defaults)
+ * Used by "Delete All Data" on welcome screen
+ */
+export function clearAllAppData() {
+  const keysToRemove = [];
+
+  // Find all IFTalk-related keys
+  for (let i = 0; i < localStorage.length; i++) {
+    const key = localStorage.key(i);
+    if (key.startsWith('iftalk_') ||
+        key.startsWith('gameSettings_') ||
+        key.startsWith('glkote_quetzal_') ||
+        key.startsWith('zvm_autosave_')) {
+      keysToRemove.push(key);
+    }
+  }
+
+  // Remove all found keys
+  keysToRemove.forEach(key => localStorage.removeItem(key));
+
+  return keysToRemove.length;
 }
 
 /**

@@ -50,7 +50,11 @@ export function showCommandHistory() {
       let icon = item.isVoiceCommand ? '🎤 ' : '⌨️ ';
       let line = `${i + 1}. ${icon}${item.original}`;
       if (item.translated) {
-        line += ` → ${item.translated} (${item.confidence}%)`;
+        line += ` → ${item.translated}`;
+      }
+      // Show confidence for voice commands
+      if (item.isVoiceCommand && item.confidence !== null) {
+        line += ` (${Math.round(item.confidence * 100)}%)`;
       }
       return line;
     })

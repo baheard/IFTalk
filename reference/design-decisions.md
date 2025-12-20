@@ -19,7 +19,7 @@
    - Skips display if content is ONLY an echo (not mixed with response)
 
 4. **Focus Management**:
-   - Auto-focus when input becomes visible (char → line transition)
+   - **No auto-focus** - prevents unexpected scroll-to-bottom
    - Click anywhere in game area focuses input (unless selecting text)
    - Typing anywhere focuses input automatically
    - No focus manipulation in char mode (input hidden)
@@ -127,11 +127,62 @@ _AI mode toggle has been removed. All commands go directly to the game._
 - **Critical**: They process SEPARATELY - display ≠ what TTS speaks
 - Spaced capitals auto-collapsed: `/\b([A-Z])\s+(?=[A-Z](?:\s+[A-Z]|\s*\b))/g`
 
-## Scroll & Highlight Behavior
+## Scroll Behavior (December 20, 2024)
 
-- **New text**: `scrollIntoView({block: 'start'})` shows TOP of text, not bottom
-- **During narration**: Current sentence scrolls to `block: 'center'`
-- **Slider scrubbing**: Updates highlight in real-time while dragging
+### Core Principles
+
+1. **First display of any screen**: Scroll to top
+   - When screen clears and new content appears, scroll to top of content
+   - User should start reading from the beginning
+
+2. **During narration**: Scroll highlighted text into view with buffer
+   - Keep currently-spoken text visible in viewport
+   - Don't scroll to exact edge - maintain readable margin above/below
+   - Use smooth scrolling for less jarring experience
+
+3. **After loading/restoring**: Scroll to bottom, skip narration
+   - When restoring from save, scroll to bottom of restored content
+   - User picks up where they left off
+   - **Narration positioned at END** - don't read entire transcript
+   - User can press Back to hear last chunk, or Restart to hear from beginning
+
+4. **After command input**: Smart scroll to show new text
+   - Always ensure TOP of new text remains visible
+   - Scroll toward bottom if possible, but stop if new text top would scroll off-screen
+   - Rule: `scrollDistance = min(scrollToBottom, scrollToShowNewTextTop)`
+
+5. **When input field focused**: Scroll to bottom
+   - Ensures command line is visible when typing
+   - Consistent with chat/terminal UX patterns
+
+### Implementation Details
+
+**Scroll container**: `.container` element (or `#gameOutput` in some contexts)
+
+**New text detection**: Track the element created by `addGameText()` - its top position marks where new content begins
+
+**Smart scroll calculation for commands**:
+```javascript
+const newTextTop = newElement.getBoundingClientRect().top;
+const containerRect = container.getBoundingClientRect();
+const scrollToBottom = container.scrollHeight - container.clientHeight;
+const scrollToShowTop = container.scrollTop + (newTextTop - containerRect.top);
+container.scrollTop = Math.min(scrollToBottom, scrollToShowTop);
+```
+
+### Files
+
+- `scroll.js` - Scroll utility functions
+- `game-output.js` - Scroll on new content
+- `highlighting.js` - Scroll during narration
+- `save-manager.js` - Scroll after load
+- `keyboard.js` - Scroll on input focus
+
+## Highlight Behavior
+
+- **Per-sentence highlighting**: Only currently-speaking sentence highlighted
+- **Marker-based system**: Invisible `<span>` markers define chunk boundaries
+- **CSS Highlight API**: Uses `CSS.highlights` for efficient highlighting
 - Function `updateTextHighlight(chunkIndex)` handles all highlight updates
 
 ## Error Suppression
@@ -162,3 +213,69 @@ _Old two-panel input system has been removed. Now uses inline keyboard input at 
 - **Server-side** (server.js lines 260-270): Same dictionary applied to ElevenLabs
 - **Auto-detection**: Spaced capitals "A N C H O R H E A D" → "Anchorhead" → Title case
 - Settings panel (⚙️) allows adding/removing pronunciation fixes
+
+## Settings System (December 20, 2024)
+
+### Storage Hierarchy
+
+Settings follow a three-tier inheritance model:
+
+1. **Per-game overrides** (`gameSettings_{gameName}`) - Highest priority
+   - Stored when user changes settings while playing a specific game
+   - Only stores values that differ from defaults
+
+2. **App defaults** (`iftalk_app_defaults`) - Medium priority
+   - Set on welcome screen before any game is loaded
+   - Inherited by all games that don't have their own overrides
+
+3. **Hardcoded defaults** - Lowest priority
+   - Fallback values in code (e.g., speechRate: 1.0)
+   - Used when neither app defaults nor game settings exist
+
+### Context-Aware UI
+
+Settings panel adapts based on whether a game is loaded:
+
+| Element | Welcome Screen | In-Game |
+|---------|----------------|---------|
+| Game section header | "🎮 App Defaults" | "🎮 {Game Name}" |
+| Voice header | "🎙️ Default Voice" | "🎙️ Voice Settings" |
+| Voice description | "Set default voice settings for all new games" | "Voice settings for {Game} (overrides defaults)" |
+| Delete button | "Delete All App Data" | "Delete Game Data" |
+| Save/Restore buttons | Hidden | Visible |
+| Keep Awake toggle | Hidden | Visible |
+
+### Delete Behavior
+
+- **Welcome screen** ("Delete All App Data"):
+  - Clears ALL localStorage keys: `iftalk_*`, `gameSettings_*`, `glkote_quetzal_*`, `zvm_autosave_*`
+  - Removes app defaults and all game data
+  - Returns app to fresh state
+
+- **In-game** ("Delete Game Data"):
+  - Clears ONLY current game: `gameSettings_{name}`, `iftalk_quicksave_{name}`, `iftalk_autosave_{name}`, etc.
+  - Game reverts to using app defaults on next load
+  - Other games unaffected
+
+### Setting Save Behavior
+
+When user changes a setting:
+- **On welcome screen** → Saved to `iftalk_app_defaults`
+- **In-game** → Saved to `gameSettings_{gameName}`
+
+### localStorage Keys
+
+| Key Pattern | Purpose |
+|-------------|---------|
+| `iftalk_app_defaults` | App-wide default settings (JSON) |
+| `gameSettings_{name}` | Per-game setting overrides (JSON) |
+| `iftalk_autosave_{name}` | Auto-save state for resume |
+| `iftalk_quicksave_{name}` | Manual quick save |
+| `iftalk_last_game` | Last played game path (for auto-resume) |
+| `iftalk_custom_games` | User-uploaded game metadata |
+| `glkote_quetzal_{name}` | GlkOte save format |
+
+### Files
+
+- `game-settings.js` - Storage API: `getGameSetting()`, `setGameSetting()`, `getAppDefault()`, `setAppDefault()`, `clearAllGameData()`, `clearAllAppData()`
+- `settings.js` - UI: `updateSettingsContext()`, `isOnWelcomeScreen()`

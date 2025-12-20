@@ -33,26 +33,56 @@ import { initGameSelection } from './game/game-loader.js';
 
 // Utility modules
 import { initKeepAwake, enableKeepAwake, disableKeepAwake, isKeepAwakeEnabled, activateIfEnabled } from './utils/wake-lock.js';
+import { playPlayTone, playPauseTone, playMuteTone, playUnmuteTone } from './utils/audio-feedback.js';
 
 // Voice command handlers
 const voiceCommandHandlers = {
   restart: () => skipToStart(() => speakTextChunked(null, state.currentChunkIndex)),
   back: () => skipToChunk(-1, () => speakTextChunked(null, state.currentChunkIndex)),
   pause: () => {
-    if (state.isNarrating) {
+    // Switch to MANUAL mode (same as clicking pause button)
+    if (state.autoplayEnabled || state.isNarrating) {
+      playPauseTone();
+      state.autoplayEnabled = false;
       state.narrationEnabled = false;
       state.isPaused = true;
-      stopNarration();
-      updateStatus('Narration paused');
+      stopNarration(true);  // Preserve highlight when pausing
+      updateStatus('Autoplay off');
       updateNavButtons();
     }
   },
-  play: () => {
-    if (!state.narrationEnabled && (state.isPaused || state.narrationChunks.length > 0)) {
+  play: async () => {
+    // Only act if not already in autoplay mode
+    if (!state.autoplayEnabled) {
+      playPlayTone();
+      // Switch to AUTOPLAY mode (same as clicking play button)
+      state.autoplayEnabled = true;
       state.narrationEnabled = true;
       state.isPaused = false;
-      state.pendingNarrationText = null;
-      speakTextChunked(null, state.currentChunkIndex);
+
+      // Start playing from current position (if not at end)
+      if (state.narrationChunks.length > 0 && state.currentChunkIndex < state.narrationChunks.length) {
+        speakTextChunked(null, state.currentChunkIndex);
+      } else {
+        // At end or no chunks - try to read the last game response
+        const { ensureChunksReady } = await import('./ui/game-output.js');
+
+        const lowerWindow = document.getElementById('lowerWindow');
+        const gameTexts = lowerWindow?.querySelectorAll('.game-text');
+        const lastGameText = gameTexts && gameTexts.length > 0 ? gameTexts[gameTexts.length - 1] : null;
+
+        if (lastGameText) {
+          state.currentGameTextElement = lastGameText;
+          state.chunksValid = false;
+          state.narrationChunks = [];
+
+          if (ensureChunksReady() && state.narrationChunks.length > 0) {
+            state.currentChunkIndex = 0;
+            speakTextChunked(null, 0);
+          }
+        }
+      }
+      updateNavButtons();
     }
   },
   skip: () => skipToChunk(1, () => speakTextChunked(null, state.currentChunkIndex)),
@@ -75,6 +105,7 @@ const voiceCommandHandlers = {
     quickLoad();
   },
   unmute: () => {
+    playUnmuteTone();
     state.isMuted = false;
     state.listeningEnabled = true;
     const icon = dom.muteBtn?.querySelector('.material-icons');
@@ -100,6 +131,7 @@ const voiceCommandHandlers = {
     }
   },
   mute: () => {
+    playMuteTone();
     state.isMuted = true;
     state.listeningEnabled = false;
     const icon = dom.muteBtn?.querySelector('.material-icons');
@@ -216,7 +248,7 @@ async function initApp() {
   await loadBrowserVoiceConfig();
 
   // Initialize voice recognition with command processor
-  const processVoice = (transcript) => processVoiceKeywords(transcript, voiceCommandHandlers);
+  const processVoice = (transcript, confidence) => processVoiceKeywords(transcript, voiceCommandHandlers, confidence);
   state.recognition = initVoiceRecognition(processVoice);
 
   // Make sendCommand available globally for recognition module
@@ -288,6 +320,7 @@ async function initApp() {
 
       if (state.autoplayEnabled) {
         // Currently in AUTOPLAY mode - switch to MANUAL mode
+        playPauseTone();
         state.autoplayEnabled = false;
         state.narrationEnabled = false;
         state.isPaused = true;
@@ -296,30 +329,41 @@ async function initApp() {
         updateNavButtons();
       } else {
         // Currently in MANUAL mode - switch to AUTOPLAY mode
+        playPlayTone();
         state.autoplayEnabled = true;
         state.narrationEnabled = true;
         state.isPaused = false;
 
-        // Start playing from current position
-        if (state.narrationChunks.length > 0) {
-          // If at the end, restart from beginning
-          if (state.currentChunkIndex >= state.narrationChunks.length) {
-            state.currentChunkIndex = 0;
-          }
+        // Start playing from current position (if not at end)
+        if (state.narrationChunks.length > 0 && state.currentChunkIndex < state.narrationChunks.length) {
+          // Not at end - resume from current position
           console.log('[Play Button] Starting narration from current chunk:', state.currentChunkIndex);
           speakTextChunked(null, state.currentChunkIndex);
         } else {
-          // Try to create chunks if we have content
+          // At end or no chunks - try to read the last game response
           const { ensureChunksReady } = await import('./ui/game-output.js');
-          if (ensureChunksReady()) {
-            // Check if we have a restored chunk index
-            const startIndex = state.restoredChunkIndex !== null ? state.restoredChunkIndex : 0;
-            console.log('[Play Button] Creating chunks and starting from index:', startIndex, '(restored:', state.restoredChunkIndex !== null, ')');
-            state.restoredChunkIndex = null; // Clear after use
-            speakTextChunked(null, startIndex);
+
+          // Find the last game-text element (not command) to read
+          const lowerWindow = document.getElementById('lowerWindow');
+          const gameTexts = lowerWindow?.querySelectorAll('.game-text');
+          const lastGameText = gameTexts && gameTexts.length > 0 ? gameTexts[gameTexts.length - 1] : null;
+
+          if (lastGameText) {
+            // Set as current element and invalidate chunks to rechunk just this element
+            state.currentGameTextElement = lastGameText;
+            state.chunksValid = false;
+            state.narrationChunks = [];
+
+            if (ensureChunksReady() && state.narrationChunks.length > 0) {
+              // Play the last game response from the beginning
+              state.currentChunkIndex = 0;
+              console.log('[Play Button] Reading last game response, chunks:', state.narrationChunks.length);
+              speakTextChunked(null, 0);
+            } else {
+              console.log('[Play Button] No content to narrate, autoplay armed');
+            }
           } else {
-            console.error('[Play/Pause] Failed to create chunks - no content available');
-            updateStatus('No text to narrate');
+            console.log('[Play Button] No game text found, autoplay armed for next content');
           }
         }
 

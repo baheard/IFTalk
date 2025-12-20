@@ -8,23 +8,7 @@
 import { state } from '../core/state.js';
 import { updateStatus } from '../utils/status.js';
 import { showMessageInput } from '../input/keyboard.js';
-
-/**
- * Scroll to bottom immediately
- * @param {HTMLElement} element - Element to scroll
- */
-function scrollToBottom(element) {
-    if (!element) return;
-    element.scrollTop = element.scrollHeight;
-}
-
-/**
- * Scroll to bottom (no waiting)
- * @param {HTMLElement} element - Element to scroll
- */
-function scrollAfterFade(element) {
-    scrollToBottom(element);
-}
+import { scrollToBottom } from '../utils/scroll.js';
 
 /**
  * Get current game signature from ZVM
@@ -257,7 +241,7 @@ export async function customLoad(saveName) {
                     }
                     // Show command input immediately and scroll to bottom
                     showMessageInput();
-                    scrollToBottom(document.getElementById('gameOutput'));
+                    scrollToBottom();
                 }
             }
 
@@ -282,6 +266,9 @@ export async function customLoad(saveName) {
                     });
                 }, 100);
             }
+
+            // Set flag to skip narration - position at end of chunks, not beginning
+            state.skipNarrationAfterLoad = true;
 
             return true;
         } else {
@@ -453,15 +440,16 @@ export async function autoLoad() {
                         lowerWindowEl.appendChild(commandLine);
                     }
 
-                    // Show command input immediately, wait for fade, then scroll and focus
+                    // Show command input immediately and scroll to bottom
                     showMessageInput();
-                    scrollAfterFade(document.getElementById('gameOutput'));
-                    const messageInput = document.getElementById('messageInput');
-                    if (messageInput) {
-                        messageInput.focus();
-                    }
+                    scrollToBottom();
+                    // Don't auto-focus - let user click or type to focus
                 }
             }
+
+            // Set flag to skip narration - position at end of chunks, not beginning
+            // User can use back/restart to hear content if desired
+            state.skipNarrationAfterLoad = true;
 
             return true;
         } else {
@@ -548,7 +536,7 @@ export async function quickLoad() {
 
                     // Show command input immediately and scroll to bottom
                     showMessageInput();
-                    scrollToBottom(document.getElementById('gameOutput'));
+                    scrollToBottom();
                 }
             }
 
@@ -575,6 +563,9 @@ export async function quickLoad() {
                     });
                 }, 100);
             }
+
+            // Set flag to skip narration - position at end of chunks, not beginning
+            state.skipNarrationAfterLoad = true;
 
             updateStatus('Quick loaded', 'success');
             return true;

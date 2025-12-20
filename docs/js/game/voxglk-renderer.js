@@ -227,6 +227,7 @@ function processStyledContent(contentArray) {
           // Mark input-style text to use app voice instead of narrator
           const voiceAttr = cssClass === 'glk-input' ? ' data-voice="app"' : '';
           if (cssClass === 'glk-input') {
+            console.log('[Renderer] Generated glk-input span:', escapedText);
           }
           currentLine += `<span class="${cssClass}" style="white-space: pre-wrap;"${voiceAttr}>${escapedText}</span>`;
         }
@@ -313,6 +314,7 @@ function processStyledContent(contentArray) {
           // Mark input-style text to use app voice instead of narrator
           const voiceAttr = cssClass === 'glk-input' ? ' data-voice="app"' : '';
           if (cssClass === 'glk-input') {
+            console.log('[Renderer] Generated glk-input span (obj):', escapedText);
           }
           if (customStyle) {
             // Custom colors override - use both class and inline style

@@ -7,6 +7,8 @@
 import { state } from '../core/state.js';
 import { sendCommandDirect } from '../game/commands.js';
 import { getInputType, sendInput } from '../game/voxglk.js';
+import { scrollToBottom } from '../utils/scroll.js';
+import { playCommandSent } from '../utils/audio-feedback.js';
 
 let messageInputEl = null;
 let messageInputRowEl = null;
@@ -79,6 +81,11 @@ export function initKeyboardInput() {
         sendCommand();
       }
     });
+
+    // Scroll to bottom when input is focused (ensures command line is visible)
+    messageInputEl.addEventListener('focus', () => {
+      scrollToBottom();
+    });
   }
 
   // Add click handlers for char input buttons
@@ -147,8 +154,8 @@ export function initKeyboardInput() {
       e.preventDefault();
       sendInput('\n', 'char');
     } else if (inputType === 'line' && messageInputEl) {
-      // Line mode - focus message input
-      messageInputEl.focus();
+      // Line mode - focus message input (no scroll until they type)
+      messageInputEl.focus({ preventScroll: true });
     }
   };
 
@@ -235,17 +242,23 @@ function handleKeyPress(e) {
     return;
   }
 
-  // If typing and not focused on message input, focus it
+  // If typing and not focused on message input, focus it and capture the keystroke
   if (e.target !== messageInputEl && e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) {
-    if (messageInputEl) {
-      messageInputEl.focus();
+    // Only for line input mode
+    if (getInputType() === 'line' && messageInputEl && !messageInputEl.classList.contains('hidden')) {
+      messageInputEl.focus({ preventScroll: true });
+      messageInputEl.value += e.key;
+      state.hasManualTyping = true;
+      scrollToBottom(); // Scroll now that they're typing
+      e.preventDefault(); // Prevent double-typing
     }
-    return; // Let the browser handle the input naturally
+    return;
   }
 
-  // Mark as manual typing when user types in message input
-  if (e.target === messageInputEl) {
+  // When typing in message input, mark as manual and scroll to show input
+  if (e.target === messageInputEl && e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) {
     state.hasManualTyping = true;
+    scrollToBottom();
   }
 }
 
@@ -285,10 +298,8 @@ function updateInputVisibility() {
         if (messageInputEl) messageInputEl.classList.remove('hidden');
         if (voiceListeningIndicatorEl) voiceListeningIndicatorEl.classList.add('hidden');
 
-        // Auto-focus when input becomes visible
-        if (wasHidden && messageInputEl) {
-          messageInputEl.focus();
-        }
+        // Don't auto-focus - let user click or type to focus
+        // This prevents unexpected scroll-to-bottom
       } else {
         // Unmuted - hide text input, show voice indicator
         if (messageInputEl) messageInputEl.classList.add('hidden');
@@ -359,7 +370,14 @@ function sendCommand() {
   if (cmd || cmd === '') {
     // Store last command for echo detection
     window.lastSentCommand = cmd;
+
+    // Play feedback tone
+    playCommandSent();
+
     sendCommandDirect(cmd, false); // false = not a voice command
+
+    // Scroll to bottom after sending command
+    scrollToBottom();
   }
 }
 

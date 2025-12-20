@@ -173,15 +173,8 @@ export async function startGame(gamePath, onOutput) {
           // Dispatch event so save-manager knows fade is complete
           window.dispatchEvent(new CustomEvent('loadingFadeComplete'));
 
-          // Focus command input after overlay is gone (if not restoring)
-          if (!hasAutosave) {
-            setTimeout(() => {
-              const messageInput = document.getElementById('messageInput');
-              if (messageInput) {
-                messageInput.focus();
-              }
-            }, 100);
-          }
+          // Don't auto-focus - let user click or type to focus
+          // This prevents scroll-to-bottom on initial load
         }, { once: true });
       }, 200);
     }

@@ -12,6 +12,7 @@ import { fixPronunciation } from '../utils/pronunciation.js';
 import { recordSpokenChunk } from '../voice/echo-detection.js';
 import { updateTextHighlight, removeHighlight } from './highlighting.js';
 import { getDefaultVoice } from '../ui/settings.js';
+import { scrollToBottom } from '../utils/scroll.js';
 
 // Keep-alive audio context for mobile background playback
 let keepAliveAudio = null;
@@ -347,9 +348,7 @@ export async function speakTextChunked(text, startFromIndex = 0) {
       removeHighlight();
 
       // Scroll to bottom
-      if (dom.gameOutput) {
-        dom.gameOutput.scrollTop = dom.gameOutput.scrollHeight;
-      }
+      scrollToBottom();
 
       updateStatus('Ready');
       updateNavButtons();

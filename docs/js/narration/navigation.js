@@ -9,7 +9,9 @@ import { state } from '../core/state.js';
 import { stopNarration } from './tts-player.js';
 import { updateTextHighlight, removeHighlight } from './highlighting.js';
 import { updateStatus } from '../utils/status.js';
-import { dom } from '../core/dom.js';
+import { scrollToBottom } from '../utils/scroll.js';
+import { ensureChunksReady } from '../ui/game-output.js';
+import { updateNavButtons } from '../ui/nav-buttons.js';
 
 /**
  * Navigate chunks (skip forward or backward)
@@ -19,6 +21,17 @@ import { dom } from '../core/dom.js';
 export function skipToChunk(offset, speakTextChunked) {
   // Prevent concurrent navigation
   if (state.isNavigating) {
+    return;
+  }
+
+  // Ensure chunks exist (lazy creation after autoload)
+  if (!state.chunksValid || state.narrationChunks.length === 0) {
+    ensureChunksReady();
+  }
+
+  // If still no chunks, can't navigate
+  if (state.narrationChunks.length === 0) {
+    console.warn('[Navigation] No chunks available for navigation');
     return;
   }
 
@@ -58,6 +71,9 @@ export function skipToChunk(offset, speakTextChunked) {
     // Update highlighting to new chunk
     updateTextHighlight(targetIndex);
 
+    // Update nav button states
+    updateNavButtons();
+
     // If in autoplay mode, start playing from new position
     if (state.autoplayEnabled) {
       state.isPaused = false;
@@ -75,8 +91,14 @@ export function skipToChunk(offset, speakTextChunked) {
  * @param {Function} speakTextChunked - Function to resume narration
  */
 export function skipToStart(speakTextChunked) {
-  if (state.narrationChunks.length === 0 || state.isNavigating) return;
+  if (state.isNavigating) return;
 
+  // Ensure chunks exist (lazy creation after autoload)
+  if (!state.chunksValid || state.narrationChunks.length === 0) {
+    ensureChunksReady();
+  }
+
+  if (state.narrationChunks.length === 0) return;
 
   state.isNavigating = true;
   state.currentChunkStartTime = 0;
@@ -90,6 +112,9 @@ export function skipToStart(speakTextChunked) {
 
     // Always update highlighting to first chunk
     updateTextHighlight(0);
+
+    // Update nav button states
+    updateNavButtons();
 
     // If in autoplay mode, start playing from beginning
     if (state.autoplayEnabled) {
@@ -107,8 +132,12 @@ export function skipToStart(speakTextChunked) {
  * Skip to end (stop all narration and jump to end)
  */
 export function skipToEnd() {
-  if (state.narrationChunks.length === 0) return;
+  // Ensure chunks exist (lazy creation after autoload)
+  if (!state.chunksValid || state.narrationChunks.length === 0) {
+    ensureChunksReady();
+  }
 
+  if (state.narrationChunks.length === 0) return;
 
   // Force stop everything immediately
   state.narrationEnabled = false;
@@ -138,8 +167,9 @@ export function skipToEnd() {
   // Remove all highlighting
   removeHighlight();
 
+  // Update nav button states
+  updateNavButtons();
+
   // Scroll to bottom
-  if (dom.gameOutput) {
-    dom.gameOutput.scrollTop = dom.gameOutput.scrollHeight;
-  }
+  scrollToBottom();
 }
