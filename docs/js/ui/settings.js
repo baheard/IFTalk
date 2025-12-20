@@ -77,11 +77,12 @@ export function initSettings() {
     clearAllDataBtn.addEventListener('click', () => {
       // Show confirmation dialog
       const confirmed = confirm(
-        '⚠️ WARNING: This will permanently delete ALL saved games for ALL interactive fiction games.\n\n' +
+        '⚠️ WARNING: This will permanently delete ALL data for ALL games.\n\n' +
         'This includes:\n' +
-        '• Quick saves\n' +
+        '• Quick saves and autosaves\n' +
         '• In-game saves\n' +
-        '• All game progress\n\n' +
+        '• All game progress\n' +
+        '• Per-game settings (voices, speed)\n\n' +
         'This action cannot be undone!\n\n' +
         'Are you sure you want to continue?'
       );
@@ -92,10 +93,12 @@ export function initSettings() {
           const keysToRemove = [];
           for (let i = 0; i < localStorage.length; i++) {
             const key = localStorage.key(i);
-            // Remove IFTalk saves and Glkote/ZVM saves
+            // Remove IFTalk saves, autosaves, and Glkote/ZVM saves
             if (key.startsWith('iftalk_quicksave_') ||
+                key.startsWith('iftalk_autosave_') ||
                 key.startsWith('glkote_quetzal_') ||
-                key.startsWith('zvm_autosave_')) {
+                key.startsWith('zvm_autosave_') ||
+                key.startsWith('gameSettings_')) {
               keysToRemove.push(key);
             }
           }
@@ -103,9 +106,13 @@ export function initSettings() {
           // Remove all save data keys
           keysToRemove.forEach(key => localStorage.removeItem(key));
 
+          // Remove last game tracking so we don't auto-load on refresh
+          localStorage.removeItem('iftalk_last_game');
+          localStorage.removeItem('iftalk_custom_games');
+
           // Show success message
-          const count = keysToRemove.length;
-          updateStatus(`✓ Cleared ${count} save file${count !== 1 ? 's' : ''}`);
+          const count = keysToRemove.length + 2; // +2 for last_game and custom_games
+          updateStatus(`✓ Cleared all game data`);
 
           // Close settings panel
           if (dom.settingsPanel) {
@@ -113,7 +120,7 @@ export function initSettings() {
           }
 
           // Show alert confirming deletion
-          alert(`Successfully deleted ${count} save file${count !== 1 ? 's' : ''}.\n\nAll game progress has been cleared.`);
+          alert(`Successfully deleted all game data.\n\nAll saves, progress, and settings have been cleared.`);
 
         } catch (error) {
           console.error('[Settings] Failed to clear data:', error);
@@ -205,9 +212,25 @@ function loadPronunciationUI() {
   }
 }
 
+// Detect iOS device
+const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+  (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+
+// iOS preferred voices (starred, shown at top, in order)
+// Order: Karen (default), Daniel, Tessa
+const IOS_PREFERRED_VOICES = [
+  { name: 'Karen', lang: 'en-AU' },
+  { name: 'Daniel', lang: 'en-GB' },
+  { name: 'Tessa', lang: 'en-ZA' }
+];
+
 // Preferred voices in order of preference (researched quality voices)
 // Chrome uses Google voices, other browsers use system voices
 const VOICE_PREFERENCES = [
+  // iOS/macOS preferred voices
+  'Karen',
+  'Daniel',
+  'Tessa',
   // Chrome/Google voices (best quality)
   'Google UK English Male',
   'Google UK English Female',
@@ -222,8 +245,6 @@ const VOICE_PREFERENCES = [
   'Microsoft Mark - English (United States)',
   'Microsoft David - English (United States)',
   // macOS voices
-  'Daniel',
-  'Karen',
   'Samantha',
   'Alex',
   // Fallbacks
@@ -233,11 +254,23 @@ const VOICE_PREFERENCES = [
 
 /**
  * Get the best available voice from preferences
+ * On iOS: Default to Karen (en-AU)
  * @param {Array} voices - Available voices
  * @returns {SpeechSynthesisVoice|null} Best matching voice or null
  */
 export function getDefaultVoice(voices) {
   const englishVoices = voices.filter(v => v.lang.startsWith('en'));
+
+  // On iOS, default to Karen first
+  if (isIOS) {
+    for (const pref of IOS_PREFERRED_VOICES) {
+      const match = englishVoices.find(v =>
+        v.name === pref.name ||
+        v.name.includes(pref.name)
+      );
+      if (match) return match;
+    }
+  }
 
   // Try each preferred voice in order
   for (const preferred of VOICE_PREFERENCES) {
@@ -253,25 +286,73 @@ export function getDefaultVoice(voices) {
 }
 
 /**
+ * Check if a voice is in the iOS preferred list
+ * @param {SpeechSynthesisVoice} voice - Voice to check
+ * @returns {number} Index in preferred list, or -1 if not preferred
+ */
+function getIOSPreferredIndex(voice) {
+  return IOS_PREFERRED_VOICES.findIndex(pref =>
+    voice.name === pref.name ||
+    voice.name.includes(pref.name)
+  );
+}
+
+/**
  * Filter and sort voices
- * - Show only English voices
- * - Sort by quality (local/high-quality first) then alphabetically
+ * - On iOS: Only show preferred voices (Karen, Daniel, Tessa)
+ * - Deduplicate voices (iOS returns duplicates)
+ * - Preferred voices at top, rest alphabetically
  */
 function filterAndSortVoices(voices) {
   // Filter to English voices only
-  const filtered = voices.filter(voice => voice.lang.startsWith('en'));
+  let filtered = voices.filter(voice => voice.lang.startsWith('en'));
 
-  // Sort: local voices first, then by name
+  // Deduplicate by voice name (iOS often returns duplicates)
+  const seen = new Set();
+  filtered = filtered.filter(voice => {
+    if (seen.has(voice.name)) return false;
+    seen.add(voice.name);
+    return true;
+  });
+
+  // On iOS, restrict to only preferred voices
+  if (isIOS) {
+    filtered = filtered.filter(voice => getIOSPreferredIndex(voice) !== -1);
+  }
+
+  // Sort: preferred voices first (in order), then local voices, then alphabetically
   filtered.sort((a, b) => {
-    // Local voices (high quality) come first
+    const aPreferred = getIOSPreferredIndex(a);
+    const bPreferred = getIOSPreferredIndex(b);
+
+    // Both preferred: sort by preferred order
+    if (aPreferred !== -1 && bPreferred !== -1) {
+      return aPreferred - bPreferred;
+    }
+    // Only a is preferred
+    if (aPreferred !== -1) return -1;
+    // Only b is preferred
+    if (bPreferred !== -1) return 1;
+
+    // Neither preferred: local voices first, then alphabetically
     if (a.localService !== b.localService) {
       return a.localService ? -1 : 1;
     }
-    // Then sort alphabetically
     return a.name.localeCompare(b.name);
   });
 
   return filtered;
+}
+
+/**
+ * Get display name for a voice (with star if preferred)
+ * @param {SpeechSynthesisVoice} voice - Voice object
+ * @returns {string} Display name with optional star
+ */
+function getVoiceDisplayName(voice) {
+  const isPreferred = getIOSPreferredIndex(voice) !== -1;
+  const star = isPreferred ? '★ ' : '';
+  return `${star}${voice.name} (${voice.lang})`;
 }
 
 /**
@@ -285,7 +366,7 @@ export function populateVoiceDropdown() {
     return;
   }
 
-  // Filter to English voices only
+  // Filter to English voices only (deduped, sorted, iOS-restricted if on iOS)
   const filteredVoices = filterAndSortVoices(voices);
 
   // Get default voice for fallback
@@ -302,7 +383,7 @@ export function populateVoiceDropdown() {
     filteredVoices.forEach((voice) => {
       const option = document.createElement('option');
       option.value = voice.name;
-      option.textContent = `${voice.name} (${voice.lang})`;
+      option.textContent = getVoiceDisplayName(voice);
 
       if (voice.name === selectedVoice) {
         option.selected = true;
@@ -323,7 +404,7 @@ export function populateVoiceDropdown() {
     filteredVoices.forEach((voice) => {
       const option = document.createElement('option');
       option.value = voice.name;
-      option.textContent = `${voice.name} (${voice.lang})`;
+      option.textContent = getVoiceDisplayName(voice);
 
       if (voice.name === selectedAppVoice) {
         option.selected = true;
