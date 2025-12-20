@@ -89,6 +89,10 @@ For detailed technical information, see the `reference/` folder:
 - **[Text Highlighting System](reference/text-highlighting-system.md)** - Marker-based highlighting for TTS narration
 - **[Bug Fixes History](reference/bug-fixes-history.md)** - Past bugs and solutions for context
 
+### Development & Debugging
+- **[Remote Debugging](reference/remote-debugging.md)** - iOS/mobile debugging via LogTail
+- **[Reference Index](reference/README.md)** - Full table of contents for all reference docs
+
 ### Deprecated (No Longer Used)
 - ~~Frotz Configuration~~ - We use browser-based ZVM, not server-side Frotz
 - ~~AI Translation~~ - Removed Ollama/OpenAI integration

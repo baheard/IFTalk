@@ -6,6 +6,9 @@
  * Uses browser-based ZVM + GlkOte instead of server-side Frotz.
  */
 
+// Remote console (must be first for iOS debugging)
+import './utils/remote-console.js';
+
 // Core modules
 import { state } from './core/state.js';
 import { dom, initDOM } from './core/dom.js';
@@ -207,6 +210,35 @@ async function initApp() {
 
   // Initialize DOM
   initDOM();
+
+  // Make game-meta (info icons) tappable on touch devices
+  // Toggle: tap to open, tap again to close
+  document.querySelectorAll('.game-meta').forEach(el => {
+    el.addEventListener('click', e => {
+      e.stopPropagation();
+      e.preventDefault();
+      const wasActive = el.classList.contains('active');
+      console.log('[GameMeta] clicked, wasActive:', wasActive);
+      // Close any other open tooltips
+      document.querySelectorAll('.game-meta.active').forEach(other => {
+        if (other !== el) other.classList.remove('active');
+      });
+      // Toggle this one
+      if (wasActive) {
+        el.classList.remove('active');
+      } else {
+        el.classList.add('active');
+      }
+      console.log('[GameMeta] now active:', el.classList.contains('active'));
+    });
+  });
+
+  // Close tooltip when tapping elsewhere
+  document.addEventListener('click', () => {
+    document.querySelectorAll('.game-meta.active').forEach(el => {
+      el.classList.remove('active');
+    });
+  });
 
   // Add debug event listener for chunk highlighting
   window.addEventListener('chunkHighlighted', async (e) => {

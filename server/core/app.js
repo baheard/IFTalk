@@ -31,8 +31,37 @@ export function createApp() {
   const httpServer = createServer(app);
   const io = new Server(httpServer);
 
+  // Parse JSON bodies
+  app.use(express.json());
+
   // Serve static files
   app.use(express.static('docs'));
+
+  // Remote console logging endpoint (for iOS debugging)
+  app.post('/api/log', (req, res) => {
+    const { level, args, url, userAgent } = req.body;
+    const timestamp = new Date().toLocaleTimeString();
+
+    // Color codes for terminal
+    const colors = {
+      log: '\x1b[37m',    // white
+      warn: '\x1b[33m',   // yellow
+      error: '\x1b[31m',  // red
+      info: '\x1b[36m',   // cyan
+      debug: '\x1b[90m'   // gray
+    };
+    const reset = '\x1b[0m';
+    const color = colors[level] || colors.log;
+
+    // Format args for display
+    const message = args.map(arg =>
+      typeof arg === 'object' ? JSON.stringify(arg, null, 2) : String(arg)
+    ).join(' ');
+
+    console.log(`${color}[${timestamp}] [${level.toUpperCase()}] ${message}${reset}`);
+
+    res.sendStatus(200);
+  });
 
   // API endpoint to get config
   app.get('/api/config', (req, res) => {

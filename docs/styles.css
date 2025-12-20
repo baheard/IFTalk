@@ -1065,23 +1065,19 @@ body {
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
 }
 
-/* Save badge */
+/* Save badge - inline next to title */
 .save-badge {
-  position: absolute;
-  top: 8px;
-  right: 8px;
-  width: 10px;
-  height: 10px;
+  display: none;
+  width: 8px;
+  height: 8px;
   border-radius: 50%;
-  background: transparent;
-  transition: all 0.3s ease;
-  opacity: 0;
+  background: var(--accent-warm);
+  flex-shrink: 0;
 }
 
 .save-badge.has-save {
-  opacity: 1;
-  background: var(--accent-warm);
-  box-shadow: 0 0 12px rgba(196, 163, 90, 0.6);
+  display: inline-block;
+  box-shadow: 0 0 8px rgba(196, 163, 90, 0.6);
 }
 
 /* Classics Expander */
@@ -1370,7 +1366,7 @@ body {
 
 .game-title {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   gap: 8px;
   font-family: var(--font-serif);
   font-size: 22px;
@@ -1381,21 +1377,29 @@ body {
 }
 
 .game-meta {
-  position: relative;
-  font-size: 14px;
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  font-size: 18px;
   color: var(--text-muted);
-  margin-left: auto;
-  opacity: 0.6;
+  opacity: 0.5;
   cursor: help;
   transition: opacity 0.15s;
+  padding: 4px;
 }
 
-.game-meta:hover {
+@media (hover: hover) {
+  .game-meta:hover {
+    opacity: 1;
+  }
+}
+
+.game-meta.active {
   opacity: 1;
 }
 
 .game-meta::after {
-  content: "Author: " attr(data-author) "\A" "Year: " attr(data-year) "\A" "Length: " attr(data-length);
+  content: "Difficulty: " attr(data-difficulty) "\A" "Length: " attr(data-length) "\A" "Author: " attr(data-author) "\A" "Year: " attr(data-year);
   white-space: pre;
   position: absolute;
   bottom: calc(100% + 8px);
@@ -1419,7 +1423,7 @@ body {
   text-align: left;
 }
 
-.game-meta:hover::after {
+.game-meta.active::after {
   opacity: 1;
   visibility: visible;
 }

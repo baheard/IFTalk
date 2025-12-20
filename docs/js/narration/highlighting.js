@@ -6,7 +6,6 @@
  */
 
 import { state } from '../core/state.js';
-import { scrollIntoViewWithBuffer } from '../utils/scroll.js';
 
 /**
  * Highlight text using marker elements
@@ -146,7 +145,8 @@ export function updateTextHighlight(chunkIndex) {
 
 /**
  * Scroll to the currently highlighted text
- * Uses buffer-based scrolling to keep text readable (not at exact edge)
+ * Uses Visual Viewport API to position text at bottom of visible area.
+ * This works automatically whether keyboard is open or closed.
  * @param {number} chunkIndex - Chunk index to scroll to
  */
 function scrollToHighlightedText(chunkIndex) {
@@ -176,10 +176,28 @@ function scrollToHighlightedText(chunkIndex) {
         : targetElement;
 
       if (scrollTarget) {
-        // Use buffer-based scrolling (30% from top, smooth)
-        scrollIntoViewWithBuffer(scrollTarget, document.getElementById('gameOutput'), {
-          bufferRatio: 0.3,
-          smooth: true
+        const gameOutput = document.getElementById('gameOutput');
+        const containerRect = gameOutput.getBoundingClientRect();
+        const elementRect = scrollTarget.getBoundingClientRect();
+
+        // Use visual viewport height (accounts for keyboard) or fall back to innerHeight
+        const visibleHeight = window.visualViewport?.height ?? window.innerHeight;
+
+        // Position element near bottom of visible viewport with small buffer
+        const bufferFromBottom = 60;
+        const targetPositionFromTop = visibleHeight - bufferFromBottom;
+
+        // Calculate scroll needed to place element at target position
+        const relativeTop = elementRect.top - containerRect.top;
+        const targetScroll = gameOutput.scrollTop + relativeTop - targetPositionFromTop;
+
+        // Clamp to valid scroll range
+        const maxScroll = gameOutput.scrollHeight - gameOutput.clientHeight;
+        const clampedScroll = Math.max(0, Math.min(targetScroll, maxScroll));
+
+        gameOutput.scrollTo({
+          top: clampedScroll,
+          behavior: 'smooth'
         });
       }
       break;
