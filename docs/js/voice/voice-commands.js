@@ -9,14 +9,17 @@ import { state } from '../core/state.js';
 import { dom } from '../core/dom.js';
 import { updateStatus } from '../utils/status.js';
 import { speakAppMessage } from '../narration/tts-player.js';
+import { displayAppCommand } from '../ui/game-output.js';
+import { getInputType } from '../game/voxglk.js';
 
 /**
  * Process voice keywords (navigation and game commands)
  * @param {string} transcript - Voice recognition transcript
  * @param {Object} handlers - Object with handler functions for different commands
+ * @param {number|null} confidence - Voice recognition confidence (0.0-1.0)
  * @returns {string|false} Processed command text or false if navigation command
  */
-export function processVoiceKeywords(transcript, handlers) {
+export function processVoiceKeywords(transcript, handlers, confidence = null) {
   let lower = transcript.toLowerCase().trim();
 
   // Detect spelled-out words within the transcript
@@ -70,56 +73,92 @@ export function processVoiceKeywords(transcript, handlers) {
 
   // NAVIGATION COMMANDS (never sent to game)
 
-  if (lower === 'restart') {
+  if (lower === 'restart' || lower === 'reset') {
     markCommandProcessed();
+    displayAppCommand('restart', confidence);
     handlers.restart();
     return false;
   }
 
   if (lower === 'back') {
     markCommandProcessed();
+    displayAppCommand('back', confidence);
     handlers.back();
     return false;
   }
 
   if (lower === 'stop' || lower === 'pause') {
     markCommandProcessed();
+    displayAppCommand('pause', confidence);
     handlers.pause();
     return false;
   }
 
-  if (lower === 'play') {
+  if (lower === 'play' || lower === 'resume') {
     markCommandProcessed();
+    displayAppCommand('play', confidence);
     handlers.play();
     return false;
   }
 
   if (lower === 'skip') {
     markCommandProcessed();
+    displayAppCommand('skip', confidence);
     handlers.skip();
     return false;
   }
 
   if (lower === 'skip all' || lower === 'skip to end' || lower === 'skip to the end' || lower === 'end') {
     markCommandProcessed();
+    displayAppCommand('skip all', confidence);
     handlers.skipToEnd();
     return false;
   }
 
+  // "Next" and "Continue" - context-sensitive
+  // During narration: act as Skip
+  // Not narrating: act as Enter key (for "press any key" screens or line input)
+  if (lower === 'next' || lower === 'continue') {
+    markCommandProcessed();
+    if (state.isNarrating) {
+      // During narration, skip to next sentence
+      displayAppCommand('skip', confidence);
+      handlers.skip();
+      return false;
+    } else {
+      // Not narrating - send Enter key
+      displayAppCommand('enter', confidence);
+      const inputType = getInputType();
+      if (inputType === 'char') {
+        // Char mode - send return key directly
+        import('../game/voxglk.js').then(({ sendInput }) => {
+          sendInput('return', 'char');
+        });
+      } else {
+        // Line mode - send empty command
+        handlers.sendCommandDirect('');
+      }
+      return false;
+    }
+  }
+
   if (lower === 'unmute' || lower === 'on mute' || lower === 'un mute') {
     markCommandProcessed();
+    displayAppCommand('unmute', confidence);
     handlers.unmute();
     return false;
   }
 
   if (lower === 'mute') {
     markCommandProcessed();
+    displayAppCommand('mute', confidence);
     handlers.mute();
     return false;
   }
 
   if (lower === 'status') {
     markCommandProcessed();
+    displayAppCommand('status', confidence);
     handlers.status();
     return false;
   }
@@ -127,12 +166,14 @@ export function processVoiceKeywords(transcript, handlers) {
   // Quick Save/Load Commands
   if (lower === 'quick save' || lower === 'quicksave') {
     markCommandProcessed();
+    displayAppCommand('quick save', confidence);
     if (handlers.quickSave) handlers.quickSave();
     return false;
   }
 
   if (lower === 'quick load' || lower === 'quickload' || lower === 'quick restore' || lower === 'quickrestore') {
     markCommandProcessed();
+    displayAppCommand('quick load', confidence);
     if (handlers.quickLoad) handlers.quickLoad();
     return false;
   }
@@ -140,6 +181,7 @@ export function processVoiceKeywords(transcript, handlers) {
   // SAVE/RESTORE Commands
   if (lower === 'load game' || lower === 'restore game' || lower === 'load' || lower === 'restore') {
     markCommandProcessed();
+    displayAppCommand('restore', confidence);
     if (handlers.restoreLatest) handlers.restoreLatest();
     return false;
   }
@@ -148,6 +190,7 @@ export function processVoiceKeywords(transcript, handlers) {
   if (loadSlotMatch) {
     const slot = parseInt(loadSlotMatch[1]);
     markCommandProcessed();
+    displayAppCommand(`restore slot ${slot}`, confidence);
     if (handlers.restoreSlot) handlers.restoreSlot(slot);
     return false;
   }
@@ -160,8 +203,8 @@ export function processVoiceKeywords(transcript, handlers) {
 
   // GAME COMMANDS
 
-  // "Next" or "Enter" - Send empty command
-  if (lower === 'next' || lower === 'enter' || lower === 'more' || lower === 'continue') {
+  // "Enter" or "More" - Send empty command (next/continue handled above)
+  if (lower === 'enter' || lower === 'more') {
     handlers.sendCommandDirect('');
     return false;
   }
