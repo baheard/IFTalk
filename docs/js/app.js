@@ -212,32 +212,59 @@ async function initApp() {
   initDOM();
 
   // Make game-meta (info icons) tappable on touch devices
-  // Toggle: tap to open, tap again to close
+  // Desktop uses hover (no click needed), touch uses tap toggle
+  const hasHover = window.matchMedia('(hover: hover)').matches;
+
   document.querySelectorAll('.game-meta').forEach(el => {
-    el.addEventListener('click', e => {
-      e.stopPropagation();
-      e.preventDefault();
-      const wasActive = el.classList.contains('active');
-      console.log('[GameMeta] clicked, wasActive:', wasActive);
-      // Close any other open tooltips
-      document.querySelectorAll('.game-meta.active').forEach(other => {
-        if (other !== el) other.classList.remove('active');
+    // Set data-title from parent game-title text
+    const titleEl = el.closest('.game-title');
+    if (titleEl) {
+      const titleText = titleEl.childNodes[0]?.textContent?.trim() || '';
+      el.dataset.title = titleText;
+    }
+
+    // Only add click toggle for touch devices
+    if (!hasHover) {
+      el.addEventListener('click', e => {
+        e.stopPropagation();
+        e.preventDefault();
+        // Close any other open tooltips
+        document.querySelectorAll('.game-meta.active').forEach(other => {
+          if (other !== el) other.classList.remove('active');
+        });
+        // Toggle this one
+        el.classList.toggle('active');
       });
-      // Toggle this one
-      if (wasActive) {
-        el.classList.remove('active');
-      } else {
-        el.classList.add('active');
-      }
-      console.log('[GameMeta] now active:', el.classList.contains('active'));
-    });
+    }
   });
 
-  // Close tooltip when tapping elsewhere
-  document.addEventListener('click', () => {
-    document.querySelectorAll('.game-meta.active').forEach(el => {
-      el.classList.remove('active');
+  // Close tooltip when tapping elsewhere (touch only)
+  if (!hasHover) {
+    document.addEventListener('click', () => {
+      document.querySelectorAll('.game-meta.active').forEach(el => {
+        el.classList.remove('active');
+      });
     });
+  }
+
+  // Handle browser back button - return to game selection if in game
+  window.addEventListener('popstate', (e) => {
+    // If we were in a game, return to game selection
+    const welcome = document.getElementById('welcome');
+    const gameOutput = document.getElementById('gameOutput');
+    const controls = document.getElementById('controls');
+    const messageInputRow = document.getElementById('messageInputRow');
+
+    if (gameOutput && !gameOutput.classList.contains('hidden')) {
+      // Currently in a game - show welcome, hide game UI
+      if (welcome) welcome.classList.remove('hidden');
+      if (gameOutput) gameOutput.classList.add('hidden');
+      if (controls) controls.classList.add('hidden');
+      if (messageInputRow) messageInputRow.classList.add('hidden');
+
+      // Stop any narration
+      stopNarration();
+    }
   });
 
   // Add debug event listener for chunk highlighting

@@ -13,6 +13,7 @@ import {
   getGameSetting, setGameSetting, loadGameSettings,
   getAppDefault, setAppDefault, clearAllGameData, clearAllAppData
 } from '../utils/game-settings.js';
+import { isLocalhost, syncFromRemote } from '../utils/storage-sync.js';
 
 /**
  * Check if we're on the welcome screen (no game loaded)
@@ -228,6 +229,42 @@ export function initSettings() {
         updateStatus('Clear data cancelled');
       }
     });
+  }
+
+  // Sync from GitHub button (localhost only - dynamically created)
+  if (isLocalhost()) {
+    const container = document.getElementById('devToolsContainer');
+    if (container) {
+      const wrapper = document.createElement('div');
+      wrapper.className = 'game-actions';
+      wrapper.style.marginBottom = '10px';
+
+      const syncBtn = document.createElement('button');
+      syncBtn.className = 'btn btn-secondary btn-full-width';
+      syncBtn.innerHTML = '<span class="material-icons">sync</span> Sync from GitHub';
+
+      syncBtn.addEventListener('click', async () => {
+        syncBtn.disabled = true;
+        syncBtn.textContent = 'Syncing...';
+        updateStatus('Syncing from GitHub Pages...');
+
+        try {
+          const result = await syncFromRemote();
+          updateStatus(`Synced ${result.synced} items from GitHub`);
+          alert(`Sync complete!\n\n${result.synced} items updated from GitHub Pages.\n${result.total} total items found.`);
+        } catch (error) {
+          console.error('[Sync] Failed:', error);
+          updateStatus('Sync failed: ' + error.message);
+          alert('Sync failed: ' + error.message);
+        } finally {
+          syncBtn.disabled = false;
+          syncBtn.innerHTML = '<span class="material-icons">sync</span> Sync from GitHub';
+        }
+      });
+
+      wrapper.appendChild(syncBtn);
+      container.appendChild(wrapper);
+    }
   }
 
   // Speech rate slider

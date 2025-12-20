@@ -41,6 +41,9 @@ export async function startGame(gamePath, onOutput) {
     const gameOutput = document.getElementById('gameOutput');
     if (gameOutput) gameOutput.classList.remove('hidden');
 
+    // Push history state so back button returns to game selection
+    history.pushState({ inGame: true, gamePath }, '', null);
+
     // Show controls and message input
     const controls = document.getElementById('controls');
     if (controls) controls.classList.remove('hidden');

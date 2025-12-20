@@ -59,6 +59,37 @@ Automatically captures:
    - `level: remote` - manual `console.remote()` calls
    - `userAgent: iPhone` - iOS devices only
 
+## Cross-Origin Storage Sync
+
+Sync localStorage from GitHub Pages to your dev environment (localhost, Tailscale, LAN).
+
+### How It Works
+1. Dev server loads hidden iframe from `https://baheard.github.io/IFTalk/bridge.html`
+2. Bridge page accesses GitHub Pages localStorage
+3. Data sent back via postMessage
+4. Dev server merges saves (newer timestamp wins)
+
+### Files
+- `docs/bridge.html` - Hosted on GitHub Pages, responds to postMessage
+- `docs/js/utils/storage-sync.js` - Creates iframe, handles sync logic
+- `docs/js/ui/settings.js` - "Sync from GitHub" button (dev only)
+
+### Usage
+1. Open Settings panel on dev server
+2. Click "Sync from GitHub" button (only visible in dev)
+3. Saves from GitHub Pages merge into local storage
+
+### ⚠️ IMPORTANT: Production Origin Hardcoded
+
+If you change production environment, update these files:
+
+| File | Constant | Current Value |
+|------|----------|---------------|
+| `docs/bridge.html` | `PRODUCTION_ORIGIN` | `https://baheard.github.io` |
+| `docs/js/utils/storage-sync.js` | `REMOTE_ORIGIN` | `https://baheard.github.io` |
+
+The sync button appears on any origin that is NOT the production origin.
+
 ## Local Server Logging (Optional)
 
 For local development without LogTail:
