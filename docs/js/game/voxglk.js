@@ -24,6 +24,7 @@ let resizeTimeout = null; // Debounce resize events
 let skipFirstAutosave = false; // Skip first autosave if we're about to restore
 let skipNextUpdateAfterBootstrap = false; // Skip next update after bootstrap input (suppress "I beg your pardon")
 let autosaveCounter = 0; // Count autosaves to skip the first N
+let introInputType = null; // Track the input type from the first request (gen 1) for bootstrap
 
 /**
  * Calculate metrics based on actual window dimensions
@@ -56,7 +57,7 @@ function calculateMetrics() {
 
   // Get actual dimensions
   const rect = gameOutput.getBoundingClientRect();
-  const width = Math.floor(rect.width) || 800;
+  const actualWidth = Math.floor(rect.width) || 800;
   const height = Math.floor(rect.height) || 600;
 
   // Measure character dimensions using a temporary element
@@ -70,6 +71,15 @@ function calculateMetrics() {
   const charHeight = Math.ceil(testRect.height) || 16;
 
   document.body.removeChild(testDiv);
+
+  // IMPORTANT: Enforce minimum width for VM to prevent mid-word line breaks
+  // Z-machine wraps text at character boundaries based on reported width.
+  // On narrow mobile screens, this causes ugly mid-word breaks.
+  // By reporting a minimum of 80 columns, we get proper text formatting.
+  // CSS handles the actual display/wrapping.
+  const MIN_COLUMNS = 80;
+  const minWidth = MIN_COLUMNS * charWidth;
+  const width = Math.max(actualWidth, minWidth);
 
   return {
     width: width,
@@ -136,6 +146,7 @@ export function createVoxGlk(textOutputCallback) {
       inputType = 'line';
       inputWindowId = null;
       autosaveCounter = 0; // Reset counter for new game session
+      introInputType = null; // Reset intro input type for new game
 
       // Store the accept callback - we'll use it to send input later
       acceptCallback = options.accept;
@@ -242,24 +253,41 @@ export function createVoxGlk(textOutputCallback) {
               if (restored) {
                 // VM state and display HTML restored
                 // VoxGlk state (generation, inputWindowId) restored by save-manager
+                console.log('[VoxGlk] Restore successful, sending bootstrap input...');
+                console.log('[VoxGlk] Current state - generation:', generation, 'inputWindowId:', inputWindowId, 'inputEnabled:', inputEnabled);
 
-                // Wake VM by sending dummy input to fulfill intro char request
+                // Wake VM by sending dummy input to fulfill intro's pending request
                 setTimeout(() => {
 
                   // Set flag to suppress next update (the "I beg your pardon" response)
                   skipNextUpdateAfterBootstrap = true;
 
-                  // The intro screen char request was created at gen: 1
-                  // We need to fulfill it with gen: 1, not the restored gen: 5
-                  acceptCallback({
-                    type: 'char',
-                    gen: 1,  // Intro's original generation
-                    window: 1,
-                    value: 10  // Enter key
-                  });
+                  // The intro screen request was created at gen: 1
+                  // We need to fulfill it with gen: 1, not the restored generation
+                  // IMPORTANT: Must match the input TYPE the VM expects (captured as introInputType)
+                  const bootstrapType = introInputType || 'line'; // Default to line if not captured
+                  console.log('[VoxGlk] Sending bootstrap input with gen: 1, type:', bootstrapType);
+
+                  if (bootstrapType === 'char') {
+                    acceptCallback({
+                      type: 'char',
+                      gen: 1,  // Intro's original generation
+                      window: 1,
+                      value: ' '  // Space character
+                    });
+                  } else {
+                    acceptCallback({
+                      type: 'line',
+                      gen: 1,  // Intro's original generation
+                      window: 1,
+                      value: '',  // Empty command
+                      terminator: 'enter'
+                    });
+                  }
 
                 }, 100);
               } else {
+                console.log('[VoxGlk] Restore returned false');
               }
             } catch (error) {
               console.error('[VoxGlk] Auto-restore failed:', error);
@@ -344,7 +372,11 @@ export function createVoxGlk(textOutputCallback) {
           // IMPORTANT: Only include status bar if it CHANGED (don't re-read same status)
           let textForTTS = '';
 
-          if (statusBarText && statusBarText.trim() && statusBarChanged) {
+          // EXPERIMENT: Skip reading status bar automatically
+          // Set to true to include status bar in narration, false to skip
+          const READ_STATUS_BAR = false;
+
+          if (READ_STATUS_BAR && statusBarText && statusBarText.trim() && statusBarChanged) {
             textForTTS = statusBarText + '\n\n';
             // Mark that status bar should be included in chunks
             window.includeStatusBarInChunks = true;
@@ -380,11 +412,11 @@ export function createVoxGlk(textOutputCallback) {
             const writable = !isRestore; // false for restore (read), true for save (write)
 
             Dialog.open(writable, arg.specialinput.filetype, gameid, (fileref) => {
-
               // Send response back to Glk
               if (acceptCallback) {
                 acceptCallback({
                   type: 'specialresponse',
+                  gen: generation,
                   response: 'fileref_prompt',
                   value: fileref
                 });
@@ -399,6 +431,7 @@ export function createVoxGlk(textOutputCallback) {
         // Handle input requests
         if (arg.input) {
           const inputTypes = arg.input.map(i => i.type);
+          console.log('[VoxGlk] Input request received:', { inputTypes, generation, input: arg.input });
 
           // Determine if we need char or line input
           inputType = inputTypes.includes('char') ? 'char' : 'line';
@@ -408,6 +441,14 @@ export function createVoxGlk(textOutputCallback) {
           if (arg.input.length > 0 && arg.input[0].id !== undefined) {
             inputWindowId = arg.input[0].id;
           }
+
+          // Capture the intro input type (first request at gen 1) for bootstrap after restore
+          if (generation === 1 && introInputType === null) {
+            introInputType = inputType;
+            console.log('[VoxGlk] Captured intro input type:', introInputType);
+          }
+
+          console.log('[VoxGlk] Input state updated:', { inputType, inputEnabled, inputWindowId, generation });
 
 
           // Note: Command line visibility is handled automatically by keyboard.js polling
@@ -521,6 +562,7 @@ export function createVoxGlk(textOutputCallback) {
  * @param {string} type - Input type ('line' or 'char')
  */
 export function sendInput(text, type = 'line') {
+  console.log('[VoxGlk] sendInput called:', { text, type, generation, inputWindowId, inputEnabled });
 
   if (!acceptCallback) {
     console.error('[VoxGlk] No accept callback - game not initialized');
@@ -564,6 +606,7 @@ export function sendInput(text, type = 'line') {
 
 
   // Send the input event to Glk
+  console.log('[VoxGlk] Sending input event:', inputEvent);
   acceptCallback(inputEvent);
 
 

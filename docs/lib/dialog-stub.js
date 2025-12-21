@@ -6,8 +6,16 @@ var dialog_el_id = 'dialog';
 
 /* Stub implementations */
 function dialog_open(tosave, usage, gameid, callback) {
-    console.warn('[Dialog] File operations not supported in this build');
-    if (callback) callback(null);
+    // Dispatch event for IFTalk to handle (it will call callback)
+    var event = new CustomEvent('iftalk-dialog-open', {
+        detail: {
+            tosave: tosave,
+            usage: usage,
+            gameid: gameid,
+            callback: callback
+        }
+    });
+    window.dispatchEvent(event);
 }
 
 function file_clean_fixed_name(filename, usage) {

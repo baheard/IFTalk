@@ -513,6 +513,141 @@ The system works correctly for Z-machine games (which IFTalk uses) and cannot be
 
 ---
 
+## Dialog.open and Native Save/Restore (December 2024)
+
+### The Problem: Game-Triggered Save/Restore
+
+Some games (like Anchorhead) have intro screens that say "Press R to restore". When the user presses R:
+
+1. Game processes 'R' key input
+2. Game calls `Dialog.open(false, 'save', gameid, callback)` for restore
+3. Dialog implementation should show file picker
+4. User selects file or cancels
+5. `callback(fileref)` or `callback(null)` is called
+6. Game continues with result
+
+### Parchment's Approach
+
+Parchment (iplayif.com) handles this with a **proper modal dialog**:
+
+1. `Dialog.open()` creates a modal overlay with file picker UI
+2. Modal **blocks** interaction with the game
+3. User selects file or clicks Cancel
+4. `callback()` is called with result
+5. Modal closes, game continues
+
+When cancelled with no saves:
+- Game shows "Restore failed."
+- Game continues to intro text
+- Input mode changes to line input for commands
+
+### IFTalk's Failed Approaches
+
+We tried several approaches that didn't work:
+
+#### Approach 1: Async Event with Custom UI
+```javascript
+// dialog-stub.js
+window.dispatchEvent(new CustomEvent('iftalk-dialog-open', {
+  detail: { callback, markAsync: () => { state.async = true; } }
+}));
+
+// commands.js
+markAsync();  // Tell dialog we'll call callback later
+handleRestoreCommand();  // Show our UI
+// Later... callback(null);  // Complete dialog
+```
+
+**Problem:** Game state machine got corrupted. After callback(null), game would freeze or enter wrong input mode. The async nature broke the expected synchronous flow.
+
+#### Approach 2: Secret Snapshot
+```javascript
+// Before showing UI, capture VM state
+captureSecretSnapshot();
+// Show our UI
+// On cancel, restore from snapshot and call callback
+restoreSecretSnapshot(callback);
+```
+
+**Problem:** Snapshot was captured AFTER the user pressed 'R', so restoring put the game in "mid-restore operation" state, not back to the intro. Calling callback(null) after restore caused unpredictable behavior.
+
+#### Approach 3: Display-Only Restore
+```javascript
+// Only restore display HTML, not VM state
+restoreDisplayHTML();
+callback(null);
+```
+
+**Problem:** Game still ended up in a different state. Extra input events were being sent, causing confusion.
+
+### IFTalk's Final Solution (December 2024)
+
+**The Problem:** VoxGlk wasn't including the `gen` field in specialresponse, causing glkapi.js to reject it due to generation mismatch.
+
+**The Fix:** Add `gen: generation` to the specialresponse in VoxGlk's Dialog.open callback:
+
+```javascript
+// voxglk.js - Dialog.open callback
+Dialog.open(writable, arg.specialinput.filetype, gameid, (fileref) => {
+  if (acceptCallback) {
+    acceptCallback({
+      type: 'specialresponse',
+      gen: generation,  // ← CRITICAL: Must match event_generation in glkapi.js
+      response: 'fileref_prompt',
+      value: fileref
+    });
+  }
+});
+
+// commands.js - Defer the callback (matches glkote.js's defer_func pattern)
+window.addEventListener('iftalk-dialog-open', (e) => {
+  const { callback } = e.detail;
+  if (callback) {
+    setTimeout(() => callback(null), 0);
+  }
+});
+```
+
+**Result:**
+- User presses 'R' on Anchorhead intro → Game shows "Restore failed." and continues to intro text
+- Game is in predictable state (ready for commands)
+- Users use typed `SAVE`/`RESTORE` commands for IFTalk's custom save system
+
+### Why This Works
+
+1. **Correct generation number** - glkapi.js validates `obj.gen` matches `event_generation` before processing
+2. **Proper event flow** - specialresponse reaches `gli_fileref_create_by_prompt_callback` which calls `VM.resume(null)`
+3. **Game handles failure** - VM continues execution and outputs "Restore failed." message
+4. **Deferred callback** - Matches glkote.js's `defer_func()` pattern, allows event loop to complete
+
+### User Commands vs Game Commands
+
+| Trigger | Handler | Behavior |
+|---------|---------|----------|
+| Press 'R' on intro | `initDialogInterceptor` | Returns `null`, game shows "Restore failed." |
+| Type `RESTORE` | `interceptMetaCommand` | Shows our save list UI |
+| Type `SAVE` | `interceptMetaCommand` | Prompts for save name |
+
+### Key Learnings
+
+1. **Generation numbers are critical** - glkapi.js validates generation numbers before processing events. Without `gen: generation` in the specialresponse, the event is silently rejected at line 156-159:
+   ```javascript
+   if (obj.gen != event_generation) {
+     GlkOte.log('Input event had wrong generation number...');
+     return;  // ← Event ignored!
+   }
+   ```
+
+2. **VoxGlk must include gen field** - When creating specialresponse objects, VoxGlk must include the current generation number for glkapi.js to accept them.
+
+3. **Defer callbacks for safety** - Using `setTimeout(() => callback(null), 0)` matches glkote.js's `defer_func()` pattern and prevents synchronous callback issues.
+
+4. **VM.resume(null) is the key** - When `gli_fileref_create_by_prompt_callback` receives `value: null`, it calls `VM.resume(null)`, which makes the game output "Restore failed." and continue normally.
+
+5. **Users use typed commands** - Typed `SAVE`/`RESTORE` commands provide a better UX with features like multiple named saves and autosave.
+
+---
+
 ## References
 
 - [Interpreter-Managed Saves in Glk](https://www.eblong.com/zarf/glk/terp-saving-notes.html)

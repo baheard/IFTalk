@@ -11,6 +11,7 @@ import { addToCommandHistory } from '../ui/history.js';
 import { addGameText } from '../ui/game-output.js';
 import { sendCommandToGame } from './game-loader.js';
 import { enterSystemEntryMode, exitSystemEntryMode } from '../input/keyboard.js';
+import { getInputType, sendInput, isInputEnabled } from './voxglk.js';
 
 import { LOW_CONFIDENCE_THRESHOLD } from '../utils/audio-feedback.js';
 
@@ -230,8 +231,7 @@ See Settings panel for more help.
  * @param {number} index - 1-based index for numbering
  */
 function formatSaveEntry(save, index) {
-  const typeLabel = save.type === 'autosave' ? ' (autosave)' : '';
-  return `&nbsp;&nbsp;${index}. ${save.name}${typeLabel} &nbsp;<i>${formatTimestamp(save.timestamp)}</i><br>`;
+  return `&nbsp;&nbsp;${index}. ${save.name}<br>`;
 }
 
 /**
@@ -291,17 +291,17 @@ async function handleSaveCommand() {
 }
 
 /**
- * Handle RESTORE command
+ * Handle RESTORE command (typed by user)
  */
 async function handleRestoreCommand() {
   const allSaves = getUnifiedSavesList();
 
   if (allSaves.length === 0) {
-    respondAsGame('<div class="system-message">No save games currently exist. Use "Save" to save one.</div>');
+    respondAsGame('<div class="system-message">No saved games found. Use SAVE to create one.</div>');
     return true;
   }
 
-  let message = '<div class="system-message"><b>Choose a file to restore.</b><br>';
+  let message = '<div class="system-message"><b>Choose a file to restore. (# or name)</b><br>';
   message += formatSavesList(allSaves);
   message += '</div>';
 
@@ -346,13 +346,15 @@ async function handleMetaResponse(input) {
   const mode = awaitingMetaInput;
   awaitingMetaInput = null; // Reset state
 
-  // Exit system entry mode
-  exitSystemEntryMode();
-
   if (!input || input.trim() === '') {
+    // User cancelled - just exit system entry mode
+    exitSystemEntryMode();
     respondAsGame('<div class="system-message"><i>Cancelled.</i></div>');
     return true;
   }
+
+  // For non-cancel paths, exit system entry mode now
+  exitSystemEntryMode();
 
   // For save, only count custom saves toward the limit
   const customSaves = getCustomSaves();
@@ -444,9 +446,7 @@ async function handleRestoreResponse(input, saves) {
   }
 
   if (success) {
-    const typeLabel = save.type === 'quicksave' ? ' (quicksave)' :
-                      save.type === 'autosave' ? ' (autosave)' : '';
-    respondAsGame(`<div class="system-message">Game restored from "${save.name}"${typeLabel}.</div>`);
+    respondAsGame(`<div class="system-message">Game restored from "${save.name}".</div>`);
   } else {
     respondAsGame('<div class="system-message">Restore failed. Save file may be corrupted.</div>');
   }
@@ -482,8 +482,7 @@ async function handleDeleteResponse(input, saves) {
 
   // Delete the save
   localStorage.removeItem(save.key);
-  const typeLabel = save.type === 'quicksave' ? ' (quicksave)' : '';
-  respondAsGame(`<div class="system-message">Deleted save "${save.name}"${typeLabel}.</div>`);
+  respondAsGame(`<div class="system-message">Deleted save "${save.name}".</div>`);
 
   return true;
 }
@@ -520,9 +519,55 @@ export async function sendCommand() {
  * Cancel system entry mode (called when Escape is pressed)
  */
 export function cancelMetaInput() {
+  console.log('[Commands] cancelMetaInput called, awaitingMetaInput:', awaitingMetaInput);
   if (awaitingMetaInput) {
     awaitingMetaInput = null;
     exitSystemEntryMode();
     respondAsGame('<div class="system-message"><i>Cancelled.</i></div>');
   }
+}
+
+/**
+ * Wait for game to enable input, then send Enter to continue
+ * Polls every 50ms for up to 1 second
+ */
+function waitForInputAndContinue(attempts = 0) {
+  const maxAttempts = 20; // 20 * 50ms = 1 second max wait
+
+  if (attempts >= maxAttempts) {
+    console.log('[Commands] Gave up waiting for input after', maxAttempts, 'attempts');
+    return;
+  }
+
+  const inputReady = isInputEnabled();
+  const currentType = getInputType();
+  console.log('[Commands] Waiting for input, attempt:', attempts, 'enabled:', inputReady, 'type:', currentType);
+
+  if (inputReady && currentType === 'char') {
+    console.log('[Commands] Input ready, sending return char');
+    sendInput('return', 'char');
+  } else if (!inputReady) {
+    // Keep waiting
+    setTimeout(() => waitForInputAndContinue(attempts + 1), 50);
+  }
+  // If inputReady but type is 'line', don't send anything - user can type
+}
+
+/**
+ * Initialize dialog event listener
+ * Always returns null for game's native save/restore dialogs.
+ * Users should use typed SAVE and RESTORE commands instead.
+ */
+export function initDialogInterceptor() {
+  window.addEventListener('iftalk-dialog-open', (e) => {
+    const { callback } = e.detail;
+
+    // Defer the callback to allow the event loop to complete
+    // This matches glkote.js's defer_func() pattern for dialog failures
+    if (callback) {
+      setTimeout(() => {
+        callback(null);
+      }, 0);
+    }
+  });
 }
