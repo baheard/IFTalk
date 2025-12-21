@@ -17,7 +17,7 @@
 
   --text-primary: #e6e4e0;
   --text-secondary: #a8a5a0;
-  --text-muted: #8a8785;
+  --text-muted: #bbb;
 
   /* Text colors (theme-specific) */
   --color-user-typed: #60a5fa;    /* Blue - typed commands */
@@ -263,6 +263,11 @@ body {
   color: var(--text-primary);
 }
 
+/* All icons in settings panel use accent-warm */
+.settings-panel .material-icons {
+  color: var(--accent-warm);
+}
+
 .close-settings-btn {
   width: 32px;
   height: 32px;
@@ -297,6 +302,40 @@ body {
   transition: all 0.3s ease;
 }
 
+.settings-section .help-section ul {
+  padding-left: 32px;
+}
+
+/* Help commands list with icons */
+.help-commands {
+  list-style: none;
+  padding: 0;
+  margin: 8px 0;
+}
+
+.help-commands li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 0;
+  font-size: 13px;
+}
+
+.help-commands li .material-icons {
+  font-size: 18px;
+  color: var(--accent-primary);
+  width: 24px;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+.help-commands code {
+  background: var(--bg-elevated);
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 12px;
+}
+
 .settings-section h3 {
   margin: 0;
   font-size: var(--font-l);
@@ -317,6 +356,13 @@ body {
   border-radius: 8px;
   transition: background-color 0.2s;
   position: relative;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.settings-section.collapsible .section-header .material-icons {
+  font-size: 20px;
 }
 
 .settings-section.collapsible .section-header:hover {
@@ -356,6 +402,67 @@ body {
 .settings-section.collapsible:not(.collapsed) {
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
   border-color: var(--border-accent);
+}
+
+/* About section (welcome screen) */
+.about-content p {
+  margin: 0 0 12px 0;
+  line-height: 1.5;
+}
+
+.about-features {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  grid-template-columns: 20px auto 1fr;
+  gap: 8px 8px;
+  align-items: center;
+}
+
+.about-features li {
+  display: contents; /* Children participate in parent grid */
+}
+
+.about-features li .material-icons {
+  font-size: 16px;
+  color: var(--accent-gold);
+  justify-self: center;
+  align-self: center;
+}
+
+.about-features li strong {
+  color: var(--text-primary);
+  white-space: nowrap;
+  font-size: 13px;
+}
+
+.about-features li .desc {
+  color: var(--text-secondary);
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.about-features li strong {
+  color: var(--text-primary);
+}
+
+/* Danger zone (standalone, bottom of settings) */
+.welcome-danger-zone {
+  margin-top: auto;
+  padding-top: 16px;
+  border-top: 1px solid var(--border-subtle);
+}
+
+.danger-zone-standalone {
+  padding: 0;
+}
+
+.danger-zone-hint {
+  margin: 8px 0 0 0;
+  font-size: 11px;
+  color: var(--text-muted);
+  text-align: center;
 }
 
 /* Speech speed slider */
@@ -500,31 +607,35 @@ body {
   appearance: none;
   width: 48px;
   height: 26px;
-  background: var(--border-color);
+  background: var(--bg-surface);
+  border: 2px solid var(--text-secondary);
   border-radius: 13px;
   position: relative;
   cursor: pointer;
-  transition: background 0.2s;
+  transition: background 0.2s, border-color 0.2s;
+  flex-shrink: 0;
 }
 
 .toggle-switch::before {
   content: '';
   position: absolute;
-  top: 3px;
-  left: 3px;
-  width: 20px;
-  height: 20px;
-  background: white;
+  top: 2px;
+  left: 2px;
+  width: 18px;
+  height: 18px;
+  background: var(--text-secondary);
   border-radius: 50%;
-  transition: transform 0.2s;
+  transition: transform 0.2s, background 0.2s;
 }
 
 .toggle-switch:checked {
-  background: var(--primary);
+  background: var(--accent-primary);
+  border-color: var(--text-secondary);  /* Keep same border color as unchecked */
 }
 
 .toggle-switch:checked::before {
   transform: translateX(22px);
+  background: var(--bg-primary);  /* Dark circle to contrast with light background */
 }
 
 .pronunciation-list {
@@ -608,8 +719,8 @@ body {
 
 /* Game Section */
 .current-game-display {
-  padding: 12px 0;
-  margin-bottom: 16px;
+  padding-bottom: 20px;
+  margin-bottom: 12px;
   border-bottom: 1px solid var(--border-subtle);
   display: flex;
   justify-content: space-between;
@@ -632,6 +743,39 @@ body {
 .current-game-name {
   color: var(--text-primary);
   font-weight: 500;
+}
+
+/* Global settings row (mobile only - keep screen on) */
+.global-settings-row {
+  display: none; /* Hidden by default on desktop */
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 12px;
+  margin-bottom: 16px;
+  background: var(--bg-surface);
+  border-radius: 8px;
+  border: 1px solid var(--border-subtle);
+}
+
+/* Show on touch/mobile devices */
+@media (hover: none), (pointer: coarse) {
+  .global-settings-row {
+    display: flex;
+  }
+}
+
+.keep-awake-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-primary);
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.keep-awake-label .material-icons {
+  font-size: 18px;
+  color: var(--text-secondary);
 }
 
 .btn-sm {
@@ -940,6 +1084,11 @@ body {
   color: inherit;
 }
 
+/* Force repaint class for iOS WebKit (toggled to clear stale highlights) */
+.highlight-refresh {
+  transform: translateZ(0);
+}
+
 @keyframes glow-pulse {
   0%, 100% { box-shadow: 0 0 15px var(--highlight-speaking); }
   50% { box-shadow: 0 0 25px var(--highlight-speaking); }
@@ -964,9 +1113,10 @@ body {
   font-weight: inherit;
 }
 
-/* App/navigation commands - system blue, monospace */
+/* App/navigation commands - system accent color, monospace */
 .user-command.app-command {
-  color: #60a5fa;
+  color: var(--color-app-system);
+  font-family: var(--font-mono);
 }
 
 .user-command.app-command .command-text {
@@ -974,9 +1124,35 @@ body {
   text-transform: lowercase;
 }
 
+.user-command.app-command .command-label {
+  color: var(--accent-primary);
+}
+
 /* Low confidence commands - muted gray */
 .user-command.low-confidence {
   color: #9ca3af;
+}
+
+/* Voice indicator mic icon in user commands */
+.user-command .voice-indicator {
+  display: inline;
+  font-size: 14px;
+  vertical-align: middle;
+  margin-left: 4px;
+  opacity: 0.7;
+  animation: none;
+}
+
+/* Blocked commands (game commands during narration) */
+.user-command.blocked-command {
+  color: #ef4444;
+  opacity: 0.7;
+}
+
+.user-command.blocked-command .blocked-message {
+  font-size: 0.85em;
+  color: #9ca3af;
+  font-style: italic;
 }
 
 /* Command label (>) inherits color from parent */
@@ -987,11 +1163,34 @@ body {
 
 /* Welcome Screen */
 .welcome {
+  position: relative;
   text-align: center;
   padding: 50px 30px;
   max-width: 860px;
   width: 100%;
   margin: 0 auto;
+}
+
+.welcome-settings-btn {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 8px;
+  border-radius: 50%;
+  transition: color 0.2s, background 0.2s;
+}
+
+.welcome-settings-btn:hover {
+  color: var(--text-primary);
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.welcome-settings-btn .material-icons {
+  font-size: 24px;
 }
 
 .welcome h2 {
@@ -1144,7 +1343,7 @@ body {
 }
 
 .classics-content .game-title {
-  font-size: var(--font-s);
+  font-size: var(--font-m);
 }
 
 .classics-content .game-desc {
@@ -1403,7 +1602,7 @@ body {
 }
 
 .game-meta::after {
-  content: attr(data-title) "\A\A" "Difficulty: " attr(data-difficulty) "\A" "Length: " attr(data-length) "\A" "Author: " attr(data-author) "\A" "Year: " attr(data-year);
+  content: attr(data-title) "\A" "Difficulty: " attr(data-difficulty) "\A" "Length: " attr(data-length) "\A" "Author: " attr(data-author) "\A" "Year: " attr(data-year);
   white-space: pre;
   position: absolute;
   bottom: calc(100%);
@@ -1443,7 +1642,7 @@ body {
 
 .game-desc {
   font-family: var(--font-serif);
-  font-size: var(--font-sm);
+  font-size: var(--font-s);
   color: var(--text-muted);
   line-height: 1.5;
   font-style: italic;
@@ -1562,7 +1761,14 @@ body {
   display: none;
 }
 
+/* System mode styling - subtle border and text color indicator */
+.message-input-row.system-mode .message-input {
+  border-color: var(--color-app-system);
+  color: var(--color-app-system);
+}
+
 .message-input {
+  height: 41px;
   flex: 1;
   padding: 10px 16px;
   border: 1px solid var(--border-subtle);
@@ -1641,7 +1847,7 @@ body {
   border: 1px solid var(--accent-primary);
   border-radius: 12px;
   background: rgba(45, 212, 191, 0.08);
-  min-height: 44px;
+  height: 41px;
 }
 
 .voice-listening-indicator.hidden {
@@ -1818,406 +2024,6 @@ body {
   color: var(--text-primary);
 }
 
-/* Mobile: Larger touch targets */
-
-/* Mobile Responsive */
-
-@media (max-width: 600px) {
-  /* Header */
-  .header {
-    padding: 12px 16px;
-    flex-wrap: wrap;
-    gap: 10px;
-  }
-
-  .header h1 {
-    font-size: 18px;
-    flex: 1;
-  }
-
-  .header-controls {
-    width: 100%;
-    justify-content: space-between;
-    order: 1;
-  }
-
-  .voice-selector {
-    display: none;
-  }
-
-  #selectGameBtn {
-    padding: 8px 12px;
-    font-size: 13px;
-  }
-
-  /* Voice Help Tooltip - full width dropdown */
-  .voice-help-tooltip {
-    position: fixed;
-    top: auto;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    transform: none;
-    min-width: 100%;
-    max-width: 100%;
-    border-radius: 16px 16px 0 0;
-    padding: 20px;
-    max-height: 70vh;
-    overflow-y: auto;
-  }
-
-  /* Settings panel full width */
-  .settings-panel {
-    width: 100%;
-    right: -100%;
-  }
-
-  .settings-panel.open {
-    right: 0;
-  }
-
-  .voice-setting {
-    flex-wrap: wrap;
-  }
-
-  .voice-setting label {
-    min-width: 100%;
-    margin-bottom: 6px;
-  }
-
-  .voice-setting .voice-dropdown {
-    flex: 1;
-    min-width: 0;
-    max-width: none;
-  }
-
-  .voice-setting .btn-test-voice {
-    flex-shrink: 0;
-  }
-
-  .pronunciation-item {
-    flex-wrap: wrap;
-    gap: 6px;
-  }
-
-  .pronunciation-word {
-    min-width: 80px;
-    font-size: 13px;
-  }
-
-  .add-pronunciation {
-    flex-direction: column;
-  }
-
-  .add-pronunciation input {
-    width: 100%;
-  }
-
-  /* Game output */
-  .game-text {
-    font-size: var(--font-m);
-    line-height: 1.8;
-  }
-
-  .user-command {
-    padding: 10px 14px;
-    font-size: 13px;
-  }
-
-  /* Welcome screen */
-  .welcome {
-    padding: 30px 16px;
-  }
-
-  .welcome h2 {
-    font-size: 28px;
-  }
-
-  .welcome p {
-    font-size: 17px;
-  }
-
-  .game-card {
-    padding: 16px;
-  }
-
-  .game-title {
-    font-size: 18px;
-  }
-
-  /* Input area - compact on mobile */
-  .input-area {
-    padding: 8px 12px;
-  }
-
-  /* .controls {
-    flex-direction: row;
-    align-items: center;
-    gap: 8px;
-    flex-wrap: wrap;
-  } */
-
-  .btn-control {
-    padding: 8px 14px;
-    font-size: 13px;
-  }
-
-  .btn-talk-mode {
-    padding: 8px 14px;
-    font-size: 13px;
-  }
-
-  .narration-controls {
-    display: flex;
-    gap: 4px;
-  }
-
-  /* Hide narration controls until talk mode active */
-  .narration-controls.hidden {
-    display: none;
-  }
-
-  .btn-nav {
-    padding: 6px 8px;
-    font-size: 14px;
-    min-width: 36px;
-    min-height: 36px;
-  }
-
-
-  /* Char Input Panel - Mobile touch targets (messaging-interface) */
-  .btn-char-nav {
-    width: 48px;
-    height: 48px;
-  }
-
-  .btn-char-action {
-    padding: 10px 14px;
-  }
-
-  #charEscBtn {
-    width: 48px;
-    height: 48px;
-  }
-  .input-mode-hint {
-    display: none;
-  }
-
-  /* Hide slider/progress until talk mode active on mobile */
-  .narration-progress {
-    display: none;
-  }
-
-  .narration-progress.active {
-    display: block;
-    padding: 6px 10px;
-    margin-bottom: 8px;
-  }
-
-  /* Two-panel to stacked layout */
-  .input-panels {
-    flex-direction: column;
-    gap: 8px;
-    margin-top: 8px;
-  }
-
-  .input-panel {
-    min-height: auto;
-    padding: 10px;
-  }
-
-  /* Hide voice panel when not in talk mode */
-  .voice-panel {
-    display: none;
-  }
-
-  .voice-panel.active {
-    display: flex;
-  }
-
-  .panel-header {
-    font-size: 12px;
-    margin-bottom: 8px;
-    padding-bottom: 4px;
-  }
-
-  .input-container {
-    display: flex;
-    gap: 8px;
-  }
-
-  #userInput {
-    flex: 1;
-    padding: 10px 12px;
-    font-size: var(--font-m);
-  }
-
-  #sendBtn {
-    padding: 10px 16px;
-    font-size: 14px;
-    min-height: 40px;
-  }
-
-  /* Mode switch */
-  .mode-switch-container {
-    gap: 4px;
-  }
-
-  .mode-label {
-    font-size: 10px;
-    min-width: 40px;
-  }
-
-  /* Command history - more compact */
-  .panel-history {
-    margin-top: 8px;
-  }
-
-  .command-history {
-    max-height: 80px;
-  }
-
-  .command-history-item {
-    padding: 6px 8px;
-    font-size: 11px;
-  }
-
-  /* Voice feedback */
-  .voice-feedback {
-    padding: 4px 8px;
-    margin-bottom: 4px;
-  }
-
-  .voice-transcript {
-    font-size: 11px;
-  }
-
-  .voice-history-item {
-    font-size: 11px;
-    padding: 4px 6px;
-  }
-
-  /* Progress info compact */
-  .progress-info {
-    font-size: 11px;
-    margin-bottom: 4px;
-  }
-
-  .narration-slider {
-    height: 4px;
-  }
-
-  .narration-slider::-webkit-slider-thumb {
-    width: 14px;
-    height: 14px;
-  }
-
-  .narration-slider::-moz-range-thumb {
-    width: 14px;
-    height: 14px;
-  }
-
-  /* Status bar - slim */
-  .status {
-    padding: 6px 12px;
-    font-size: 11px;
-  }
-
-  /* Additional mobile adjustments */
-  .voice-help-icon,
-  .settings-btn {
-    width: 36px;
-    height: 36px;
-    font-size: var(--font-m);
-  }
-
-  /* Fix body height for mobile browsers with address bar */
-  body {
-    height: calc(var(--vh, 1vh) * 100);
-  }
-
-  /* Game output container - allow scrolling */
-  .game-output {
-    overflow-y: auto !important;
-    overflow-x: hidden;
-  }
-
-  /* Status bar: fixed to top on mobile */
-  #statusBar {
-    position: sticky;
-    top: 0;
-  }
-
-  /* Upper window: scrolls with content */
-  #upperWindow {
-    white-space: normal !important;
-    word-wrap: break-word;
-    overflow-wrap: break-word;
-    padding: 16px 8px;
-  }
-
-  /* Lower window: no separate scroll, scrolls with parent */
-  #lowerWindow {
-    overflow-y: visible !important;
-    flex: none !important;
-    padding: 0 8px 16px;
-    white-space: normal !important;
-    word-wrap: break-word;
-    overflow-wrap: break-word;
-  }
-
-  #lowerWindow span[style*="white-space: pre"] {
-    white-space: normal !important;
-  }
-
-  /* Convert grid layout to normal flow on mobile */
-  .grid-status.multiline {
-    display: block !important;
-    text-align: left;
-    word-wrap: break-word;
-  }
-
-  .grid-status .grid-line {
-    display: block !important;
-    text-align: left;
-    margin: 0;
-    line-height: 1.4;
-    word-spacing: normal !important;
-  }
-
-  /* Hide single line breaks (ignore), keep double line breaks (paragraph spacing) */
-  .grid-status .grid-line.empty-line-single {
-    display: none !important;
-  }
-
-  .grid-status .grid-line.empty-line-continuation {
-    display: none !important;
-  }
-
-  .grid-status .grid-line.empty-line-first {
-    display: block !important;
-    height: 1em;
-    line-height: 1em;
-  }
-
-  /* Grid-positioned spans: remove grid, flow as inline text */
-  .grid-status span[style*="grid-column"] {
-    display: inline !important;
-    grid-column: unset !important;
-    white-space: normal !important;
-  }
-
-  /* Hide spans that are purely whitespace (trims leading whitespace) */
-  .grid-status span.whitespace-only {
-    display: none !important;
-  }
-
-  /* Lower window: collapse consecutive blank lines to just one */
-  #lowerWindow .blank-line-spacer + .blank-line-spacer {
-    display: none !important;
-  }
-}
-
 /* Glk Text Styles (from Z-machine/Glk specification) */
 .glk-normal {
   /* Default - inherits from .game-text */
@@ -2381,7 +2187,7 @@ body {
 }
 
 .game-output::-webkit-scrollbar-thumb {
-  background: var(--accent-muted);
+  background: var(--text-secondary);  /* More visible on dark background */
   border-radius: 4px;
 }
 
@@ -2606,3 +2412,401 @@ body.force-mobile .grid-status span.whitespace-only {
 body.force-mobile #lowerWindow .blank-line-spacer + .blank-line-spacer {
   display: none !important;
 }
+
+
+
+
+
+/* Mobile: Larger touch targets */
+
+/* Mobile Responsive */
+
+@media (max-width: 600px) {
+  /* Header */
+  .header {
+    padding: 12px 16px;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+
+  .header h1 {
+    font-size: 18px;
+    flex: 1;
+  }
+
+  .header-controls {
+    width: 100%;
+    justify-content: space-between;
+    order: 1;
+  }
+
+  .voice-selector {
+    display: none;
+  }
+
+  #selectGameBtn {
+    padding: 8px 12px;
+    font-size: 13px;
+  }
+
+  /* Voice Help Tooltip - full width dropdown */
+  .voice-help-tooltip {
+    position: fixed;
+    top: auto;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    transform: none;
+    min-width: 100%;
+    max-width: 100%;
+    border-radius: 16px 16px 0 0;
+    padding: 20px;
+    max-height: 70vh;
+    overflow-y: auto;
+  }
+
+  /* Settings panel full width */
+  .settings-panel {
+    width: 100%;
+    right: -100%;
+  }
+
+  .settings-panel.open {
+    right: 0;
+  }
+
+  .voice-setting {
+    flex-wrap: wrap;
+  }
+
+  .voice-setting label {
+    min-width: 100%;
+    margin-bottom: 6px;
+  }
+
+  .voice-setting .voice-dropdown {
+    flex: 1;
+    min-width: 0;
+    max-width: none;
+  }
+
+  .voice-setting .btn-test-voice {
+    flex-shrink: 0;
+  }
+
+  .pronunciation-item {
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  .pronunciation-word {
+    min-width: 80px;
+    font-size: 13px;
+  }
+
+  .add-pronunciation {
+    flex-direction: column;
+  }
+
+  .add-pronunciation input {
+    width: 100%;
+  }
+
+  /* Game output */
+  .game-text {
+    font-size: var(--font-m);
+    line-height: 1.8;
+  }
+
+  /* Welcome screen */
+  .welcome {
+    padding: 30px 16px;
+  }
+
+  .welcome h2 {
+    font-size: 28px;
+  }
+
+  .game-card {
+    padding: 16px;
+  }
+
+  .game-title {
+    font-size: 18px;
+  }
+
+  /* Input area - compact on mobile */
+  .input-area {
+    padding: 8px 12px;
+  }
+
+  /* .controls {
+    flex-direction: row;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+  } */
+
+  .btn-control {
+    padding: 8px 14px;
+    font-size: 13px;
+  }
+
+  .btn-talk-mode {
+    padding: 8px 14px;
+    font-size: 13px;
+  }
+
+  .narration-controls {
+    display: flex;
+    gap: 4px;
+  }
+
+  /* Hide narration controls until talk mode active */
+  .narration-controls.hidden {
+    display: none;
+  }
+
+  .btn-nav {
+    padding: 6px 8px;
+    font-size: 14px;
+    min-width: 36px;
+    min-height: 36px;
+  }
+
+
+  /* Char Input Panel - Mobile touch targets (messaging-interface) */
+  .btn-char-nav {
+    width: 48px;
+    height: 48px;
+  }
+
+  .btn-char-action {
+    padding: 10px 14px;
+  }
+
+  #charEscBtn {
+    width: 48px;
+    height: 48px;
+  }
+  .input-mode-hint {
+    display: none;
+  }
+
+  /* Hide slider/progress until talk mode active on mobile */
+  .narration-progress {
+    display: none;
+  }
+
+  .narration-progress.active {
+    display: block;
+    padding: 6px 10px;
+    margin-bottom: 8px;
+  }
+
+  /* Two-panel to stacked layout */
+  .input-panels {
+    flex-direction: column;
+    gap: 8px;
+    margin-top: 8px;
+  }
+
+  .input-panel {
+    min-height: auto;
+    padding: 10px;
+  }
+
+  /* Hide voice panel when not in talk mode */
+  .voice-panel {
+    display: none;
+  }
+
+  .voice-panel.active {
+    display: flex;
+  }
+
+  .panel-header {
+    font-size: 12px;
+    margin-bottom: 8px;
+    padding-bottom: 4px;
+  }
+
+  .input-container {
+    display: flex;
+    gap: 8px;
+  }
+
+  #userInput {
+    flex: 1;
+    padding: 10px 12px;
+    font-size: var(--font-m);
+  }
+
+  #sendBtn {
+    padding: 10px 16px;
+    font-size: 14px;
+    min-height: 40px;
+  }
+
+  /* Mode switch */
+  .mode-switch-container {
+    gap: 4px;
+  }
+
+  .mode-label {
+    font-size: 10px;
+    min-width: 40px;
+  }
+
+  /* Command history - more compact */
+  .panel-history {
+    margin-top: 8px;
+  }
+
+  .command-history {
+    max-height: 80px;
+  }
+
+  .command-history-item {
+    padding: 6px 8px;
+    font-size: 11px;
+  }
+
+  /* Voice feedback */
+  .voice-feedback {
+    padding: 4px 8px;
+    margin-bottom: 4px;
+  }
+
+  .voice-transcript {
+    font-size: 11px;
+  }
+
+  .voice-history-item {
+    font-size: 11px;
+    padding: 4px 6px;
+  }
+
+  /* Progress info compact */
+  .progress-info {
+    font-size: 11px;
+    margin-bottom: 4px;
+  }
+
+  .narration-slider {
+    height: 4px;
+  }
+
+  .narration-slider::-webkit-slider-thumb {
+    width: 14px;
+    height: 14px;
+  }
+
+  .narration-slider::-moz-range-thumb {
+    width: 14px;
+    height: 14px;
+  }
+
+  /* Status bar - slim */
+  .status {
+    padding: 6px 12px;
+    font-size: 11px;
+  }
+
+  /* Additional mobile adjustments */
+  .voice-help-icon,
+  .settings-btn {
+    width: 36px;
+    height: 36px;
+    font-size: var(--font-m);
+  }
+
+  /* Fix body height for mobile browsers with address bar */
+  body {
+    height: calc(var(--vh, 1vh) * 100);
+  }
+
+  /* Game output container - allow scrolling */
+  .game-output {
+    align-items: start;
+    overflow-y: auto !important;
+    overflow-x: hidden;
+  }
+
+  /* Status bar: fixed to top on mobile */
+  #statusBar {
+    position: sticky;
+    top: 0;
+  }
+
+  /* Upper window: scrolls with content */
+  #upperWindow {
+    font-size: var(--font-xs);
+    white-space: normal !important;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    padding: 16px 8px;
+  }
+
+  /* Lower window: no separate scroll, scrolls with parent */
+  #lowerWindow {
+    overflow-y: visible !important;
+    flex: none !important;
+    padding: 0 8px 16px;
+    white-space: normal !important;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+  }
+
+  #lowerWindow span[style*="white-space: pre"] {
+    white-space: normal !important;
+  }
+
+  /* Convert grid layout to normal flow on mobile */
+  .grid-status.multiline {
+    display: block !important;
+    text-align: left;
+    word-wrap: break-word;
+  }
+
+  .grid-status .grid-line {
+    display: block !important;
+    text-align: left;
+    margin: 0;
+    line-height: 1.4;
+    word-spacing: normal !important;
+  }
+
+  /* Hide single line breaks (ignore), keep double line breaks (paragraph spacing) */
+  .grid-status .grid-line.empty-line-single {
+    display: none !important;
+  }
+
+  .grid-status .grid-line.empty-line-continuation {
+    display: none !important;
+  }
+
+  .grid-status .grid-line.empty-line-first {
+    display: block !important;
+    height: 1em;
+    line-height: 1em;
+  }
+
+  /* Grid-positioned spans: remove grid, flow as inline text */
+  .grid-status span[style*="grid-column"] {
+    display: inline !important;
+    grid-column: unset !important;
+    white-space: normal !important;
+  }
+
+  /* Hide spans that are purely whitespace (trims leading whitespace) */
+  .grid-status span.whitespace-only {
+    display: none !important;
+  }
+
+  /* Lower window: collapse consecutive blank lines to just one */
+  #lowerWindow .blank-line-spacer + .blank-line-spacer {
+    display: none !important;
+  }
+}
+

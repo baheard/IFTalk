@@ -27,11 +27,11 @@ import { initScrollDetection } from './narration/highlighting.js';
 // UI modules
 import { updateNavButtons } from './ui/nav-buttons.js';
 import { addGameText } from './ui/game-output.js';
-import { initSettings, loadBrowserVoiceConfig, initVoiceSelection } from './ui/settings.js';
+import { initSettings, loadBrowserVoiceConfig, initVoiceSelection, updateSettingsContext } from './ui/settings.js';
 import { initHistoryButtons } from './ui/history.js';
 
 // Game modules
-import { sendCommand, sendCommandDirect } from './game/commands.js';
+import { sendCommand, sendCommandDirect, initDialogInterceptor } from './game/commands.js';
 import { initSaveHandlers, quickSave, quickLoad } from './game/save-manager.js';
 import { initGameSelection } from './game/game-loader.js';
 
@@ -39,8 +39,8 @@ import { initGameSelection } from './game/game-loader.js';
 import { initKeepAwake, enableKeepAwake, disableKeepAwake, isKeepAwakeEnabled, activateIfEnabled } from './utils/wake-lock.js';
 import { playMuteTone, playUnmuteTone } from './utils/audio-feedback.js';
 
-// Voice command handlers
-const voiceCommandHandlers = {
+// Voice command handlers (exported so typed commands can use them too)
+export const voiceCommandHandlers = {
   restart: () => skipToStart(() => speakTextChunked(null, state.currentChunkIndex)),
   back: () => skipToChunk(-1, () => speakTextChunked(null, state.currentChunkIndex)),
   pause: () => {
@@ -248,21 +248,13 @@ async function initApp() {
 
   // Handle browser back button - return to game selection if in game
   window.addEventListener('popstate', (e) => {
-    // If we were in a game, return to game selection
-    const welcome = document.getElementById('welcome');
+    // If we were in a game, reload to get clean state
     const gameOutput = document.getElementById('gameOutput');
-    const controls = document.getElementById('controls');
-    const messageInputRow = document.getElementById('messageInputRow');
 
     if (gameOutput && !gameOutput.classList.contains('hidden')) {
-      // Currently in a game - show welcome, hide game UI
-      if (welcome) welcome.classList.remove('hidden');
-      if (gameOutput) gameOutput.classList.add('hidden');
-      if (controls) controls.classList.add('hidden');
-      if (messageInputRow) messageInputRow.classList.add('hidden');
-
-      // Stop any narration
-      stopNarration();
+      // Currently in a game - clear last game and reload for clean state
+      localStorage.removeItem('iftalk_last_game');
+      location.reload();
     }
   });
 
@@ -323,6 +315,7 @@ async function initApp() {
   initVoiceSelection();
   initHistoryButtons();
   initSaveHandlers();
+  initDialogInterceptor();
   initScrollDetection();
 
   // Initialize keep awake (screen wake lock)
@@ -461,15 +454,6 @@ async function initApp() {
 
   // Keyboard shortcuts
   document.addEventListener('keydown', (e) => {
-    // Ctrl key - push to talk
-    if (e.key === 'Control' && !state.isPushToTalkActive) {
-      state.isPushToTalkActive = true;
-      state.wasMutedBeforePTT = state.isMuted;
-      if (state.isMuted) {
-        voiceCommandHandlers.unmute();
-      }
-    }
-
     // Arrow keys - navigation
     if (e.key === 'ArrowLeft') {
       skipToChunk(-1, () => speakTextChunked(null, state.currentChunkIndex));
@@ -488,15 +472,6 @@ async function initApp() {
     }
   });
 
-  document.addEventListener('keyup', (e) => {
-    // Ctrl key released - end push to talk
-    if (e.key === 'Control' && state.isPushToTalkActive) {
-      state.isPushToTalkActive = false;
-      if (state.wasMutedBeforePTT) {
-        voiceCommandHandlers.mute();
-      }
-    }
-  });
 
   // Stop narration immediately when navigating away from page
   window.addEventListener('beforeunload', () => {

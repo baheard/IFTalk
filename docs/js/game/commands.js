@@ -8,12 +8,23 @@ import { state } from '../core/state.js';
 import { dom } from '../core/dom.js';
 import { updateStatus } from '../utils/status.js';
 import { addToCommandHistory } from '../ui/history.js';
-import { addGameText } from '../ui/game-output.js';
+import { addGameText, clearGameOutput } from '../ui/game-output.js';
 import { sendCommandToGame } from './game-loader.js';
-import { enterSystemEntryMode, exitSystemEntryMode } from '../input/keyboard.js';
+import { enterSystemEntryMode, exitSystemEntryMode, isSystemEntryMode } from '../input/keyboard.js';
 import { getInputType, sendInput, isInputEnabled } from './voxglk.js';
+import { isAppCommand } from '../core/app-commands.js';
 
 import { LOW_CONFIDENCE_THRESHOLD } from '../utils/audio-feedback.js';
+
+// Import voice command handlers so typed commands can use them too
+let voiceCommandHandlers = null;
+async function getVoiceCommandHandlers() {
+  if (!voiceCommandHandlers) {
+    const appModule = await import('../app.js');
+    voiceCommandHandlers = appModule.voiceCommandHandlers;
+  }
+  return voiceCommandHandlers;
+}
 
 /**
  * Send command directly to game (no AI translation)
@@ -45,9 +56,36 @@ export async function sendCommandDirect(cmd, isVoiceCommand = null, confidence =
   // History params: original, translated, confidence, isVoiceCommand
   addToCommandHistory(input || '[ENTER]', null, confidence, isVoiceCommand);
 
-  // Always display the command with proper styling (voice/typed, confidence)
-  // The game will also echo it, but we'll filter that out of narration
-  addGameText(input || '[ENTER]', true, isVoiceCommand, false, confidence);
+  // Check for "print [text]" command - special display formatting
+  const printMatch = input.match(/^print\s+(.+)$/i);
+  if (printMatch) {
+    // Display as: >[print] actual command
+    // where [print] is in system color
+    const actualCommand = printMatch[1];
+    const formattedDisplay = `<span style="color: var(--color-app-system)">[print]</span> ${actualCommand}`;
+
+    // Create custom command display
+    const div = document.createElement('div');
+    div.className = 'user-command';
+    if (isVoiceCommand) div.classList.add('voice-command');
+    div.innerHTML = `<span class="command-label">&gt;</span><span class="command-text">${formattedDisplay}</span>`;
+
+    if (dom.lowerWindow) {
+      const commandLine = document.getElementById('commandLine');
+      if (commandLine && commandLine.parentElement === dom.lowerWindow) {
+        dom.lowerWindow.insertBefore(div, commandLine);
+      } else {
+        dom.lowerWindow.appendChild(div);
+      }
+    }
+  } else {
+    // Normal command display
+    // Always display the command with proper styling (voice/typed, confidence)
+    // The game will also echo it, but we'll filter that out of narration
+    // Use app-command styling for app/meta-commands or when in system entry mode
+    const isAppCmd = isSystemEntryMode() || isAppCommand(input);
+    addGameText(input || '[ENTER]', true, isVoiceCommand, isAppCmd, confidence);
+  }
 
   // Track for echo detection (so we can skip the game's glk-input echo)
   window.lastCommandWasVoice = isVoiceCommand;
@@ -174,28 +212,33 @@ async function interceptMetaCommand(cmd, displayCmd = null) {
 
   // Handle interactive responses (when awaiting input)
   if (awaitingMetaInput) {
-    // Display the response in the transcript
-    if (originalCmd && originalCmd.trim()) {
-      addGameText(originalCmd.trim(), true);
-    }
+    // Input already displayed by sendCommandDirect with proper styling
     return await handleMetaResponse(originalCmd);
   }
 
+  // Handle "print [text]" command - send literal text to game
+  const printMatch = originalCmd.match(/^print\s+(.+)$/i);
+  if (printMatch) {
+    const actualCommand = printMatch[1];
+    sendCommandToGame(actualCommand);
+    return true; // Intercepted - don't send the "print" prefix to game
+  }
+
   // Check for meta-commands
+  // Note: Commands are already displayed by sendCommandDirect(), so we don't display them again here
   switch (cmd) {
     case 'help':
     case 'commands':
-      // Display command in transcript
-      addGameText(originalCmd, true);
       respondAsGame(`
 <div class="system-message">
-<b>IFTalk Meta Commands</b><br>
+<b>IFTalk App Commands</b><br>
 <br>
-These commands are handled by IFTalk and won't be sent to the game:<br>
+These commands work whether typed or spoken:<br>
 <br>
-&nbsp;&nbsp;SAVE - Save game to named slot (max 5)<br>
-&nbsp;&nbsp;RESTORE - Restore from saved game<br>
-&nbsp;&nbsp;DELETE SAVE - Delete a saved game<br>
+<b>Navigation:</b> PAUSE, PLAY, SKIP, BACK, RESTART<br>
+<b>Save/Load:</b> SAVE, RESTORE, DELETE SAVE, QUICK SAVE, QUICK LOAD<br>
+<b>Audio:</b> MUTE, UNMUTE, STATUS<br>
+<b>Special:</b> PRINT [text] - Send literal text to game<br>
 <br>
 For game commands, type anything else.<br>
 See Settings panel for more help.
@@ -204,23 +247,91 @@ See Settings panel for more help.
       return true;
 
     case 'save':
-      // Display command in transcript
-      addGameText(originalCmd, true);
       return await handleSaveCommand();
 
     case 'restore':
     case 'load':
-      // Display command in transcript
-      addGameText(originalCmd, true);
       return await handleRestoreCommand();
 
     case 'delete save':
     case 'delete':
-      // Display command in transcript
-      addGameText(originalCmd, true);
       return await handleDeleteCommand();
 
+    // Navigation commands - work whether typed or spoken
+    case 'restart':
+    case 'reset':
+    case 'repeat':
+      const handlers = await getVoiceCommandHandlers();
+      handlers.restart();
+      return true;
+
+    case 'back':
+      (await getVoiceCommandHandlers()).back();
+      return true;
+
+    case 'pause':
+    case 'stop':
+      (await getVoiceCommandHandlers()).pause();
+      return true;
+
+    case 'play':
+    case 'resume':
+      (await getVoiceCommandHandlers()).play();
+      return true;
+
+    case 'skip':
+      (await getVoiceCommandHandlers()).skip();
+      return true;
+
+    case 'skip all':
+    case 'skip to end':
+    case 'skip to the end':
+    case 'end':
+      (await getVoiceCommandHandlers()).skipToEnd();
+      return true;
+
+    case 'mute':
+      (await getVoiceCommandHandlers()).mute();
+      return true;
+
+    case 'unmute':
+    case 'on mute':
+    case 'un mute':
+      (await getVoiceCommandHandlers()).unmute();
+      return true;
+
+    case 'status':
+      (await getVoiceCommandHandlers()).status();
+      return true;
+
+    case 'quick save':
+    case 'quicksave':
+      (await getVoiceCommandHandlers()).quickSave();
+      return true;
+
+    case 'quick load':
+    case 'quickload':
+    case 'quick restore':
+    case 'quickrestore':
+      (await getVoiceCommandHandlers()).quickLoad();
+      return true;
+
+    case 'load game':
+    case 'restore game':
+      const h = await getVoiceCommandHandlers();
+      if (h.restoreLatest) h.restoreLatest();
+      return true;
+
     default:
+      // Check for "load slot X" or "restore slot X" pattern
+      const slotMatch = cmd.match(/^(?:load|restore)\s+slot\s+(\d+)$/);
+      if (slotMatch) {
+        const slot = parseInt(slotMatch[1]);
+        const h = await getVoiceCommandHandlers();
+        if (h.restoreSlot) h.restoreSlot(slot);
+        return true;
+      }
+
       return false; // Not intercepted, send to game normally
   }
 }
