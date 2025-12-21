@@ -135,9 +135,11 @@ _AI mode toggle has been removed. All commands go directly to the game._
    - When screen clears and new content appears, scroll to top of content
    - User should start reading from the beginning
 
-2. **During narration**: Scroll highlighted text into view with buffer
+2. **During narration**: Narration always controls scrolling
    - Keep currently-spoken text visible in viewport
-   - Don't scroll to exact edge - maintain readable margin above/below
+   - Uses visual viewport API to account for mobile keyboard
+   - When keyboard is up, scroll ensures text is above the keyboard
+   - No user scroll delay - narration highlighting always controls position
    - Use smooth scrolling for less jarring experience
 
 3. **After loading/restoring**: Scroll to bottom, skip narration

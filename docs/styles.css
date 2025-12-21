@@ -1798,11 +1798,13 @@ body {
 /* System entry mode - for SAVE/RESTORE/DELETE prompts */
 .message-input.system-entry {
   border-color: var(--color-app-system);
+  border-width: 2px;
   background: rgba(45, 212, 191, 0.08);
 }
 
 .message-input.system-entry:focus {
   border-color: var(--color-app-system);
+  border-width: 2px;
   box-shadow: 0 0 0 2px rgba(45, 212, 191, 0.2);
 }
 

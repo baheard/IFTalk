@@ -121,7 +121,7 @@ export function playLowConfidence() {
 export const LOW_CONFIDENCE_THRESHOLD = 0.50;
 
 /**
- * Play tone for blocked/failed command (soft buzz)
+ * Play tone for blocked/failed command (loud buzz - audible during narration)
  */
 export function playBlockedCommand() {
   try {
@@ -132,14 +132,14 @@ export function playBlockedCommand() {
     osc.connect(gain);
     gain.connect(ctx.destination);
 
-    osc.frequency.value = 120;
+    osc.frequency.value = 150;  // Higher frequency (more noticeable)
     osc.type = 'sawtooth';
 
-    gain.gain.setValueAtTime(0.06, ctx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.08);
+    gain.gain.setValueAtTime(0.25, ctx.currentTime);  // Much louder (4x)
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.15);  // Longer duration
 
     osc.start(ctx.currentTime);
-    osc.stop(ctx.currentTime + 0.08);
+    osc.stop(ctx.currentTime + 0.15);
   } catch (err) {
     // Ignore audio errors
   }

@@ -188,14 +188,7 @@ export async function playWithBrowserTTS(text, voiceType = 'narrator') {
     utterance.onend = () => {
       // Don't set isNarrating = false here - let speakTextChunked manage it
       state.ttsIsSpeaking = false;
-      // Resume recognition if listening was enabled
-      if (state.listeningEnabled && state.recognition && !state.isMuted && !state.isRecognitionActive) {
-        try {
-          state.recognition.start();
-        } catch (err) {
-          // Ignore if already started
-        }
-      }
+      // Recognition stays active (no need to restart - we don't stop it anymore)
       resolve();
     };
 
@@ -207,32 +200,20 @@ export async function playWithBrowserTTS(text, voiceType = 'narrator') {
       }
       // Don't set isNarrating = false here - let speakTextChunked or stopNarration manage it
       state.ttsIsSpeaking = false;
-      // Resume recognition if listening was enabled
-      if (state.listeningEnabled && state.recognition && !state.isMuted && !state.isRecognitionActive) {
-        try {
-          state.recognition.start();
-        } catch (err) {
-          // Ignore if already started
-        }
-      }
+      // Recognition stays active (no need to restart - we don't stop it anymore)
       resolve();
     };
 
     // Stop any current speech
     speechSynthesis.cancel();
 
-    // Pause recognition while TTS is speaking to avoid picking up our own audio
+    // Mark that TTS is speaking (but keep recognition active - echo detection will filter it)
     state.ttsIsSpeaking = true;
-    if (state.recognition && state.listeningEnabled) {
-      try {
-        state.recognition.stop();
-      } catch (err) {
-        // Ignore if not started
-      }
-    }
 
-    // Speak
-    recordSpokenChunk(text);  // Record for echo detection BEFORE speaking
+    // Record for echo detection BEFORE speaking (so recognition can filter it out)
+    recordSpokenChunk(text);
+
+    // Speak (recognition stays active, echo detection filters out our own voice)
     speechSynthesis.speak(utterance);
   });
 }
@@ -383,6 +364,9 @@ export async function stopNarration(preserveHighlight = false) {
 
   state.isNarrating = false;
   state.isPaused = true;
+
+  // Clear echo detection buffer to prevent blocking commands after pause
+  state.recentlySpokenChunks = [];
 
   // Stop keep-alive audio (saves battery when not narrating)
   stopKeepAlive();

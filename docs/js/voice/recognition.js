@@ -10,7 +10,7 @@ import { dom } from '../core/dom.js';
 import { updateStatus } from '../utils/status.js';
 import { isEchoOfSpokenText } from './echo-detection.js';
 import { updateVoiceTranscript } from '../input/keyboard.js';
-import { playCommandSent, playAppCommand, playLowConfidence, LOW_CONFIDENCE_THRESHOLD } from '../utils/audio-feedback.js';
+import { playCommandSent, playAppCommand, playLowConfidence, playBlockedCommand, LOW_CONFIDENCE_THRESHOLD } from '../utils/audio-feedback.js';
 import { scrollToBottom } from '../utils/scroll.js';
 
 /**
@@ -39,20 +39,28 @@ export function updateLastHeard(text, isNavCommand = false) {
  * Show confirmed transcript then reset to Listening after 3 seconds
  * @param {string} text - Confirmed transcript text
  * @param {boolean} isNavCommand - Whether this was a navigation command
+ * @param {number} confidence - Confidence score (0-1), optional
  */
-export function showConfirmedTranscript(text, isNavCommand = false) {
+export function showConfirmedTranscript(text, isNavCommand = false, confidence = null) {
   // Clear any pending reset
   if (state.transcriptResetTimeout) {
     clearTimeout(state.transcriptResetTimeout);
   }
 
+  // Add confidence percentage if provided and below threshold
+  let displayText = text;
+  if (confidence !== null && confidence < LOW_CONFIDENCE_THRESHOLD) {
+    const confidencePercent = (confidence * 100).toFixed(0);
+    displayText = `${text} (${confidencePercent}%)`;
+  }
+
   // Update both DOM transcript and keyboard indicator
   const mode = isNavCommand ? 'nav' : 'confirmed';
-  updateVoiceTranscript(text, mode);
+  updateVoiceTranscript(displayText, mode);
 
   // Also update old DOM element if it exists
   if (dom.voiceTranscript) {
-    dom.voiceTranscript.textContent = text;
+    dom.voiceTranscript.textContent = displayText;
     dom.voiceTranscript.classList.remove('interim');
     dom.voiceTranscript.classList.add('confirmed');
     if (isNavCommand) {
@@ -62,7 +70,7 @@ export function showConfirmedTranscript(text, isNavCommand = false) {
     }
   }
 
-  // Also update lastHeard for history
+  // Also update lastHeard for history (use original text without confidence)
   updateLastHeard(text, isNavCommand);
 
   // Reset transcript after 3 seconds
@@ -125,6 +133,14 @@ export function initVoiceRecognition(processVoiceKeywords) {
       }
     }
 
+    console.log('[Voice] onresult:', {
+      interim: interimTranscript,
+      final: finalTranscript,
+      confidence: finalConfidence,
+      isNarrating: state.isNarrating,
+      ttsIsSpeaking: state.ttsIsSpeaking
+    });
+
     // Show live transcript (but not when muted)
     if (interimTranscript && !state.isMuted) {
       // Cancel any pending confirmed transition
@@ -158,11 +174,19 @@ export function initVoiceRecognition(processVoiceKeywords) {
       // Check for echo
       try {
         if (isEchoOfSpokenText(finalTranscript)) {
-          updateVoiceTranscript(state.isMuted ? 'Muted' : 'Listening...', 'listening');
-          if (dom.voiceTranscript) {
-            dom.voiceTranscript.textContent = state.isMuted ? 'Muted' : 'Listening...';
-            dom.voiceTranscript.classList.remove('interim', 'confirmed');
-          }
+          // Echo detected: play BUZZ (blocked) and show as blocked
+          playBlockedCommand();
+          console.log(`[Voice] Echo detected - blocking: "${finalTranscript}"`);
+
+          // Show in transcript area as blocked (echo)
+          showConfirmedTranscript(`${finalTranscript} (blocked)`, false, 0);
+
+          // Display in game window with muted styling
+          import('../ui/game-output.js').then(({ addGameText }) => {
+            addGameText(`${finalTranscript} (blocked during narration)`, true, true, false, 0);
+          });
+
+          state.hasManualTyping = false;
           return;
         }
       } catch (e) {
@@ -177,8 +201,8 @@ export function initVoiceRecognition(processVoiceKeywords) {
         playLowConfidence();
         console.log(`[Voice] Low confidence (${(finalConfidence * 100).toFixed(0)}%) - not executing: "${finalTranscript}"`);
 
-        // Show in transcript area
-        showConfirmedTranscript(finalTranscript, false);
+        // Show in transcript area WITH confidence percentage
+        showConfirmedTranscript(finalTranscript, false, finalConfidence);
 
         // Display in game window with muted styling (but don't send to game)
         import('../ui/game-output.js').then(({ addGameText }) => {
@@ -251,17 +275,27 @@ export function initVoiceRecognition(processVoiceKeywords) {
   };
 
   recognition.onend = () => {
+    console.log('[Voice] Recognition ended. State:', {
+      listeningEnabled: state.listeningEnabled,
+      isRecognitionActive: state.isRecognitionActive,
+      ttsIsSpeaking: state.ttsIsSpeaking,
+      isNarrating: state.isNarrating,
+      isMuted: state.isMuted
+    });
+
     state.isListening = false;
     state.isRecognitionActive = false;
 
     // Voice commands are now sent immediately in onresult handler
     // No need to check for input field or auto-send here
 
-    // Always restart listening if continuous mode enabled
-    if (state.listeningEnabled && !state.ttsIsSpeaking) {
+    // Always restart listening if continuous mode enabled (works even during TTS now)
+    if (state.listeningEnabled && !state.isMuted) {
       setTimeout(() => {
-        if (state.listeningEnabled && !state.ttsIsSpeaking && !state.isRecognitionActive) {
+        if (state.listeningEnabled && !state.isMuted && !state.isRecognitionActive) {
           try {
+            console.log('[Voice] Attempting to restart recognition...');
+
             // Clear transcript display if not showing confirmed text
             if (dom.voiceTranscript && !dom.voiceTranscript.classList.contains('confirmed')) {
               updateVoiceTranscript(state.isMuted ? 'Muted' : 'Listening...', 'listening');
@@ -270,14 +304,25 @@ export function initVoiceRecognition(processVoiceKeywords) {
             }
 
             recognition.start();
+            console.log('[Voice] Recognition restarted successfully');
           } catch (err) {
             // Ignore if already running
             if (err.message && !err.message.includes('already')) {
               console.error('[Voice] Restart error:', err);
+            } else {
+              console.log('[Voice] Recognition already running (expected)');
             }
           }
+        } else {
+          console.log('[Voice] Not restarting recognition:', {
+            listeningEnabled: state.listeningEnabled,
+            isMuted: state.isMuted,
+            isRecognitionActive: state.isRecognitionActive
+          });
         }
       }, 200); // Reduced from 300ms
+    } else {
+      console.log('[Voice] Not attempting restart (disabled or muted)');
     }
   };
 

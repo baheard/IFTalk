@@ -10,7 +10,7 @@ import { dom } from '../core/dom.js';
 import { escapeHtml } from '../utils/text-processing.js';
 import { insertTemporaryMarkers, createNarrationChunks, insertRealMarkersAtIDs, removeTemporaryMarkers } from '../narration/chunking.js';
 import { stopNarration } from '../narration/tts-player.js';
-import { scrollToTop, scrollToNewContent } from '../utils/scroll.js';
+import { scrollToTop, scrollToNewContent, scrollToBottom } from '../utils/scroll.js';
 import { LOW_CONFIDENCE_THRESHOLD } from '../utils/audio-feedback.js';
 
 /**

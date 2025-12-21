@@ -411,6 +411,7 @@ export function enterSystemEntryMode(promptText) {
   if (messageInputEl) {
     messageInputEl.placeholder = promptText;
     messageInputEl.value = '';
+    messageInputEl.classList.add('system-entry');
     messageInputEl.focus();
   }
   showMessageInput();
@@ -423,6 +424,7 @@ export function exitSystemEntryMode() {
   systemEntryMode = false;
   if (messageInputEl) {
     messageInputEl.placeholder = 'Enter command...';
+    messageInputEl.classList.remove('system-entry');
   }
 }
 
