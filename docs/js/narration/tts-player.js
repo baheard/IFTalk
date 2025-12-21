@@ -304,7 +304,8 @@ export async function speakTextChunked(text, startFromIndex = 0) {
 
     // Check narration state
     if (!state.narrationEnabled || state.isPaused) {
-      removeHighlight();
+      // NOTE: Currently there is no "stop" command (only pause).
+      // If stop is reimplemented, add: if (!state.isPaused) { removeHighlight(); }
       updateNavButtons();
       break;
     }
@@ -330,7 +331,8 @@ export async function speakTextChunked(text, startFromIndex = 0) {
 
     // Check if we should still continue
     if (!state.narrationEnabled || state.isPaused) {
-      removeHighlight();
+      // NOTE: Currently there is no "stop" command (only pause).
+      // If stop is reimplemented, add: if (!state.isPaused) { removeHighlight(); }
       break;
     }
   }
@@ -339,7 +341,7 @@ export async function speakTextChunked(text, startFromIndex = 0) {
   // Only clean up if this is still the current session (not superseded)
   if (currentSessionId === state.narrationSessionId) {
     if (state.currentChunkIndex >= totalChunks - 1 && state.narrationEnabled && !state.isPaused) {
-
+      // Completed all chunks naturally
       state.currentChunkIndex = totalChunks;
       state.narrationEnabled = false;
       state.isPaused = true;
@@ -353,7 +355,9 @@ export async function speakTextChunked(text, startFromIndex = 0) {
       updateStatus('Ready');
       updateNavButtons();
     } else {
-      removeHighlight();
+      // Interrupted (paused) - preserve highlight
+      // NOTE: Currently there is no "stop" command (only pause).
+      // If stop is reimplemented, add: if (!state.isPaused) { removeHighlight(); }
       updateNavButtons();
     }
   }

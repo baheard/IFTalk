@@ -54,10 +54,6 @@ const _state = {
   pausedForSound: false,
   soundPauseTimeout: null,
 
-  // Push-to-talk
-  wasMutedBeforePTT: false,
-  isPushToTalkActive: false,
-
   // Navigation
   isNavigating: false,
   isUserScrubbing: false,

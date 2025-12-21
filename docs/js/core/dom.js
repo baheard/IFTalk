@@ -25,7 +25,6 @@ export const dom = {
   status: null,
   muteBtn: null,
   pausePlayBtn: null,
-  autoplayBtn: null,
 
   // Voice settings
   voiceSelect: null,
@@ -33,45 +32,18 @@ export const dom = {
   testAppVoiceBtn: null,
 
   // Voice feedback
-  voiceFeedback: null,
   voiceTranscript: null,
   voiceListeningIndicator: null,
   voiceMeterDot: null,
-  voicePanel: null,
-  lastHeard: null,
-  lastResponse: null,
-
-  // History buttons
-  voiceHistoryBtn: null,
-
-  // Navigation controls
-  backBtn: null,
-  forwardBtn: null,
-  restartBtn: null,
-  skipBtn: null,
-  progressSlider: null,
-  currentChunkSpan: null,
-  totalChunksSpan: null,
-
-  // Talk mode
-  talkModeBtn: null,
 
   // Settings
   settingsBtn: null,
   settingsPanel: null,
-  settingsPanelContent: null,
   closeSettingsBtn: null,
   addPronunciationBtn: null,
   pronunciationList: null,
   pronounceWordInput: null,
-  pronounceAsInput: null,
-
-  // Mode toggle
-  aiModeToggle: null,
-
-  // Voice meter
-  voiceMeter: null,
-  voiceMeterBar: null
+  pronounceAsInput: null
 };
 
 /**
@@ -98,7 +70,6 @@ export function initDOM() {
   dom.status = document.getElementById('status');
   dom.muteBtn = document.getElementById('muteBtn');
   dom.pausePlayBtn = document.getElementById('pausePlayBtn');
-  dom.autoplayBtn = document.getElementById('autoplayBtn');
 
   // Voice settings
   dom.voiceSelect = document.getElementById('voiceSelect');
@@ -106,45 +77,18 @@ export function initDOM() {
   dom.testAppVoiceBtn = document.getElementById('testAppVoiceBtn');
 
   // Voice feedback
-  dom.voiceFeedback = document.getElementById('voiceFeedback');
   dom.voiceTranscript = document.getElementById('voiceTranscript');
   dom.voiceListeningIndicator = document.getElementById('voiceListeningIndicator');
   dom.voiceMeterDot = document.getElementById('voiceMeterDot');
-  dom.voicePanel = document.querySelector('.voice-panel');
-  dom.lastHeard = document.getElementById('lastHeard');
-  dom.lastResponse = document.getElementById('lastResponse');
-
-  // History buttons
-  dom.voiceHistoryBtn = document.getElementById('voiceHistoryBtn');
-
-  // Navigation controls
-  dom.backBtn = document.getElementById('backBtn');
-  dom.forwardBtn = document.getElementById('forwardBtn');
-  dom.restartBtn = document.getElementById('restartBtn');
-  dom.skipBtn = document.getElementById('skipBtn');
-  dom.progressSlider = document.getElementById('progressSlider');
-  dom.currentChunkSpan = document.getElementById('currentChunk');
-  dom.totalChunksSpan = document.getElementById('totalChunks');
-
-  // Talk mode
-  dom.talkModeBtn = document.getElementById('talkModeBtn');
 
   // Settings
   dom.settingsBtn = document.getElementById('settingsBtn');
   dom.settingsPanel = document.getElementById('settingsPanel');
-  dom.settingsPanelContent = document.querySelector('.settings-panel-content');
   dom.closeSettingsBtn = document.getElementById('closeSettingsBtn');
   dom.addPronunciationBtn = document.getElementById('addPronunciationBtn');
   dom.pronunciationList = document.getElementById('pronunciationList');
-  dom.pronounceWordInput = document.getElementById('pronounceWord');
-  dom.pronounceAsInput = document.getElementById('pronounceAs');
-
-  // Mode toggle
-  dom.aiModeToggle = document.getElementById('aiModeToggle');
-
-  // Voice meter
-  dom.voiceMeter = document.getElementById('voiceMeter');
-  dom.voiceMeterBar = document.querySelector('.voice-meter-bar');
+  dom.pronounceWordInput = document.getElementById('newWord');
+  dom.pronounceAsInput = document.getElementById('newPronunciation');
 
   // Validate critical elements exist
   validateDOM();
