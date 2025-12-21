@@ -1,25 +1,28 @@
 # Save/Restore Implementation Status
 
-**Last Updated:** December 19, 2024
+**Last Updated:** December 21, 2024
 
 ## Current Status: ✅ FULLY WORKING
 
-Autosave/restore is fully functional with clean transitions.
+All save/restore mechanisms are fully functional with clean transitions.
 
 ## What Works
 
-- ✅ Autosave after each turn (saves VM state + display HTML + VoxGlk state)
-- ✅ Auto-restore on page load
+- ✅ **Autosave** after each turn (saves VM state + display HTML + VoxGlk state)
+- ✅ **Auto-restore** on page load
+- ✅ **Quick Save/Load** buttons (page reload approach)
+- ✅ **Custom SAVE/RESTORE** commands (named saves with page reload)
+- ✅ **'R' key restore** from intro screen
 - ✅ VM restores to correct position
 - ✅ Display HTML shows saved content immediately
 - ✅ VM wakes up and processes commands normally
 - ✅ Input becomes available automatically
 - ✅ Game continues from saved position
 - ✅ Clean transition with no error messages
-- ✅ **'R' key restore from intro screen** (December 19, 2024)
-- ✅ **RESTORE command triggers autosave restore**
 
 ## How It Works
+
+### Autorestore (Page Load)
 
 The restore process uses a "bootstrap" technique to wake the VM:
 
@@ -86,7 +89,7 @@ autoLoad() {
 }
 ```
 
-## Timing Sequence
+**Timing Sequence:**
 
 1. Game starts (shows intro, char input active at gen: 1)
 2. First update arrives with char input request
@@ -99,6 +102,287 @@ autoLoad() {
 6. VM wakes up, processes input in restored state
 7. VM sends fresh update with line input at gen: 5
 8. User can send commands normally (no error messages!)
+
+---
+
+### Manual Restore (Quick Load, RESTORE Command)
+
+**The Problem:**
+Manual restore mid-game fails due to **generation number mismatch** between glkapi.js and the restored VM state.
+
+#### The Generation Mismatch Bug:
+
+```
+1. Game running at gen:10
+   - glkapi.js: event_generation = 10
+   - VoxGlk: generation = 10
+   - VM: internal state at gen 10
+
+2. User clicks Quick Load (saved at gen:6)
+
+3. restore_file() restores VM memory to gen:6 state
+   - VM now thinks it's at gen:6
+
+4. restore_state(6, 1) sets VoxGlk generation = 6
+   - VoxGlk.generation = 6
+
+5. Send bootstrap input with gen:1 (to wake VM)
+   - Input: { type: 'char', gen: 1, value: 10 }
+
+6. glkapi.js validates input (glkapi.js:155):
+   if (obj.gen != event_generation) {
+     GlkOte.log('Input event had wrong generation...');
+     return;  // ← INPUT REJECTED!
+   }
+   - Check: obj.gen (1) != event_generation (10)
+   - Result: Bootstrap input rejected
+
+7. VM never receives bootstrap → stays frozen ✗
+```
+
+**The Root Cause:**
+- **glkapi.js `event_generation` is internal** (private variable in closure)
+- No public API to reset or modify `event_generation`
+- `restore_file()` restores VM memory but does NOT affect glkapi.js state
+- **Generation validation is strict:** glkapi.js rejects ANY input with wrong generation
+- After restore, VM is at gen:6 but glkapi.js still expects gen:10
+- Impossible to sync them without resetting glkapi.js
+
+**The Solution: Page Reload**
+
+Page reload is the **only way** to reset glkapi.js to clean state. This is standard practice for web IF interpreters.
+
+#### Detailed Flow:
+
+**1. Button Click** (Quick Load or RESTORE command):
+```javascript
+// commands.js, save-manager.js
+sessionStorage.setItem('iftalk_pending_restore', JSON.stringify({
+    type: 'quicksave',  // or 'customsave', or 'autosave'
+    key: gameSignature,  // or save name
+    gameName: currentGameName
+}));
+window.location.reload();  // Trigger reload
+```
+
+**2. After Reload** (game-loader.js):
+```javascript
+// Detect pending restore flag
+const pendingRestore = JSON.parse(sessionStorage.getItem('iftalk_pending_restore'));
+
+if (pendingRestore) {
+    // Clear flag immediately
+    sessionStorage.removeItem('iftalk_pending_restore');
+
+    // Set window flags for voxglk.js
+    window.shouldAutoRestore = true;
+    window.pendingRestoreType = pendingRestore.type;
+    window.pendingRestoreKey = pendingRestore.key;
+
+    // Auto-load game using iftalk_last_game path
+    const lastGame = localStorage.getItem('iftalk_last_game');
+    startGame(lastGame, onOutput);  // Game loads automatically
+}
+```
+
+**3. Game Starts** (Fresh glkapi.js state):
+```
+- glkapi.js reloaded → event_generation = 0
+- Glk.init() called
+- VM starts, sends intro with gen: 1
+- glkapi.js: event_generation = 1
+- VoxGlk: generation = 1
+```
+
+**4. Autorestore Triggered** (voxglk.js):
+```javascript
+// voxglk.js detects window.shouldAutoRestore
+if (window.shouldAutoRestore) {
+    window.shouldAutoRestore = false;
+
+    // Call appropriate load function
+    if (restoreType === 'quicksave') {
+        restored = await quickLoad();
+    } else if (restoreType === 'customsave') {
+        restored = await customLoad(restoreKey);
+    } else {
+        restored = await autoLoad();
+    }
+}
+```
+
+**5. Restore Executes** (save-manager.js):
+```javascript
+quickLoad() {
+    // Restore VM memory to saved state (e.g., gen:6)
+    window.zvmInstance.restore_file(bytes.buffer);
+
+    // Restore VoxGlk state
+    window._voxglkInstance.restore_state(6, 1);
+
+    // Restore display HTML
+    lowerWindowEl.innerHTML = saveData.displayHTML.lowerWindow;
+
+    // Send bootstrap input
+    // glkapi.js is at gen:1 (clean state), so gen:1 works!
+    acceptCallback({ type: 'char', gen: 1, value: 10 });
+}
+```
+
+**6. Bootstrap Accepted** (glkapi.js):
+```javascript
+// glkapi.js:155
+if (obj.gen != event_generation) {  // 1 == 1 ✓
+    return;  // Not triggered!
+}
+event_generation += 1;  // Now 2
+// Bootstrap delivered to VM
+```
+
+**7. VM Wakes Up and Sends Update**:
+```javascript
+// VM processes bootstrap input
+// VM calls GlkOte.update() to send output
+
+// glkapi constructs update with current event_generation (now 2)
+var update = { type: 'update', gen: event_generation, windows: [...] };
+
+// Update sent to VoxGlk
+VoxGlk.update(update);
+```
+
+**8. Sync Established**:
+```
+- VoxGlk receives update with gen:2
+- VoxGlk sets generation = 2
+- User sends next command with gen:2
+- glkapi checks: obj.gen (2) == event_generation (2) ✓
+- Everything synced!
+```
+
+#### Critical Insight: Generation Numbers Explained
+
+**Important:** The `generation` number used for input validation is NOT the VM's internal game state. It's a **UI turn counter** managed by glkapi.js:
+
+1. **glkapi.js `event_generation`:** UI turn counter (0, 1, 2, 3...)
+   - Starts at 0
+   - Increments each time an input event is ACCEPTED
+   - Included in every update sent to VoxGlk as `arg.gen`
+
+2. **VM internal state:** Completely separate (confusingly also called "generation" in save files)
+   - VM memory restored to saved position (PC, stack, variables)
+   - `restore_file()` restores this memory
+   - The "generation" saved in voxglkState is just for reference - it's NOT the UI counter
+   - **CRITICAL:** We do NOT restore VoxGlk.generation from saved state
+
+3. **VoxGlk `generation`:** Mirror of glkapi's counter
+   - Updated from VM updates: `generation = arg.gen`
+   - Used to tag input events: `{ gen: generation, ... }`
+   - **After restore:** Set naturally by VM update, NOT by restore_state()
+
+**Why we DON'T call restore_state() anymore:**
+- Old code: `restore_state(savedGeneration)` set VoxGlk.generation = 6
+- Problem: After page reload, glkapi.js is at gen:1, but VoxGlk would be at gen:6
+- Result: Generation mismatch → commands rejected
+- **Fix:** Don't call restore_state() - VoxGlk.generation is set automatically when VM sends updates
+- After page reload: Both glkapi and VoxGlk start at gen:1, stay in sync
+
+**The saved "generation" field:**
+- It's VM memory state metadata, NOT the UI event counter
+- We save it for reference but DON'T restore it to VoxGlk
+- The UI counter always starts fresh at 1 after page reload
+
+**Why Page Reload is Necessary:**
+- **Only way to reset glkapi.js internal `event_generation` variable**
+- glkapi.js `event_generation` is in a closure (private, not accessible)
+- No public API to reset it (`Glk.init()` doesn't reset the counter)
+- Attempting to sync without reload is impossible
+- **Standard approach:** Parchment, Lectrote, and other web interpreters use page reload
+- **Fast:** Local reload from cache, content restored immediately
+- **Clean UX:** Brief flash, no data loss, familiar browser behavior
+
+#### Bug Fix History (December 21, 2024)
+
+**The Bug:** Custom restore loaded HTML but VM was frozen - commands didn't work.
+
+**Root Causes:**
+
+1. **Type Mismatch** (commands.js:133)
+   - `getCustomSaves()` set `type: 'custom'`
+   - But `handleRestoreResponse()` checked for `type: 'customsave'`
+   - Result: All custom restores incorrectly treated as autosave
+   - **Fix:** Changed to `type: 'customsave'`
+
+2. **Generation Confusion** (save-manager.js)
+   - Old code called `restore_state(savedGeneration)` which set VoxGlk.generation = 6
+   - But after page reload, glkapi.js is at gen:1, needs VoxGlk at gen:1 too
+   - **Critical insight:** Saved "generation" is VM memory state (turn number), NOT UI event counter
+   - After `restore_file()`, VM naturally sends update with new generation
+   - **Fix:** Removed `restore_state()` calls - let VM updates set generation naturally
+
+3. **Bootstrap Logic** (voxglk.js:267)
+   - Old: `if (generation === 1) { send bootstrap }`
+   - Problem: For manual restores, VM update sets generation before check
+   - Result: Bootstrap skipped, VM stays frozen
+   - **Fix:** `if (restoreType === 'quicksave' || restoreType === 'customsave' || generation === 1)`
+   - Manual restores ALWAYS send bootstrap with gen:1
+
+**Correct Flow After Fix:**
+```
+1. RESTORE command → sessionStorage flag → page reload
+2. glkapi.js: event_generation = 0 (reset)
+3. Game loads → intro screen → gen:1
+4. customLoad() called:
+   - restore_file() → VM memory restored
+   - Restore HTML → display updated
+   - DON'T call restore_state() → VoxGlk.generation stays at 1
+5. voxglk.js detects type: 'customsave'
+6. Send bootstrap: { type: 'line', gen: 1, value: '' }
+7. glkapi.js: accepts (1 == 1) ✓, increments to gen:2
+8. VM wakes, processes bootstrap, sends update with gen:2
+9. VoxGlk receives update, sets generation = 2
+10. Commands work! User sends with gen:2, glkapi accepts ✓
+```
+
+#### Alternative Approaches (Not Recommended):
+
+**Option 1: Patch glkapi.js** ❌
+- Add `reset_generation()` function to glkapi.js
+- Modifies third-party library
+- Breaks on updates
+- Requires maintaining patches
+
+**Option 2: Module Reload** ❌
+- Remove and re-add script tags
+- Complex and fragile
+- Need to reload VM and all dependencies
+- Might as well reload page
+
+#### Comparison: With vs Without Page Reload
+
+**WITHOUT Page Reload (Broken):**
+```
+Game at gen:10 → Quick Load → restore_file() → Send bootstrap gen:1
+→ glkapi rejects (1 != 10) → VM frozen ✗
+```
+
+**WITH Page Reload (Working):**
+```
+Game at gen:10 → Quick Load → Page reload → glkapi reset to gen:0
+→ Game loads (gen:1) → restore_file() → Send bootstrap gen:1
+→ glkapi accepts (1 == 1) → VM wakes → Update gen:2 → Synced ✓
+```
+
+**Restore Types:**
+- **Autosave** → `autoLoad()` (no reload needed, happens during initial page load)
+- **Quicksave** → Page reload → `quickLoad()` during autorestore
+- **Customsave** → Page reload → `customLoad(saveName)` during autorestore
+
+**Files Modified for Manual Restore:**
+- `docs/js/game/save-manager.js` - Quick Load button triggers page reload
+- `docs/js/game/commands.js` - RESTORE command triggers page reload
+- `docs/js/game/voxglk.js` - Handles customsave restore type, generation check for bootstrap
+- `docs/js/game/game-loader.js` - Auto-loads game after pending restore reload
 
 ## Why This Approach Works
 
@@ -169,7 +453,7 @@ autoLoad() {
 
 ## Testing
 
-To test autosave/restore:
+### Test Autosave/Restore:
 1. Load a game (e.g., Anchorhead)
 2. Play for a few turns (each turn autosaves)
 3. Reload the page (Ctrl+R)
@@ -178,6 +462,30 @@ To test autosave/restore:
 6. ✅ Input prompt appears
 7. ✅ Commands work normally
 8. ✅ No error messages or glitches
+
+### Test Manual Restore (Quick Save/Load):
+1. Load a game and play for a few turns
+2. Click "Quick Save" button in settings
+3. Continue playing for more turns
+4. Click "Quick Load" button
+5. ✅ Page reloads automatically
+6. ✅ Game loads automatically (no welcome screen)
+7. ✅ Restores to quick save position
+8. ✅ Saved content displays immediately
+9. ✅ Input prompt appears
+10. ✅ Commands work normally
+
+### Test Custom SAVE/RESTORE:
+1. Load a game and play for a few turns
+2. Type command: `SAVE mysave`
+3. Continue playing for more turns
+4. Type command: `RESTORE mysave`
+5. ✅ Page reloads automatically
+6. ✅ Game loads automatically (no welcome screen)
+7. ✅ Restores to custom save position
+8. ✅ Saved content displays immediately
+9. ✅ Input prompt appears
+10. ✅ Commands work normally
 
 ---
 

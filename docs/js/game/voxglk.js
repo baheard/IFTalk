@@ -240,52 +240,67 @@ export function createVoxGlk(textOutputCallback) {
           // Let this update complete normally, then restore
           setTimeout(async () => {
             try {
-              const { autoLoad, quickLoad } = await import('./save-manager.js');
-
               // Call appropriate load function based on type
               let restored;
               if (restoreType === 'quicksave') {
+                // Quicksave: triggered by Quick Load button reload
+                const { quickLoad } = await import('./save-manager.js');
                 restored = await quickLoad();
+              } else if (restoreType === 'customsave') {
+                // Customsave: triggered by RESTORE command reload
+                // restoreKey is just the save name
+                const { customLoad } = await import('./save-manager.js');
+                restored = await customLoad(restoreKey);
               } else {
+                // Autosave: normal autorestore flow
+                const { autoLoad } = await import('./save-manager.js');
                 restored = await autoLoad();
               }
 
               if (restored) {
                 // VM state and display HTML restored
-                // VoxGlk state (generation, inputWindowId) restored by save-manager
-                console.log('[VoxGlk] Restore successful, sending bootstrap input...');
+                console.log('[VoxGlk] Restore successful');
                 console.log('[VoxGlk] Current state - generation:', generation, 'inputWindowId:', inputWindowId, 'inputEnabled:', inputEnabled);
 
-                // Wake VM by sending dummy input to fulfill intro's pending request
-                setTimeout(() => {
+                // For manual restores (quicksave/customsave), ALWAYS send bootstrap with gen:1
+                // For autosave, only send if at gen:1
+                const shouldSendBootstrap = (restoreType === 'quicksave' || restoreType === 'customsave') || generation === 1;
 
-                  // Set flag to suppress next update (the "I beg your pardon" response)
-                  skipNextUpdateAfterBootstrap = true;
+                if (shouldSendBootstrap) {
+                  console.log('[VoxGlk] Sending bootstrap input to wake VM (type:', restoreType, ')');
 
-                  // The intro screen request was created at gen: 1
-                  // We need to fulfill it with gen: 1, not the restored generation
-                  // IMPORTANT: Must match the input TYPE the VM expects (captured as introInputType)
-                  const bootstrapType = introInputType || 'line'; // Default to line if not captured
-                  console.log('[VoxGlk] Sending bootstrap input with gen: 1, type:', bootstrapType);
+                  // Wake VM by sending dummy input to fulfill intro's pending request
+                  setTimeout(() => {
 
-                  if (bootstrapType === 'char') {
-                    acceptCallback({
-                      type: 'char',
-                      gen: 1,  // Intro's original generation
-                      window: 1,
-                      value: ' '  // Space character
-                    });
-                  } else {
-                    acceptCallback({
-                      type: 'line',
-                      gen: 1,  // Intro's original generation
-                      window: 1,
-                      value: '',  // Empty command
-                      terminator: 'enter'
-                    });
-                  }
+                    // Set flag to suppress next update (the "I beg your pardon" response)
+                    skipNextUpdateAfterBootstrap = true;
 
-                }, 100);
+                    // The intro screen request was created at gen: 1
+                    // IMPORTANT: Must match the input TYPE the VM expects (captured as introInputType)
+                    const bootstrapType = introInputType || 'line'; // Default to line if not captured
+                    console.log('[VoxGlk] Sending bootstrap input with gen: 1, type:', bootstrapType);
+
+                    if (bootstrapType === 'char') {
+                      acceptCallback({
+                        type: 'char',
+                        gen: 1,  // Always use intro's generation after page reload
+                        window: 1,
+                        value: ' '  // Space character
+                      });
+                    } else {
+                      acceptCallback({
+                        type: 'line',
+                        gen: 1,  // Always use intro's generation after page reload
+                        window: 1,
+                        value: '',  // Empty command
+                        terminator: 'enter'
+                      });
+                    }
+
+                  }, 100);
+                } else {
+                  console.log('[VoxGlk] Not sending bootstrap (type:', restoreType, ', generation:', generation, ')');
+                }
               } else {
                 console.log('[VoxGlk] Restore returned false');
               }

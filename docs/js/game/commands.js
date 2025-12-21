@@ -130,7 +130,7 @@ function getCustomSaves() {
         name: saveName,
         timestamp: saveData.timestamp,
         key: key,
-        type: 'custom'
+        type: 'customsave'  // Match the type used in handleRestoreResponse
       });
     }
   }
@@ -544,23 +544,31 @@ async function handleRestoreResponse(input, saves) {
     return true;
   }
 
-  // Use appropriate load function based on save type
-  let success = false;
-  const saveManager = await import('./save-manager.js');
-
+  // Manual restore requires page reload to reset glkapi.js state
+  // Set pending restore flag and reload
   if (save.type === 'quicksave') {
-    success = await saveManager.quickLoad();
-  } else if (save.type === 'autosave') {
-    success = await saveManager.autoLoad();
+    sessionStorage.setItem('iftalk_pending_restore', JSON.stringify({
+      type: 'quicksave',
+      key: save.gameSignature || window.state.currentGameName,
+      gameName: window.state.currentGameName
+    }));
+  } else if (save.type === 'customsave') {
+    sessionStorage.setItem('iftalk_pending_restore', JSON.stringify({
+      type: 'customsave',
+      key: save.name,  // Just the save name
+      gameName: window.state.currentGameName
+    }));
   } else {
-    success = await saveManager.customLoad(save.name);
+    // Autosave - shouldn't normally be selected via RESTORE command, but handle it
+    sessionStorage.setItem('iftalk_pending_restore', JSON.stringify({
+      type: 'autosave',
+      key: window.state.currentGameName,
+      gameName: window.state.currentGameName
+    }));
   }
 
-  if (success) {
-    respondAsGame(`<div class="system-message">Game restored from "${save.name}".</div>`);
-  } else {
-    respondAsGame('<div class="system-message">Restore failed. Save file may be corrupted.</div>');
-  }
+  // Reload page to trigger autorestore
+  window.location.reload();
 
   return true;
 }

@@ -207,13 +207,10 @@ export async function customLoad(saveName) {
         const result = window.zvmInstance.restore_file(bytes.buffer);
 
         if (result === 2) { // ZVM returns 2 on successful restore
-            // Restore VoxGlk state (generation, inputWindowId)
-            if (saveData.voxglkState && window._voxglkInstance) {
-                window._voxglkInstance.restore_state(
-                    saveData.voxglkState.generation,
-                    saveData.voxglkState.inputWindowId
-                );
-            }
+            // DON'T restore VoxGlk generation - keep it at 1 (current intro state)
+            // After page reload, glkapi.js is at gen:1, so VoxGlk must stay at gen:1
+            // The saved generation is just VM memory state, not the UI turn counter
+            // voxglk.js will send bootstrap with gen:1 which will be accepted
 
             // Restore display HTML
             if (saveData.displayHTML) {
@@ -250,22 +247,9 @@ export async function customLoad(saveName) {
                 state.currentChunkIndex = saveData.narrationState.currentChunkIndex;
             }
 
-            // Send bootstrap input to wake VM
-            const { getAcceptCallback, setSkipNextUpdateAfterBootstrap } = await import('./voxglk.js');
-            const acceptCallback = getAcceptCallback();
-
-            if (acceptCallback) {
-                setSkipNextUpdateAfterBootstrap(true);
-
-                setTimeout(() => {
-                    acceptCallback({
-                        type: 'char',
-                        gen: 1,
-                        window: 1,
-                        value: 10
-                    });
-                }, 100);
-            }
+            // DON'T send bootstrap here - let voxglk.js handle it
+            // voxglk.js will check if generation === 1 and send bootstrap
+            // Since we didn't call restore_state(), generation is still 1
 
             // Set flag to skip narration - position at end of chunks, not beginning
             state.skipNarrationAfterLoad = true;
@@ -496,13 +480,10 @@ export async function quickLoad() {
         const result = window.zvmInstance.restore_file(bytes.buffer);
 
         if (result === 2) { // ZVM returns 2 on successful restore
-            // Restore VoxGlk state (generation, inputWindowId)
-            if (saveData.voxglkState && window._voxglkInstance) {
-                window._voxglkInstance.restore_state(
-                    saveData.voxglkState.generation,
-                    saveData.voxglkState.inputWindowId
-                );
-            }
+            // DON'T restore VoxGlk generation - keep it at 1 (current intro state)
+            // After page reload, glkapi.js is at gen:1, so VoxGlk must stay at gen:1
+            // The saved generation is just VM memory state, not the UI turn counter
+            // voxglk.js will send bootstrap with gen:1 which will be accepted
 
             // Restore display HTML so user sees saved content immediately
             if (saveData.displayHTML) {
@@ -545,24 +526,9 @@ export async function quickLoad() {
                 state.currentChunkIndex = saveData.narrationState.currentChunkIndex;
             }
 
-            // Import voxglk to send bootstrap input and get acceptCallback
-            const { getAcceptCallback, setSkipNextUpdateAfterBootstrap } = await import('./voxglk.js');
-            const acceptCallback = getAcceptCallback();
-
-            if (acceptCallback) {
-                // Set flag to suppress next update (the response to bootstrap input)
-                setSkipNextUpdateAfterBootstrap(true);
-
-                // Send bootstrap char input to wake VM (same as autoload)
-                setTimeout(() => {
-                    acceptCallback({
-                        type: 'char',
-                        gen: 1,  // Always use intro's generation
-                        window: 1,
-                        value: 10  // Enter key
-                    });
-                }, 100);
-            }
+            // DON'T send bootstrap here - let voxglk.js handle it
+            // voxglk.js will check if generation === 1 and send bootstrap
+            // Since we didn't call restore_state(), generation is still 1
 
             // Set flag to skip narration - position at end of chunks, not beginning
             state.skipNarrationAfterLoad = true;
@@ -690,19 +656,50 @@ export function initSaveHandlers() {
     const quickRestoreBtn = document.getElementById('quickRestoreBtn');
     if (quickRestoreBtn) {
         quickRestoreBtn.addEventListener('click', () => {
-            quickLoad();
-            // Close settings panel if open
-            const settingsPanel = document.getElementById('settingsPanel');
-            if (settingsPanel) {
-                settingsPanel.classList.remove('open');
+            // Manual restore requires page reload to reset glkapi.js state
+            const gameSignature = getGameSignature();
+            if (!gameSignature) {
+                updateStatus('Error: No game loaded', 'error');
+                return;
             }
+            const key = `iftalk_quicksave_${gameSignature}`;
+            if (!localStorage.getItem(key)) {
+                updateStatus('No quick save found - Use Quick Save button first', 'error');
+                return;
+            }
+            // Set flag for autorestore to pick up after reload
+            sessionStorage.setItem('iftalk_pending_restore', JSON.stringify({
+                type: 'quicksave',
+                key: gameSignature,
+                gameName: gameSignature
+            }));
+            window.location.reload();
         });
     }
 
     // Quick Load button (in toolbar)
     const quickLoadBtn = document.getElementById('quickLoadBtn');
     if (quickLoadBtn) {
-        quickLoadBtn.addEventListener('click', quickLoad);
+        quickLoadBtn.addEventListener('click', () => {
+            // Manual restore requires page reload to reset glkapi.js state
+            const gameSignature = getGameSignature();
+            if (!gameSignature) {
+                updateStatus('Error: No game loaded', 'error');
+                return;
+            }
+            const key = `iftalk_quicksave_${gameSignature}`;
+            if (!localStorage.getItem(key)) {
+                updateStatus('No quick save found - Use Quick Save button first', 'error');
+                return;
+            }
+            // Set flag for autorestore to pick up after reload
+            sessionStorage.setItem('iftalk_pending_restore', JSON.stringify({
+                type: 'quicksave',
+                key: gameSignature,
+                gameName: gameSignature
+            }));
+            window.location.reload();
+        });
     }
 
     // Export Save button (in settings)

@@ -649,12 +649,48 @@ export function initGameSelection(onOutput) {
     }
   });
 
-  // Auto-load last played game if it exists AND has an autosave
-  const lastGame = localStorage.getItem('iftalk_last_game');
-  const lastGameName = lastGame ? lastGame.split('/').pop().replace(/\.[^.]+$/, '').toLowerCase() : null;
-  const hasAutosave = lastGameName ? localStorage.getItem(`iftalk_autosave_${lastGameName}`) !== null : false;
+  // Check for pending restore (from Quick Load or RESTORE command)
+  const pendingRestoreJson = sessionStorage.getItem('iftalk_pending_restore');
+  let shouldAutoLoad = false;
+  let gameToLoad = null;
 
-  if (lastGame && hasAutosave) {
+  // Declare these variables in outer scope for later access
+  let lastGame = localStorage.getItem('iftalk_last_game');
+  let lastGameName = lastGame ? lastGame.split('/').pop().replace(/\.[^.]+$/, '').toLowerCase() : null;
+  let hasAutosave = lastGameName ? localStorage.getItem(`iftalk_autosave_${lastGameName}`) !== null : false;
+
+  if (pendingRestoreJson) {
+    // Pending restore - use last game path (should still be set)
+    const pendingRestore = JSON.parse(pendingRestoreJson);
+
+    // Set flags for voxglk.js to pick up
+    sessionStorage.removeItem('iftalk_pending_restore');
+    window.shouldAutoRestore = true;
+    window.pendingRestoreType = pendingRestore.type;
+    window.pendingRestoreKey = pendingRestore.key;
+
+    if (lastGame) {
+      gameToLoad = lastGame;
+      shouldAutoLoad = true;
+    } else {
+      // Fallback: use gameName from pending restore and guess path
+      const gameName = pendingRestore.gameName;
+
+      if (gameName) {
+        // Try common extensions
+        gameToLoad = `games/${gameName}.z8`;
+        shouldAutoLoad = true;
+      }
+    }
+  } else {
+    // No pending restore - check for last game with autosave
+    if (lastGame && hasAutosave) {
+      gameToLoad = lastGame;
+      shouldAutoLoad = true;
+    }
+  }
+
+  if (shouldAutoLoad && gameToLoad) {
     // Push history state so back button can return to home
     history.pushState({ screen: 'game' }, '', location.href);
     // Replace the previous state with home marker
@@ -664,7 +700,7 @@ export function initGameSelection(onOutput) {
 
     // Use setTimeout to ensure DOM is ready
     setTimeout(() => {
-      startGame(lastGame, onOutput);
+      startGame(gameToLoad, onOutput);
     }, 100);
   } else {
     // Clear last game if no autosave (user should pick from welcome screen)
