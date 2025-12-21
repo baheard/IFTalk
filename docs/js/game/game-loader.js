@@ -185,6 +185,11 @@ export async function startGame(gamePath, onOutput) {
     // Save as last played game for auto-resume
     localStorage.setItem('iftalk_last_game', gamePath);
 
+    // Add history state so back button returns to home
+    if (!history.state?.screen) {
+      history.pushState({ screen: 'game' }, '', location.href);
+    }
+
     // Reset narration state
     resetNarrationState();
     updateNavButtons();
@@ -478,6 +483,10 @@ export function initGameSelection(onOutput) {
 
   gameCards.forEach((card, index) => {
     card.addEventListener('click', async (e) => {
+      // Close settings panel if open
+      const settingsPanel = document.getElementById('settingsPanel');
+      if (settingsPanel) settingsPanel.classList.remove('open');
+
       const gamePath = card.dataset.game;
       const gameName = gamePath.split('/').pop().replace(/\.[^.]+$/, '').toLowerCase();
       const autosaveKey = `iftalk_autosave_${gameName}`;
@@ -630,12 +639,29 @@ export function initGameSelection(onOutput) {
     });
   }
 
+  // Handle browser back button - go to home screen (for auto-loaded games)
+  window.addEventListener('popstate', (event) => {
+    // Check if we need to return to home from auto-loaded game
+    if (event.state?.screen === 'home') {
+      // Clear last game and reload to get clean state
+      localStorage.removeItem('iftalk_last_game');
+      location.reload();
+    }
+  });
+
   // Auto-load last played game if it exists AND has an autosave
   const lastGame = localStorage.getItem('iftalk_last_game');
   const lastGameName = lastGame ? lastGame.split('/').pop().replace(/\.[^.]+$/, '').toLowerCase() : null;
   const hasAutosave = lastGameName ? localStorage.getItem(`iftalk_autosave_${lastGameName}`) !== null : false;
 
   if (lastGame && hasAutosave) {
+    // Push history state so back button can return to home
+    history.pushState({ screen: 'game' }, '', location.href);
+    // Replace the previous state with home marker
+    history.replaceState({ screen: 'home' }, '', location.href);
+    // Push game state again (so we're on game, with home behind us)
+    history.pushState({ screen: 'game' }, '', location.href);
+
     // Use setTimeout to ensure DOM is ready
     setTimeout(() => {
       startGame(lastGame, onOutput);
