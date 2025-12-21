@@ -172,7 +172,7 @@ export function getDefaultSettings() {
   return {
     narratorVoice: null,      // Auto-selected based on platform
     appVoice: null,           // Auto-selected based on platform
-    speechRate: 1.0,          // 1.0x speed
+    speechRate: 1.1,          // 1.1x speed default
     autoplay: false,          // Don't auto-play narration
     // Future settings can be added here:
     // highlightColor: null,
@@ -225,6 +225,49 @@ export function clearAllGameSettings() {
   }
 
   keysToRemove.forEach(key => localStorage.removeItem(key));
+}
+
+/**
+ * Clear voice settings (narratorVoice, appVoice, speechRate) from all games
+ * This makes all games fall back to app defaults for voice settings
+ * @returns {number} Number of games updated
+ */
+export function clearVoiceSettingsFromAllGames() {
+  const prefix = 'gameSettings_';
+  const voiceSettings = ['narratorVoice', 'appVoice', 'speechRate'];
+  let gamesUpdated = 0;
+
+  for (let i = 0; i < localStorage.length; i++) {
+    const key = localStorage.key(i);
+    if (key && key.startsWith(prefix)) {
+      try {
+        const settings = JSON.parse(localStorage.getItem(key));
+        let modified = false;
+
+        // Remove voice-related settings
+        for (const setting of voiceSettings) {
+          if (settings[setting] !== undefined) {
+            delete settings[setting];
+            modified = true;
+          }
+        }
+
+        if (modified) {
+          // If settings object is now empty, remove the key entirely
+          if (Object.keys(settings).length === 0) {
+            localStorage.removeItem(key);
+          } else {
+            localStorage.setItem(key, JSON.stringify(settings));
+          }
+          gamesUpdated++;
+        }
+      } catch (e) {
+        console.error(`[GameSettings] Failed to process ${key}:`, e);
+      }
+    }
+  }
+
+  return gamesUpdated;
 }
 
 /**

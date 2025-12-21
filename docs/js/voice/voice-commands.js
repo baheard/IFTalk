@@ -9,8 +9,9 @@ import { state } from '../core/state.js';
 import { dom } from '../core/dom.js';
 import { updateStatus } from '../utils/status.js';
 import { speakAppMessage } from '../narration/tts-player.js';
-import { displayAppCommand } from '../ui/game-output.js';
+import { displayAppCommand, displayBlockedCommand } from '../ui/game-output.js';
 import { getInputType } from '../game/voxglk.js';
+import { playBlockedCommand } from '../utils/audio-feedback.js';
 
 /**
  * Process voice keywords (navigation and game commands)
@@ -73,7 +74,7 @@ export function processVoiceKeywords(transcript, handlers, confidence = null) {
 
   // NAVIGATION COMMANDS (never sent to game)
 
-  if (lower === 'restart' || lower === 'reset') {
+  if (lower === 'restart' || lower === 'reset' || lower === 'repeat') {
     markCommandProcessed();
     displayAppCommand('restart', confidence);
     handlers.restart();
@@ -113,33 +114,6 @@ export function processVoiceKeywords(transcript, handlers, confidence = null) {
     displayAppCommand('skip all', confidence);
     handlers.skipToEnd();
     return false;
-  }
-
-  // "Next" and "Continue" - context-sensitive
-  // During narration: act as Skip
-  // Not narrating: act as Enter key (for "press any key" screens or line input)
-  if (lower === 'next' || lower === 'continue') {
-    markCommandProcessed();
-    if (state.isNarrating) {
-      // During narration, skip to next sentence
-      displayAppCommand('skip', confidence);
-      handlers.skip();
-      return false;
-    } else {
-      // Not narrating - send Enter key
-      displayAppCommand('enter', confidence);
-      const inputType = getInputType();
-      if (inputType === 'char') {
-        // Char mode - send return key directly
-        import('../game/voxglk.js').then(({ sendInput }) => {
-          sendInput('return', 'char');
-        });
-      } else {
-        // Line mode - send empty command
-        handlers.sendCommandDirect('');
-      }
-      return false;
-    }
   }
 
   if (lower === 'unmute' || lower === 'on mute' || lower === 'un mute') {
@@ -195,16 +169,19 @@ export function processVoiceKeywords(transcript, handlers, confidence = null) {
     return false;
   }
 
-  // During narration, ignore non-navigation commands
+  // During narration, block game commands but show what was said
   if (state.isNarrating && !state.pausedForSound) {
-    updateStatus('🔊 Narrating... Use navigation commands');
+    // Display the blocked command with special styling
+    displayBlockedCommand(transcript, confidence);
+    playBlockedCommand();
+    updateStatus('Say "End" to stop narration');
     return false;
   }
 
   // GAME COMMANDS
 
-  // "Enter" or "More" - Send empty command (next/continue handled above)
-  if (lower === 'enter' || lower === 'more') {
+  // "Enter" - Send empty command (for "press any key" screens)
+  if (lower === 'enter') {
     handlers.sendCommandDirect('');
     return false;
   }
@@ -217,7 +194,6 @@ export function processVoiceKeywords(transcript, handlers, confidence = null) {
     return false;
   }
 
-  // Regular command - return for AI translation
-  speakAppMessage(transcript);  // Read back what we heard
+  // Regular command - send to game
   return transcript;
 }

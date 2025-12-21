@@ -162,13 +162,20 @@ export function ensureChunksReady() {
     const { chunks: mainChunks, markerIDs: mainMarkerIDs } =
       extractChunksAndMarkers(mainChunksWithMarkers);
 
-    // Check if this is a system message - prefix first chunk with "System: " for narration
+    // Check if this is a system message - use app voice and prefix with "System: "
     const tempDiv = document.createElement('div');
     tempDiv.innerHTML = mainHTML;
     const hasSystemMessage = tempDiv.querySelector('.system-message') !== null;
 
-    if (hasSystemMessage && mainChunks.length > 0 && mainChunks[0].text.trim()) {
-      mainChunks[0].text = 'System: ' + mainChunks[0].text;
+    if (hasSystemMessage && mainChunks.length > 0) {
+      // Mark all system message chunks to use app voice
+      for (const chunk of mainChunks) {
+        chunk.voice = 'app';
+      }
+      // Prefix first chunk with "System: " for clarity
+      if (mainChunks[0].text.trim()) {
+        mainChunks[0].text = 'System: ' + mainChunks[0].text;
+      }
     }
 
     // Apply markers to main element (NO renumbering - keep original marker IDs!)
@@ -255,14 +262,12 @@ export function addGameText(text, isCommand = false, isVoiceCommand = false, isA
     console.log('[addGameText] Command:', text, 'isVoice:', isVoiceCommand, 'confidence:', confidence, 'classes:', div.className);
 
     // Build the command display
-    // Format: ">command" for typed, ">command (85%)" for voice with confidence
+    // Format: ">command" for typed, ">command 🎤" for voice (mic icon only)
     const displayText = (text === '' || text === '[ENTER]') ? '[ENTER]' : escapeHtml(text);
-    // Show confidence for ALL voice commands (not just low confidence)
-    const confidenceLabel = (isVoiceCommand && confidence !== null)
-      ? ` (${Math.round(confidence * 100)}%)`
-      : '';
+    // Show mic icon for voice commands (confidence only shown on blocked commands)
+    const voiceIndicator = isVoiceCommand ? ' <span class="voice-indicator material-icons">mic</span>' : '';
 
-    div.innerHTML = `<span class="command-label">&gt;</span><span class="command-text">${displayText}</span>${confidenceLabel}`;
+    div.innerHTML = `<span class="command-label">&gt;</span><span class="command-text">${displayText}</span>${voiceIndicator}`;
   } else {
     // Game text - cleared only when Z-machine sends clear command
     div.className = 'game-text';
@@ -348,4 +353,56 @@ export function clearGameOutput() {
  */
 export function displayAppCommand(command, confidence = null) {
   addGameText(command, true, true, true, confidence);
+}
+
+/**
+ * Display a blocked command (game command during narration)
+ * Shows with special styling and a message
+ * @param {string} command - The command text
+ * @param {number|null} confidence - Voice recognition confidence
+ */
+export function displayBlockedCommand(command, confidence = null) {
+  const div = document.createElement('div');
+  div.className = 'user-command blocked-command';
+
+  const displayText = escapeHtml(command);
+  const confidenceLabel = confidence !== null ? ` (${Math.round(confidence * 100)}%)` : '';
+
+  div.innerHTML = `<span class="command-label">&gt;</span><span class="command-text">${displayText}</span>${confidenceLabel} <span class="blocked-message">— game commands blocked during narration</span>`;
+
+  // Add to game output
+  if (state.currentGameTextElement) {
+    state.currentGameTextElement.appendChild(div);
+  } else if (dom.lowerWindow) {
+    dom.lowerWindow.appendChild(div);
+  }
+
+  // Smart scroll - only scroll if user was near bottom
+  const gameOutput = document.getElementById('gameOutput');
+  if (gameOutput) {
+    const threshold = 100;
+    const distanceFromBottom = gameOutput.scrollHeight - gameOutput.scrollTop - gameOutput.clientHeight;
+    if (distanceFromBottom < threshold) {
+      scrollToBottom();
+    }
+  }
+}
+
+/**
+ * Clear system messages (dialog prompts) from game output
+ * Called when exiting system entry mode to prevent them from being saved in autosave
+ */
+export function clearSystemMessages() {
+  if (dom.lowerWindow) {
+    const systemMessages = dom.lowerWindow.querySelectorAll('.system-message');
+    systemMessages.forEach(msg => {
+      // Remove the parent game-text div if it only contains the system message
+      const parent = msg.parentElement;
+      if (parent && parent.classList.contains('game-text')) {
+        parent.remove();
+      } else {
+        msg.remove();
+      }
+    });
+  }
 }

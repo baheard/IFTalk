@@ -4,11 +4,12 @@
  * Provides audio cues for different actions:
  * - Game command sent (gentle tap)
  * - App/navigation command sent (muffled ding)
- * - Low confidence warning (soft thump)
+ * - Low confidence warning (gentle warble)
+ * - Blocked command (soft buzz)
  * - Play pressed (rising chirp)
  * - Pause pressed (falling chirp)
- * - Mute pressed (low thunk)
- * - Unmute pressed (high ping)
+ * - Mute pressed (triple tap descending)
+ * - Unmute pressed (ascending chime)
  */
 
 let audioCtx = null;
@@ -84,9 +85,45 @@ export function playAppCommand() {
 }
 
 /**
- * Play tone for low confidence warning (Muted 2: Soft thump)
+ * Play tone for low confidence warning (gentle warble)
  */
 export function playLowConfidence() {
+  try {
+    const ctx = getContext();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    const lfo = ctx.createOscillator();
+    const lfoGain = ctx.createGain();
+
+    lfo.connect(lfoGain);
+    lfoGain.connect(osc.frequency);
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+
+    osc.frequency.value = 200;
+    lfo.frequency.value = 8;
+    lfoGain.gain.value = 20;
+    osc.type = 'sine';
+
+    gain.gain.setValueAtTime(0.12, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.2);
+
+    lfo.start(ctx.currentTime);
+    osc.start(ctx.currentTime);
+    lfo.stop(ctx.currentTime + 0.2);
+    osc.stop(ctx.currentTime + 0.2);
+  } catch (err) {
+    // Ignore audio errors
+  }
+}
+
+/** Confidence threshold (0.0 - 1.0) */
+export const LOW_CONFIDENCE_THRESHOLD = 0.50;
+
+/**
+ * Play tone for blocked/failed command (soft buzz)
+ */
+export function playBlockedCommand() {
   try {
     const ctx = getContext();
     const osc = ctx.createOscillator();
@@ -95,22 +132,18 @@ export function playLowConfidence() {
     osc.connect(gain);
     gain.connect(ctx.destination);
 
-    osc.frequency.setValueAtTime(150, ctx.currentTime);
-    osc.frequency.exponentialRampToValueAtTime(60, ctx.currentTime + 0.08);
-    osc.type = 'sine';
+    osc.frequency.value = 120;
+    osc.type = 'sawtooth';
 
-    gain.gain.setValueAtTime(0.15, ctx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.1);
+    gain.gain.setValueAtTime(0.06, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.08);
 
     osc.start(ctx.currentTime);
-    osc.stop(ctx.currentTime + 0.1);
+    osc.stop(ctx.currentTime + 0.08);
   } catch (err) {
     // Ignore audio errors
   }
 }
-
-/** Confidence threshold (0.0 - 1.0) */
-export const LOW_CONFIDENCE_THRESHOLD = 0.30;
 
 /**
  * Play tone for play button (rising chirp)
@@ -167,54 +200,58 @@ export function playPauseTone() {
 }
 
 /**
- * Play tone for mute button (low thunk)
+ * Play tone for mute button (triple tap descending)
  */
 export function playMuteTone() {
   try {
     const ctx = getContext();
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-
-    osc.connect(gain);
-    gain.connect(ctx.destination);
-
-    // Low descending tone
-    osc.frequency.setValueAtTime(200, ctx.currentTime);
-    osc.frequency.exponentialRampToValueAtTime(80, ctx.currentTime + 0.08);
-    osc.type = 'sine';
-
-    gain.gain.setValueAtTime(0.15, ctx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.1);
-
-    osc.start(ctx.currentTime);
-    osc.stop(ctx.currentTime + 0.1);
+    const freqs = [300, 250, 200];
+    freqs.forEach((freq, i) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.frequency.value = freq;
+      osc.type = 'sine';
+      const start = ctx.currentTime + i * 0.05;
+      gain.gain.setValueAtTime(0.12, start);
+      gain.gain.exponentialRampToValueAtTime(0.001, start + 0.04);
+      osc.start(start);
+      osc.stop(start + 0.04);
+    });
   } catch (err) {
     // Ignore audio errors
   }
 }
 
 /**
- * Play tone for unmute button (high ping)
+ * Play tone for unmute button (ascending chime)
  */
 export function playUnmuteTone() {
   try {
     const ctx = getContext();
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-
-    osc.connect(gain);
-    gain.connect(ctx.destination);
-
-    // High ascending ping
-    osc.frequency.setValueAtTime(600, ctx.currentTime);
-    osc.frequency.exponentialRampToValueAtTime(900, ctx.currentTime + 0.06);
-    osc.type = 'sine';
-
-    gain.gain.setValueAtTime(0.12, ctx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.1);
-
-    osc.start(ctx.currentTime);
-    osc.stop(ctx.currentTime + 0.1);
+    // First note (lower)
+    const osc1 = ctx.createOscillator();
+    const gain1 = ctx.createGain();
+    osc1.connect(gain1);
+    gain1.connect(ctx.destination);
+    osc1.frequency.value = 660;
+    osc1.type = 'sine';
+    gain1.gain.setValueAtTime(0.12, ctx.currentTime);
+    gain1.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.15);
+    osc1.start(ctx.currentTime);
+    osc1.stop(ctx.currentTime + 0.15);
+    // Second note (higher)
+    const osc2 = ctx.createOscillator();
+    const gain2 = ctx.createGain();
+    osc2.connect(gain2);
+    gain2.connect(ctx.destination);
+    osc2.frequency.value = 880;
+    osc2.type = 'sine';
+    gain2.gain.setValueAtTime(0.12, ctx.currentTime + 0.08);
+    gain2.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.25);
+    osc2.start(ctx.currentTime + 0.08);
+    osc2.stop(ctx.currentTime + 0.25);
   } catch (err) {
     // Ignore audio errors
   }
