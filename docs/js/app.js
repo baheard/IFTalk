@@ -22,6 +22,7 @@ import { startVoiceMeter, stopVoiceMeter } from './voice/voice-meter.js';
 // Narration modules
 import { speakTextChunked, stopNarration, speakAppMessage } from './narration/tts-player.js';
 import { skipToChunk, skipToStart, skipToEnd } from './narration/navigation.js';
+import { initScrollDetection } from './narration/highlighting.js';
 
 // UI modules
 import { updateNavButtons } from './ui/nav-buttons.js';
@@ -36,7 +37,7 @@ import { initGameSelection } from './game/game-loader.js';
 
 // Utility modules
 import { initKeepAwake, enableKeepAwake, disableKeepAwake, isKeepAwakeEnabled, activateIfEnabled } from './utils/wake-lock.js';
-import { playPlayTone, playPauseTone, playMuteTone, playUnmuteTone } from './utils/audio-feedback.js';
+import { playMuteTone, playUnmuteTone } from './utils/audio-feedback.js';
 
 // Voice command handlers
 const voiceCommandHandlers = {
@@ -45,7 +46,6 @@ const voiceCommandHandlers = {
   pause: () => {
     // Switch to MANUAL mode (same as clicking pause button)
     if (state.autoplayEnabled || state.isNarrating) {
-      playPauseTone();
       state.autoplayEnabled = false;
       state.narrationEnabled = false;
       state.isPaused = true;
@@ -57,7 +57,6 @@ const voiceCommandHandlers = {
   play: async () => {
     // Only act if not already in autoplay mode
     if (!state.autoplayEnabled) {
-      playPlayTone();
       // Switch to AUTOPLAY mode (same as clicking play button)
       state.autoplayEnabled = true;
       state.narrationEnabled = true;
@@ -324,8 +323,9 @@ async function initApp() {
   initVoiceSelection();
   initHistoryButtons();
   initSaveHandlers();
+  initScrollDetection();
 
-  // Initialize keep awake (pocket mode)
+  // Initialize keep awake (screen wake lock)
   initKeepAwake();
   const keepAwakeToggle = document.getElementById('keepAwakeToggle');
   if (keepAwakeToggle) {
@@ -333,10 +333,10 @@ async function initApp() {
     keepAwakeToggle.addEventListener('change', (e) => {
       if (e.target.checked) {
         enableKeepAwake();
-        updateStatus('Pocket mode enabled - TTS continues when screen off');
+        updateStatus('Keep awake enabled - screen will stay on');
       } else {
         disableKeepAwake();
-        updateStatus('Pocket mode disabled');
+        updateStatus('Keep awake disabled');
       }
     });
   }
@@ -379,7 +379,6 @@ async function initApp() {
 
       if (state.autoplayEnabled) {
         // Currently in AUTOPLAY mode - switch to MANUAL mode
-        playPauseTone();
         state.autoplayEnabled = false;
         state.narrationEnabled = false;
         state.isPaused = true;
@@ -388,7 +387,6 @@ async function initApp() {
         updateNavButtons();
       } else {
         // Currently in MANUAL mode - switch to AUTOPLAY mode
-        playPlayTone();
         state.autoplayEnabled = true;
         state.narrationEnabled = true;
         state.isPaused = false;
@@ -510,6 +508,13 @@ async function initApp() {
   // Also handle page hide (for iOS and some mobile browsers)
   window.addEventListener('pagehide', () => {
     if ('speechSynthesis' in window) {
+      speechSynthesis.cancel();
+    }
+  });
+
+  // Handle visibility change (tab switch, minimize)
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden && 'speechSynthesis' in window) {
       speechSynthesis.cancel();
     }
   });

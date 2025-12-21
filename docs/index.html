@@ -24,7 +24,7 @@
   <!-- Settings Panel -->
   <div class="settings-panel" id="settingsPanel">
     <div class="settings-header">
-      <h2>📖 IF Talk - Settings</h2>
+      <h2>Voxi Settings</h2>
       <button id="closeSettingsBtn" class="close-settings-btn">✕</button>
     </div>
 
@@ -36,13 +36,14 @@
           <span class="current-game-name" id="currentGameName">No game loaded</span>
         </span>
         <button class="btn btn-sm btn-secondary" id="selectGameBtn">
-          <span class="material-icons">folder_open</span> Change
+          <span class="material-icons">arrow_back</span> Home
         </button>
       </div>
 
       <!-- Game Settings -->
       <div class="settings-section collapsible collapsed" id="gameSettingsSection">
-        <h3 class="section-header" id="gameSettingsHeader">📖 Game</h3>
+        <!-- Alt: 📓 notebook with binding -->
+        <h3 class="section-header" id="gameSettingsHeader">📜 Game</h3>
         <div class="section-content">
 
           <!-- Quick Save/Restore Buttons -->
@@ -65,12 +66,12 @@
           <!-- Keep Awake Toggle -->
           <div class="setting-toggle">
             <label for="keepAwakeToggle">
-              <span class="material-icons">screen_lock_portrait</span>
-              Keep Awake (pocket mode)
+              <span class="material-icons">screen_lock_landscape</span>
+              Keep Screen On
             </label>
             <input type="checkbox" id="keepAwakeToggle" class="toggle-switch">
           </div>
-          <p class="settings-help">TTS narration continues when screen is off. Wake screen to give voice commands.</p>
+          <p class="settings-help">Prevents screen from dimming or locking during gameplay.</p>
 
           <!-- Save/Restore Instructions -->
           <div class="save-restore-info">
@@ -144,6 +145,13 @@
           <button id="testAppVoiceBtn" class="btn-test-voice" title="Preview app voice"><span class="material-icons">play_arrow</span></button>
         </div>
         <p class="settings-help">Only English voices shown.</p>
+        <!-- Apply to all games button (only shown on home screen) -->
+        <div class="game-actions" id="applyVoiceToAllContainer" style="display: none; margin-top: 15px;">
+          <button class="btn btn-secondary btn-full-width" id="applyVoiceToAllBtn">
+            <span class="material-icons">sync</span> Apply to all games
+          </button>
+          <p class="settings-help" style="margin-top: 5px;">Removes per-game voice overrides so all games use these defaults.</p>
+        </div>
         </div>
       </div>
 
@@ -152,7 +160,7 @@
         <h3 class="section-header">💬 Meta Commands</h3>
         <div class="section-content help-content">
           <div class="help-section">
-            <p>Type these commands in-game. They're handled by IFTalk and won't be sent to the game.</p>
+            <p>Type these commands in-game. They're handled by Voxi and won't be sent to the game.</p>
             <strong>Save/Load System:</strong>
             <ul>
               <li><code>SAVE</code> - Save game to named slot (max 5)</li>
@@ -226,7 +234,10 @@
   <div class="container">
     <!-- Welcome Screen -->
     <div class="welcome" id="welcome">
-      <h2>Welcome to IF Talk</h2>
+      <button class="welcome-settings-btn" id="welcomeSettingsBtn" title="Settings">
+        <span class="material-icons">settings</span>
+      </button>
+      <h2>Welcome to Voxi</h2>
       <p>Interactive fiction with voice control and narration.</p>
 
       <div class="game-list">
@@ -425,8 +436,8 @@
       <button id="nextChunkBtn" class="btn-nav" title="&quot;Skip&quot;"><span class="material-icons">fast_forward</span></button>
       <button id="skipToEndBtn" class="btn-nav" title="&quot;Skip All&quot;"><span class="material-icons">skip_next</span></button>
       <div class="controls-spacer"></div>
-      <button id="settingsBtn" class="btn-nav btn-settings" title="Settings"><span class="material-icons">settings</span></button>
       <button id="muteBtn" class="btn-mic" title="Toggle voice input"><span class="material-icons">mic</span></button>
+      <button id="settingsBtn" class="btn-nav btn-settings" title="Settings"><span class="material-icons">settings</span></button>
     </div>
 
     <!-- Message Input Row -->

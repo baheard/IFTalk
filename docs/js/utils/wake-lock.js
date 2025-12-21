@@ -1,98 +1,83 @@
 /**
  * Keep Awake Module
  *
- * Prevents the device from sleeping during gameplay by playing silent audio.
- * Works like podcast/music apps - maintains an audio session to prevent idle timeout.
- * More reliable than Wake Lock API, especially on iOS.
+ * Prevents the device screen from dimming/locking during gameplay.
+ * Uses the Screen Wake Lock API (supported in all major browsers since 2024).
+ * Falls back gracefully if not supported.
  */
 
-let audioContext = null;
-let silentSource = null;
+let wakeLock = null;
 let enabled = false;
 
 /**
- * Create and start silent audio loop
+ * Request a screen wake lock
  */
-function startSilentAudio() {
-  if (audioContext) return; // Already running
+async function requestWakeLock() {
+  if (!('wakeLock' in navigator)) {
+    console.warn('[KeepAwake] Wake Lock API not supported');
+    return false;
+  }
 
   try {
-    audioContext = new (window.AudioContext || window.webkitAudioContext)();
+    wakeLock = await navigator.wakeLock.request('screen');
+    console.log('[KeepAwake] Screen wake lock acquired');
 
-    // Create a silent oscillator (inaudible frequency)
-    silentSource = audioContext.createOscillator();
-    const gainNode = audioContext.createGain();
+    // Listen for release (e.g., if system takes it back)
+    wakeLock.addEventListener('release', () => {
+      console.log('[KeepAwake] Wake lock was released');
+      wakeLock = null;
+    });
 
-    // Set volume to near-zero (completely silent)
-    gainNode.gain.value = 0.001;
-
-    // Use very low frequency (below human hearing)
-    silentSource.frequency.value = 1;
-
-    silentSource.connect(gainNode);
-    gainNode.connect(audioContext.destination);
-
-    silentSource.start();
-    console.log('[KeepAwake] Silent audio started');
-
+    return true;
   } catch (err) {
-    console.warn('[KeepAwake] Failed to start silent audio:', err.message);
+    // Can fail if page is hidden, battery saver mode, etc.
+    console.warn('[KeepAwake] Wake lock request failed:', err.message);
+    return false;
   }
 }
 
 /**
- * Stop silent audio
+ * Release the wake lock
  */
-function stopSilentAudio() {
-  if (silentSource) {
+async function releaseWakeLock() {
+  if (wakeLock) {
     try {
-      silentSource.stop();
-      silentSource.disconnect();
+      await wakeLock.release();
+      console.log('[KeepAwake] Wake lock released');
     } catch (e) {
-      // Already stopped
+      // Already released
     }
-    silentSource = null;
+    wakeLock = null;
   }
-
-  if (audioContext) {
-    try {
-      audioContext.close();
-    } catch (e) {
-      // Already closed
-    }
-    audioContext = null;
-  }
-
-  console.log('[KeepAwake] Silent audio stopped');
 }
 
 /**
  * Enable keep awake (persists setting)
  */
-export function enableKeepAwake() {
+export async function enableKeepAwake() {
   enabled = true;
   localStorage.setItem('iftalk_keep_awake', 'true');
-  startSilentAudio();
+  await requestWakeLock();
 }
 
 /**
  * Disable keep awake (persists setting)
  */
-export function disableKeepAwake() {
+export async function disableKeepAwake() {
   enabled = false;
   localStorage.setItem('iftalk_keep_awake', 'false');
-  stopSilentAudio();
+  await releaseWakeLock();
 }
 
 /**
  * Toggle keep awake
  * @returns {boolean} New state
  */
-export function toggleKeepAwake() {
+export async function toggleKeepAwake() {
   if (enabled) {
-    disableKeepAwake();
+    await disableKeepAwake();
   } else {
-    enableKeepAwake();
+    await enableKeepAwake();
   }
   return enabled;
 }
@@ -106,20 +91,26 @@ export function isKeepAwakeEnabled() {
 }
 
 /**
+ * Check if Wake Lock API is supported
+ * @returns {boolean}
+ */
+export function isWakeLockSupported() {
+  return 'wakeLock' in navigator;
+}
+
+/**
  * Initialize keep awake from saved preference
- * Note: Audio can only start after user interaction (browser policy)
  */
 export function initKeepAwake() {
   const saved = localStorage.getItem('iftalk_keep_awake');
   enabled = saved === 'true';
 
-  // Handle visibility change - resume audio when page becomes visible
-  document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState === 'visible' && enabled) {
-      // Resume audio context if it was suspended
-      if (audioContext && audioContext.state === 'suspended') {
-        audioContext.resume();
-      }
+  // Re-acquire wake lock when page becomes visible again
+  // (wake locks are automatically released when page is hidden)
+  document.addEventListener('visibilitychange', async () => {
+    if (document.visibilityState === 'visible' && enabled && !wakeLock) {
+      console.log('[KeepAwake] Page visible, re-acquiring wake lock');
+      await requestWakeLock();
     }
   });
 
@@ -128,10 +119,10 @@ export function initKeepAwake() {
 
 /**
  * Start keep awake if enabled (call after user interaction)
- * Browser policy requires user gesture before playing audio
+ * Browser policy requires user gesture before requesting wake lock
  */
-export function activateIfEnabled() {
-  if (enabled && !audioContext) {
-    startSilentAudio();
+export async function activateIfEnabled() {
+  if (enabled && !wakeLock) {
+    await requestWakeLock();
   }
 }
