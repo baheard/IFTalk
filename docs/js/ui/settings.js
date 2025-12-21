@@ -11,7 +11,8 @@ import { updateStatus } from '../utils/status.js';
 import { getPronunciationMap, savePronunciationMap, addPronunciation, removePronunciation } from '../utils/pronunciation.js';
 import {
   getGameSetting, setGameSetting, loadGameSettings,
-  getAppDefault, setAppDefault, clearAllGameData, clearAllAppData
+  getAppDefault, setAppDefault, clearAllGameData, clearAllAppData,
+  clearVoiceSettingsFromAllGames
 } from '../utils/game-settings.js';
 import { isLocalhost, syncFromRemote } from '../utils/storage-sync.js';
 
@@ -32,16 +33,18 @@ export function updateSettingsContext() {
   const gameName = state.currentGameName;
   const displayName = getGameDisplayName(gameName);
 
-  // Game section header
+  // Game section header (always "Game Data" with storage icon)
   const gameHeader = document.getElementById('gameSettingsHeader');
   if (gameHeader) {
-    gameHeader.textContent = onWelcome ? '📖 App Defaults' : `📖 ${displayName}`;
+    gameHeader.innerHTML = '<span class="material-icons">storage</span> Game Data';
   }
 
   // Voice settings header
   const voiceHeader = document.getElementById('voiceSettingsHeader');
   if (voiceHeader) {
-    voiceHeader.textContent = onWelcome ? '🎙️ Default Voice' : '🎙️ Voice Settings';
+    voiceHeader.innerHTML = onWelcome
+      ? '<span class="material-icons">record_voice_over</span> Default Voice'
+      : '<span class="material-icons">record_voice_over</span> Voice Settings';
   }
 
   // Voice settings description
@@ -68,53 +71,53 @@ export function updateSettingsContext() {
       : 'Delete Game Data';
   }
 
-  // Hide in-game only elements when on welcome screen
-  const quickSaveBtn = document.getElementById('quickSaveBtn');
-  const quickRestoreBtn = document.getElementById('quickRestoreBtn');
-  const restartBtn = document.getElementById('restartGameBtn');
-  const exportBtn = document.getElementById('exportSaveBtn');
-  const importBtn = document.getElementById('importSaveBtn');
-  const keepAwakeToggle = document.getElementById('keepAwakeToggle');
-
-  // Hide game action buttons
-  const inGameElements = [quickSaveBtn, quickRestoreBtn, restartBtn, exportBtn, importBtn];
-  inGameElements.forEach(el => {
-    if (el) {
-      el.closest('.game-actions')?.classList.toggle('hidden', onWelcome);
-    }
-  });
-
-  // Hide keep awake toggle and its description
-  if (keepAwakeToggle) {
-    keepAwakeToggle.closest('.setting-toggle')?.classList.toggle('hidden', onWelcome);
-    // Also hide the help text after it
-    const helpText = keepAwakeToggle.closest('.setting-toggle')?.nextElementSibling;
-    if (helpText?.classList.contains('settings-help')) {
-      helpText.classList.toggle('hidden', onWelcome);
-    }
+  // Hide "Currently playing" section on welcome screen
+  const currentGameDisplay = document.getElementById('currentGameDisplay');
+  if (currentGameDisplay) {
+    currentGameDisplay.classList.toggle('hidden', onWelcome);
   }
 
-  // Hide save/restore instructions on welcome screen
-  const saveInfo = document.querySelectorAll('.save-restore-info');
-  saveInfo.forEach((el, i) => {
-    // Keep danger zone visible, hide others on welcome
-    if (i < saveInfo.length - 1) {
-      el.classList.toggle('hidden', onWelcome);
-    }
-  });
+  // Hide entire Game section on welcome screen
+  const gameSettingsSection = document.getElementById('gameSettingsSection');
+  if (gameSettingsSection) {
+    gameSettingsSection.classList.toggle('hidden', onWelcome);
+  }
+
+  // Show About section on welcome screen only
+  const aboutSection = document.getElementById('aboutSection');
+  if (aboutSection) {
+    aboutSection.classList.toggle('hidden', !onWelcome);
+  }
+
+  // Show standalone delete button on welcome screen only
+  const welcomeDangerZone = document.getElementById('welcomeDangerZone');
+  if (welcomeDangerZone) {
+    welcomeDangerZone.classList.toggle('hidden', !onWelcome);
+  }
 }
 
 /**
  * Initialize settings panel
  */
 export function initSettings() {
-  // Settings button
+  // Settings button (in-game)
   if (dom.settingsBtn) {
     dom.settingsBtn.addEventListener('click', () => {
       if (dom.settingsPanel) {
         // Update labels based on context before showing
         updateSettingsContext();
         dom.settingsPanel.classList.toggle('open');
+      }
+    });
+  }
+
+  // Settings button (welcome screen)
+  const welcomeSettingsBtn = document.getElementById('welcomeSettingsBtn');
+  if (welcomeSettingsBtn) {
+    welcomeSettingsBtn.addEventListener('click', () => {
+      if (dom.settingsPanel) {
+        updateSettingsContext();
+        dom.settingsPanel.classList.add('open');
       }
     });
   }
@@ -231,40 +234,40 @@ export function initSettings() {
     });
   }
 
-  // Sync from GitHub button (localhost only - dynamically created)
-  if (isLocalhost()) {
-    const container = document.getElementById('devToolsContainer');
-    if (container) {
-      const wrapper = document.createElement('div');
-      wrapper.className = 'game-actions';
-      wrapper.style.marginBottom = '10px';
+  // Standalone "Delete All App Data" button (welcome screen only)
+  const deleteAllAppDataBtn = document.getElementById('deleteAllAppDataBtn');
+  if (deleteAllAppDataBtn) {
+    deleteAllAppDataBtn.addEventListener('click', () => {
+      const confirmed = confirm(
+        '⚠️ WARNING: This will permanently delete ALL data for ALL games.\n\n' +
+        'This includes:\n' +
+        '• All saves and autosaves\n' +
+        '• All game progress\n' +
+        '• All settings (voices, speed)\n' +
+        '• App defaults\n\n' +
+        'This action cannot be undone!\n\n' +
+        'Are you sure you want to continue?'
+      );
 
-      const syncBtn = document.createElement('button');
-      syncBtn.className = 'btn btn-secondary btn-full-width';
-      syncBtn.innerHTML = '<span class="material-icons">sync</span> Sync from GitHub';
-
-      syncBtn.addEventListener('click', async () => {
-        syncBtn.disabled = true;
-        syncBtn.textContent = 'Syncing...';
-        updateStatus('Syncing from GitHub Pages...');
-
+      if (confirmed) {
         try {
-          const result = await syncFromRemote();
-          updateStatus(`Synced ${result.synced} items from GitHub`);
-          alert(`Sync complete!\n\n${result.synced} items updated from GitHub Pages.\n${result.total} total items found.`);
-        } catch (error) {
-          console.error('[Sync] Failed:', error);
-          updateStatus('Sync failed: ' + error.message);
-          alert('Sync failed: ' + error.message);
-        } finally {
-          syncBtn.disabled = false;
-          syncBtn.innerHTML = '<span class="material-icons">sync</span> Sync from GitHub';
-        }
-      });
+          clearAllAppData();
+          updateStatus('✓ Cleared all app data');
+          alert('Successfully deleted all app data.\n\nAll saves, progress, and settings have been cleared.');
 
-      wrapper.appendChild(syncBtn);
-      container.appendChild(wrapper);
-    }
+          // Close settings panel
+          if (dom.settingsPanel) {
+            dom.settingsPanel.classList.remove('open');
+          }
+        } catch (error) {
+          console.error('[Settings] Failed to clear data:', error);
+          updateStatus('Error clearing data');
+          alert('Failed to clear data: ' + error.message);
+        }
+      } else {
+        updateStatus('Clear data cancelled');
+      }
+    });
   }
 
   // Speech rate slider
@@ -272,7 +275,7 @@ export function initSettings() {
   const speechRateValue = document.getElementById('speechRateValue');
   if (speechRateSlider && speechRateValue) {
     // Load saved speech rate (uses hierarchy: game -> app defaults -> 1.0)
-    const savedRate = getGameSetting('speechRate', 1.0);
+    const savedRate = getGameSetting('speechRate', 1.1);
     speechRateSlider.value = savedRate;
     speechRateValue.textContent = savedRate.toFixed(1) + 'x';
     if (state.browserVoiceConfig) {
@@ -294,6 +297,31 @@ export function initSettings() {
         updateStatus(`Default speed: ${rate.toFixed(1)}x`);
       } else {
         setGameSetting('speechRate', rate);
+      }
+    });
+  }
+
+  // "Apply to all games" button (only shown on home screen)
+  const applyVoiceToAllContainer = document.getElementById('applyVoiceToAllContainer');
+  const applyVoiceToAllBtn = document.getElementById('applyVoiceToAllBtn');
+
+  if (applyVoiceToAllContainer && applyVoiceToAllBtn) {
+    // Show button only on welcome screen
+    if (isOnWelcomeScreen()) {
+      applyVoiceToAllContainer.style.display = 'block';
+    }
+
+    applyVoiceToAllBtn.addEventListener('click', () => {
+      const confirmed = confirm(
+        'Apply voice settings to all games?\n\n' +
+        'This will remove any per-game voice overrides, so all games use the current default settings.\n\n' +
+        'Individual games can still have custom settings applied later.'
+      );
+
+      if (confirmed) {
+        const count = clearVoiceSettingsFromAllGames();
+        updateStatus(`Voice settings cleared from ${count} game(s)`);
+        alert(`Done! Cleared voice overrides from ${count} game(s).\n\nAll games will now use the default voice settings.`);
       }
     });
   }
@@ -628,7 +656,7 @@ export function reloadSettingsForGame() {
   // Load per-game settings
   const savedNarratorVoice = getGameSetting('narratorVoice');
   const savedAppVoice = getGameSetting('appVoice');
-  const savedSpeechRate = getGameSetting('speechRate', 1.0);
+  const savedSpeechRate = getGameSetting('speechRate', 1.1);
 
   if (!state.browserVoiceConfig) state.browserVoiceConfig = {};
 
@@ -647,6 +675,54 @@ export function reloadSettingsForGame() {
 
   // Refresh voice dropdowns to show correct selection
   populateVoiceDropdown();
+
+  // Inject sync button if on localhost and game is loaded
+  injectSyncButton();
+}
+
+/**
+ * Inject sync from GitHub button (localhost only, when game is loaded)
+ */
+function injectSyncButton() {
+  const container = document.getElementById('devToolsContainer');
+  if (!container) return;
+
+  // Remove existing sync button if any (avoid duplicates)
+  const existing = container.querySelector('.sync-btn-wrapper');
+  if (existing) existing.remove();
+
+  // Only show on localhost when a game is loaded
+  if (!isLocalhost() || !state.currentGameName) return;
+
+  const wrapper = document.createElement('div');
+  wrapper.className = 'game-actions sync-btn-wrapper';
+  wrapper.style.marginBottom = '10px';
+
+  const syncBtn = document.createElement('button');
+  syncBtn.className = 'btn btn-secondary btn-full-width';
+  syncBtn.innerHTML = '<span class="material-icons">sync</span> Sync from GitHub';
+
+  syncBtn.addEventListener('click', async () => {
+    syncBtn.disabled = true;
+    syncBtn.textContent = 'Syncing...';
+    updateStatus('Syncing from GitHub Pages...');
+
+    try {
+      const result = await syncFromRemote();
+      updateStatus(`Synced ${result.synced} items from GitHub`);
+      alert(`Sync complete!\n\n${result.synced} items updated from GitHub Pages.\n${result.total} total items found.`);
+    } catch (error) {
+      console.error('[Sync] Failed:', error);
+      updateStatus('Sync failed: ' + error.message);
+      alert('Sync failed: ' + error.message);
+    } finally {
+      syncBtn.disabled = false;
+      syncBtn.innerHTML = '<span class="material-icons">sync</span> Sync from GitHub';
+    }
+  });
+
+  wrapper.appendChild(syncBtn);
+  container.appendChild(wrapper);
 }
 
 /**
