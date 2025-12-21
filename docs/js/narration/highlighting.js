@@ -8,6 +8,14 @@
 import { state } from '../core/state.js';
 
 /**
+ * Initialize scroll detection (no-op, kept for API compatibility)
+ * Narration highlighting always controls scrolling now.
+ */
+export function initScrollDetection() {
+  // No longer needed - narration always controls scrolling
+}
+
+/**
  * Highlight text using marker elements
  * Searches in status line, upper window, and main content elements
  * @param {number} chunkIndex - Index of chunk to highlight
@@ -89,6 +97,14 @@ export function highlightUsingMarkers(chunkIndex) {
     if (CSS.highlights) {
       // Clear existing highlight first (fixes iOS WebKit issue where old highlight persists)
       CSS.highlights.delete('speaking');
+
+      // Force synchronous repaint on iOS WebKit:
+      // 1. Toggle a class to force style recalculation
+      // 2. Read offsetHeight to force layout/repaint
+      containerEl.classList.add('highlight-refresh');
+      void containerEl.offsetHeight;
+      containerEl.classList.remove('highlight-refresh');
+
       const highlight = new Highlight(...textRanges);
       CSS.highlights.set('speaking', highlight);
       return true;
@@ -102,10 +118,19 @@ export function highlightUsingMarkers(chunkIndex) {
 
 /**
  * Remove highlight when done
+ * Forces a repaint on iOS to ensure highlight is visually cleared
  */
 export function removeHighlight() {
   if (CSS.highlights) {
     CSS.highlights.delete('speaking');
+
+    // Force synchronous repaint on iOS WebKit
+    const gameOutput = document.getElementById('gameOutput');
+    if (gameOutput) {
+      gameOutput.classList.add('highlight-refresh');
+      void gameOutput.offsetHeight;
+      gameOutput.classList.remove('highlight-refresh');
+    }
   }
 }
 
@@ -145,62 +170,56 @@ export function updateTextHighlight(chunkIndex) {
 
 /**
  * Scroll to the currently highlighted text
- * Uses Visual Viewport API to position text at bottom of visible area.
- * This works automatically whether keyboard is open or closed.
+ * Positions text near the TOP of the visible viewport.
  * @param {number} chunkIndex - Chunk index to scroll to
  */
 function scrollToHighlightedText(chunkIndex) {
-  // Find the start marker for this chunk
-  const containers = [
-    window.currentStatusBarElement || document.getElementById('statusBar'),
-    document.getElementById('upperWindow'),
-    state.currentGameTextElement
-  ];
+  const gameOutput = document.getElementById('gameOutput');
+  if (!gameOutput) return;
 
-  const startSelector = `.chunk-marker-start[data-chunk="${chunkIndex}"]`;
+  // Find the marker for this chunk
+  const startMarker = document.querySelector(`.chunk-marker-start[data-chunk="${chunkIndex}"]`);
+  if (!startMarker) return;
 
-  for (const container of containers) {
-    if (!container) continue;
-    const startMarker = container.querySelector(startSelector);
-    if (startMarker) {
-      // Find the next visible element or text node after the marker
-      let targetElement = startMarker.nextSibling;
-      while (targetElement && targetElement.nodeType === Node.TEXT_NODE && !targetElement.textContent.trim()) {
-        targetElement = targetElement.nextSibling;
-      }
-      if (!targetElement) break;
+  // Create a range from start marker to end marker (same as highlighting uses)
+  const endMarker = document.querySelector(`.chunk-marker-end[data-chunk="${chunkIndex}"]`);
 
-      // Get the actual element (if text node, use parent)
-      const scrollTarget = targetElement.nodeType === Node.TEXT_NODE
-        ? targetElement.parentElement
-        : targetElement;
+  const range = new Range();
+  range.setStartAfter(startMarker);
+  if (endMarker) {
+    range.setEndBefore(endMarker);
+  } else {
+    // Last chunk - extend to end of parent
+    range.setEndAfter(startMarker.parentElement.lastChild);
+  }
 
-      if (scrollTarget) {
-        const gameOutput = document.getElementById('gameOutput');
-        const containerRect = gameOutput.getBoundingClientRect();
-        const elementRect = scrollTarget.getBoundingClientRect();
+  const targetRect = range.getBoundingClientRect();
+  if (!targetRect || targetRect.height === 0) return;
 
-        // Use visual viewport height (accounts for keyboard) or fall back to innerHeight
-        const visibleHeight = window.visualViewport?.height ?? window.innerHeight;
+  const containerRect = gameOutput.getBoundingClientRect();
 
-        // Position element near bottom of visible viewport with small buffer
-        const bufferFromBottom = 60;
-        const targetPositionFromTop = visibleHeight - bufferFromBottom;
+  // Calculate target's position in the scrollable content
+  const targetPositionInContent = gameOutput.scrollTop + (targetRect.top - containerRect.top);
 
-        // Calculate scroll needed to place element at target position
-        const relativeTop = elementRect.top - containerRect.top;
-        const targetScroll = gameOutput.scrollTop + relativeTop - targetPositionFromTop;
+  // Account for mobile keyboard using visual viewport API
+  // When keyboard is up:
+  // - visualViewport.height is smaller (keyboard covers bottom)
+  // - visualViewport.offsetTop may be non-zero (viewport shifted down)
+  const vv = window.visualViewport;
+  const visibleHeight = vv ? vv.height : window.innerHeight;
+  const viewportOffset = vv ? vv.offsetTop : 0;
 
-        // Clamp to valid scroll range
-        const maxScroll = gameOutput.scrollHeight - gameOutput.clientHeight;
-        const clampedScroll = Math.max(0, Math.min(targetScroll, maxScroll));
+  // Position text in the upper portion of the visible area (above keyboard)
+  // Add viewport offset to account for when visual viewport has shifted
+  const bufferFromTop = Math.max(20, visibleHeight * 0.08) + viewportOffset;
 
-        gameOutput.scrollTo({
-          top: clampedScroll,
-          behavior: 'smooth'
-        });
-      }
-      break;
-    }
+  const targetScroll = Math.max(0, targetPositionInContent - bufferFromTop);
+
+  // Only scroll if we need to move significantly (more than 10px)
+  if (Math.abs(gameOutput.scrollTop - targetScroll) > 10) {
+    gameOutput.scrollTo({
+      top: targetScroll,
+      behavior: 'smooth'
+    });
   }
 }

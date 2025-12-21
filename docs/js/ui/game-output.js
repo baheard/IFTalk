@@ -47,6 +47,10 @@ export function ensureChunksReady() {
     return true;
   }
 
+  // CRITICAL: Remove ALL old chunk markers from the entire document first
+  // Old markers from previous content would cause duplicate results and wrong scroll positions
+  document.querySelectorAll('.chunk-marker-start, .chunk-marker-end').forEach(el => el.remove());
+
   // Get elements
   const statusEl = window.currentStatusBarElement || document.getElementById('statusBar');
   const upperEl = document.getElementById('upperWindow');
