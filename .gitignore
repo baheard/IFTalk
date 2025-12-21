@@ -53,3 +53,33 @@ nul
 # Backup files
 *.backup
 *.tar
+
+# Game files in root (not tracked - users download these)
+/*.z3
+/*.z4
+/*.z5
+/*.z6
+/*.z7
+/*.z8
+/*.zblorb
+/*.ulx
+/*.gblorb
+/dfrotz.exe
+/frotz.exe
+
+# But allow game files in games/ directory
+!games/
+
+# Documentation artifacts (not tracked)
+/*.png
+/*.jpg
+/*.jpeg
+/*.gif
+/free-hosting-options.txt
+/voice-error-notes.txt
+
+# But allow documentation images in docs/ or reference/
+!docs/**/*.png
+!docs/**/*.jpg
+!reference/**/*.png
+!reference/**/*.jpg
