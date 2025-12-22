@@ -241,6 +241,7 @@ These commands work whether typed or spoken:<br>
 <b>Save/Load:</b> SAVE, RESTORE, DELETE SAVE, QUICK SAVE, QUICK LOAD<br>
 <b>Audio:</b> MUTE, UNMUTE, STATUS<br>
 <b>Game:</b> QUIT - Auto-save and return to game selection<br>
+<b>Repair:</b> REPAIR - Fix broken game state (if not responding)<br>
 <b>Special:</b> PRINT [text] - Send literal text to game<br>
 <br>
 For game commands, type anything else.<br>
@@ -328,6 +329,9 @@ See Settings panel for more help.
     case 'quit':
     case 'exit':
       return await handleQuitCommand();
+
+    case 'repair':
+      return await handleRepairCommand();
 
     default:
       // Check for "load slot X" or "restore slot X" pattern
@@ -475,6 +479,11 @@ async function handleMetaResponse(input) {
         gameDialogCallback = null;
         gameDialogRef = null;
       }, 0);
+    } else if (mode === 'repair') {
+      // For repair cancellation, reset the repair flag and show helpful message
+      const { resetRepairFlag } = await import('./voxglk.js');
+      resetRepairFlag();
+      respondAsGame('<div class="system-message">Repair cancelled. You can type REPAIR later if needed, or restart from Settings.</div>');
     } else {
       // For typed commands, show cancellation message
       respondAsGame('<div class="system-message"><i>Cancelled.</i></div>');
@@ -506,6 +515,9 @@ async function handleMetaResponse(input) {
 
     case 'game-restore':
       return await handleGameRestoreResponse(input.trim(), allSaves);
+
+    case 'repair':
+      return await handleRepairResponse(input.trim());
 
     default:
       return false;
@@ -854,6 +866,47 @@ function waitForInputAndContinue(attempts = 0) {
     setTimeout(() => waitForInputAndContinue(attempts + 1), 50);
   }
   // If inputReady but type is 'line', don't send anything - user can type
+}
+
+/**
+ * Handle repair confirmation response
+ */
+async function handleRepairResponse(input) {
+  if (input.toLowerCase() !== 'confirm') {
+    const { resetRepairFlag } = await import('./voxglk.js');
+    resetRepairFlag();
+    respondAsGame('<div class="system-message">Repair cancelled. Type REPAIR to try again, or restart from Settings.</div>');
+    return true;
+  }
+
+  // User confirmed - trigger repair
+  respondAsGame('<div class="system-message">Repairing game state...</div>');
+
+  const { performRepair } = await import('./voxglk.js');
+  await performRepair();
+
+  return true;
+}
+
+/**
+ * Handle REPAIR command
+ */
+async function handleRepairCommand() {
+  respondAsGame(`
+<div class="system-message">
+<b>⚠️ Repair Game</b><br>
+<br>
+This will save and reload to fix broken state.<br>
+<br>
+Type CONFIRM to proceed, or press Enter to cancel.
+</div>
+  `);
+  awaitingMetaInput = 'repair';
+
+  // Enter system entry mode with prompt
+  enterSystemEntryMode('Type CONFIRM to repair or Enter to cancel');
+
+  return true;
 }
 
 /**
