@@ -246,17 +246,7 @@ async function initApp() {
     });
   }
 
-  // Handle browser back button - return to game selection if in game
-  window.addEventListener('popstate', (e) => {
-    // If we were in a game, reload to get clean state
-    const gameOutput = document.getElementById('gameOutput');
-
-    if (gameOutput && !gameOutput.classList.contains('hidden')) {
-      // Currently in a game - clear last game and reload for clean state
-      localStorage.removeItem('iftalk_last_game');
-      location.reload();
-    }
-  });
+  // Browser back button is handled in game-loader.js
 
   // Add debug event listener for chunk highlighting
   window.addEventListener('chunkHighlighted', async (e) => {

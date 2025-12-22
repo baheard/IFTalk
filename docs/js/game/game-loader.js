@@ -41,8 +41,14 @@ export async function startGame(gamePath, onOutput) {
     const gameOutput = document.getElementById('gameOutput');
     if (gameOutput) gameOutput.classList.remove('hidden');
 
+    // Set flag to indicate we're in a game (for popstate handler)
+    window._inGame = true;
+
     // Push history state so back button returns to game selection
-    history.pushState({ inGame: true, gamePath }, '', null);
+    // Only push if we don't already have a game state (to avoid duplicates during auto-load)
+    if (!history.state?.screen) {
+      history.pushState({ screen: 'game', gamePath }, '', null);
+    }
 
     // Show controls and message input
     const controls = document.getElementById('controls');
@@ -163,10 +169,9 @@ export async function startGame(gamePath, onOutput) {
 
     updateStatus('Ready - Game loaded');
 
-    // Fade out loading overlay (with delay for content to settle)
+    // Fade out loading overlay (100ms delay + 100ms fade)
     const loadingOverlay = document.getElementById('loadingOverlay');
     if (loadingOverlay) {
-      // Wait 200ms before starting fade to let content load
       setTimeout(() => {
         loadingOverlay.classList.add('fade-out');
         // Remove from DOM after animation completes
@@ -175,20 +180,12 @@ export async function startGame(gamePath, onOutput) {
 
           // Dispatch event so save-manager knows fade is complete
           window.dispatchEvent(new CustomEvent('loadingFadeComplete'));
-
-          // Don't auto-focus - let user click or type to focus
-          // This prevents scroll-to-bottom on initial load
         }, { once: true });
-      }, 200);
+      }, 100);
     }
 
     // Save as last played game for auto-resume
     localStorage.setItem('iftalk_last_game', gamePath);
-
-    // Add history state so back button returns to home
-    if (!history.state?.screen) {
-      history.pushState({ screen: 'game' }, '', location.href);
-    }
 
     // Reset narration state
     resetNarrationState();
@@ -360,13 +357,9 @@ function renderRecentlyPlayedSection(onOutput) {
         showLoadingOverlay();
         startGame(gameUrl, onOutput);
       } else if (choice === 'restart') {
-        localStorage.setItem('iftalk_skip_autoload', 'true');
+        // Autosave already deleted by showResumeDialog
         showLoadingOverlay();
         startGame(gameUrl, onOutput);
-      } else if (choice === 'delete') {
-        localStorage.removeItem(autosaveKey);
-        removeCustomGame(gameName);
-        renderRecentlyPlayedSection(onOutput);
       }
     });
   });
@@ -412,17 +405,13 @@ function showResumeDialog(gamePath, gameName) {
         <h3>Resume ${displayName}?</h3>
         <p>You have a saved game in progress.</p>
         <div class="resume-dialog-buttons">
-          <button class="btn btn-primary resume-btn" data-action="resume">
+          <button class="btn btn-primary resume-btn btn-compact-dialog" data-action="resume">
             <span class="material-icons">play_arrow</span>
             Resume Game
           </button>
-          <button class="btn btn-secondary restart-btn" data-action="restart">
+          <button class="btn btn-secondary restart-btn btn-compact-dialog" data-action="restart">
             <span class="material-icons">replay</span>
             Start Over
-          </button>
-          <button class="btn btn-danger delete-btn" data-action="delete">
-            <span class="material-icons">delete</span>
-            Delete Autosave
           </button>
         </div>
         <button class="resume-dialog-cancel" data-action="cancel">&times;</button>
@@ -437,21 +426,9 @@ function showResumeDialog(gamePath, gameName) {
       if (!action) return;
 
       if (action === 'restart') {
-        const confirmed = confirm(
-          '⚠️ Start Over?\n\n' +
-          'This will delete your autosave and start from the beginning.\n\n' +
-          'Are you sure?'
-        );
-        if (!confirmed) return;
-      }
-
-      if (action === 'delete') {
-        const confirmed = confirm(
-          '⚠️ Delete Autosave?\n\n' +
-          'This will permanently delete your saved progress for this game.\n\n' +
-          'Are you sure?'
-        );
-        if (!confirmed) return;
+        // Delete autosave before starting over
+        const autosaveKey = `iftalk_autosave_${gameName}`;
+        localStorage.removeItem(autosaveKey);
       }
 
       overlay.remove();
@@ -499,18 +476,9 @@ export function initGameSelection(onOutput) {
           showLoadingOverlay();
           startGame(gamePath, onOutput);
         } else if (choice === 'restart') {
-          // Set flag to skip autoload and clear autosave
-          localStorage.setItem('iftalk_skip_autoload', 'true');
+          // Autosave already deleted by showResumeDialog
           showLoadingOverlay();
           startGame(gamePath, onOutput);
-        } else if (choice === 'delete') {
-          // Delete autosave and update UI
-          localStorage.removeItem(autosaveKey);
-          const badge = card.querySelector('[data-save-indicator]');
-          if (badge) {
-            badge.classList.remove('has-save');
-            badge.title = '';
-          }
         }
         // If choice is null (cancelled), do nothing
       } else {
@@ -639,13 +607,37 @@ export function initGameSelection(onOutput) {
     });
   }
 
-  // Handle browser back button - go to home screen (for auto-loaded games)
+  // Handle browser back button - return to welcome screen
   window.addEventListener('popstate', (event) => {
-    // Check if we need to return to home from auto-loaded game
-    if (event.state?.screen === 'home') {
-      // Clear last game and reload to get clean state
+    // If we're in a game, return to welcome screen
+    if (window._inGame) {
+      window._inGame = false;
+
+      // Clear last game
       localStorage.removeItem('iftalk_last_game');
-      location.reload();
+
+      // Hide game, show welcome
+      const gameOutput = document.getElementById('gameOutput');
+      const welcome = document.getElementById('welcome');
+      const controls = document.getElementById('controls');
+      const messageInputRow = document.getElementById('messageInputRow');
+
+      if (gameOutput) gameOutput.classList.add('hidden');
+      if (welcome) welcome.classList.remove('hidden');
+      if (controls) controls.classList.add('hidden');
+      if (messageInputRow) messageInputRow.classList.add('hidden');
+
+      // Stop any running narration
+      stopNarration();
+
+      // Clear game state
+      resetNarrationState();
+      updateNavButtons();
+
+      // Update settings to show no game
+      updateCurrentGameDisplay('No game loaded');
+
+      updateStatus('Returned to game selection');
     }
   });
 
@@ -691,12 +683,9 @@ export function initGameSelection(onOutput) {
   }
 
   if (shouldAutoLoad && gameToLoad) {
-    // Push history state so back button can return to home
-    history.pushState({ screen: 'game' }, '', location.href);
-    // Replace the previous state with home marker
-    history.replaceState({ screen: 'home' }, '', location.href);
-    // Push game state again (so we're on game, with home behind us)
-    history.pushState({ screen: 'game' }, '', location.href);
+    // Set up history so back button returns to home screen
+    // Push a welcome state so back button has somewhere to go
+    history.pushState({ screen: 'welcome' }, '', location.href);
 
     // Use setTimeout to ensure DOM is ready
     setTimeout(() => {

@@ -183,7 +183,7 @@ export async function playWithBrowserTTS(text, voiceType = 'narrator') {
 
     utterance.rate = state.browserVoiceConfig?.rate || 1.1;
     utterance.pitch = state.browserVoiceConfig?.pitch || 1.0;
-    utterance.volume = 1.0;
+    utterance.volume = state.browserVoiceConfig?.volume ?? 1.0;
 
     utterance.onend = () => {
       // Don't set isNarrating = false here - let speakTextChunked manage it
@@ -412,7 +412,7 @@ export function speakAppMessage(text) {
 
     utterance.rate = 1.3;  // Faster for quick confirmations
     utterance.pitch = 1.0;
-    utterance.volume = 0.8;  // Slightly quieter than narration
+    utterance.volume = (state.browserVoiceConfig?.volume ?? 1.0) * 0.8;  // Slightly quieter than narration
 
     utterance.onend = () => {
       state.appVoicePromise = null;

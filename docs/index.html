@@ -63,9 +63,139 @@
         </div>
       </div>
 
+      <!-- Game Data -->
+      <div class="settings-section collapsible collapsed" id="gameSettingsSection">
+        <h3 class="section-header" id="gameSettingsHeader"><span class="material-icons">storage</span> Game</h3>
+        <div class="section-content">
+
+          <!-- BUTTONS SECTION -->
+
+          <!-- Pair 1: Quick Save/Restore -->
+          <div class="game-actions game-actions-pair-start">
+            <button class="btn btn-secondary btn-compact btn-full-width" id="quickSaveBtn" title="F5">
+              <span class="material-icons">save</span> Quick Save
+            </button>
+          </div>
+          <div class="game-actions game-actions-pair-end">
+            <button class="btn btn-secondary btn-compact btn-full-width" id="quickRestoreBtn" title="F9">
+              <span class="material-icons">restore</span> Quick Restore
+            </button>
+          </div>
+
+          <!-- Standalone: Restart -->
+          <div class="game-actions game-actions-standalone">
+            <button class="btn btn-warning btn-compact btn-full-width" id="restartGameBtn">
+              <span class="material-icons">replay</span> Restart Current Game
+            </button>
+          </div>
+
+          <!-- Pair 2: Export/Import -->
+          <div class="game-actions game-actions-pair-start">
+            <button class="btn btn-secondary btn-compact btn-full-width" id="exportSaveBtn">
+              <span class="material-icons">download</span> Export Save
+            </button>
+          </div>
+          <div class="game-actions game-actions-pair-end">
+            <button class="btn btn-secondary btn-compact btn-full-width" id="importSaveBtn">
+              <span class="material-icons">upload</span> Import Save
+            </button>
+          </div>
+
+          <!-- Developer Tools (localhost only, injected by JS) -->
+          <div id="devToolsContainer"></div>
+
+          <!-- Standalone: Delete -->
+          <div class="game-actions game-actions-standalone">
+            <button class="btn btn-danger btn-compact btn-full-width" id="clearAllDataBtn">
+              <span class="material-icons">delete_forever</span> <span id="clearDataBtnText">Delete Game Data</span>
+            </button>
+          </div>
+
+          <!-- DIVIDER -->
+          <div class="settings-divider"></div>
+
+          <!-- INFO PANELS SECTION -->
+
+          <!-- Save/Restore Instructions -->
+          <div class="save-restore-info">
+            <h4>💾 Save & Restore</h4>
+            <p>This browser-based interpreter uses the game's native save system:</p>
+            <ul>
+              <li>Type <code>SAVE</code> in the game to save your progress</li>
+              <li>Type <code>RESTORE</code> to load a saved game</li>
+              <li>Saves are stored in your browser's local storage</li>
+            </ul>
+          </div>
+
+          <!-- Export/Import to File -->
+          <div class="save-restore-info">
+            <h4>💾 Backup to Hard Drive</h4>
+            <p>Export your save to a file for backup or to transfer between devices:</p>
+          </div>
+
+          <!-- Danger Zone -->
+          <div class="save-restore-info">
+            <h4>⚠️ Danger Zone</h4>
+            <p id="clearDataDescription">Permanently delete all saved games for all IF games:</p>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- Audio Settings -->
+      <div class="settings-section collapsible collapsed" id="voiceSettingsSection">
+        <h3 class="section-header" id="voiceSettingsHeader"><span class="material-icons">volume_up</span> Audio</h3>
+        <div class="section-content">
+        <p class="settings-description" id="voiceSettingsDescription">Configure audio playback and voices</p>
+        <div class="voice-setting">
+          <label for="masterVolume">Volume:</label>
+          <div class="slider-wrapper">
+            <div class="slider-container">
+              <span class="slider-label">0%</span>
+              <input type="range" id="masterVolume" min="0" max="100" step="5" value="100" class="speech-slider">
+              <span class="slider-label">100%</span>
+            </div>
+            <span id="masterVolumeValue" class="slider-value">100%</span>
+          </div>
+        </div>
+        <div class="voice-setting">
+          <label for="speechRate">Speech Speed:</label>
+          <div class="slider-wrapper">
+            <div class="slider-container">
+              <span class="slider-label">0.5x</span>
+              <input type="range" id="speechRate" min="0.5" max="1.5" step="0.1" value="1.1" class="speech-slider">
+              <span class="slider-label">1.5x</span>
+            </div>
+            <span id="speechRateValue" class="slider-value">1.1x</span>
+          </div>
+        </div>
+        <div class="voice-setting">
+          <label for="voiceSelect">Narration Voice:</label>
+          <select id="voiceSelect" class="voice-dropdown">
+            <option value="">Loading voices...</option>
+          </select>
+          <button id="testVoiceBtn" class="btn-test-voice" title="Preview voice"><span class="material-icons">play_arrow</span></button>
+        </div>
+        <div class="voice-setting">
+          <label for="appVoiceSelect">App Voice:</label>
+          <select id="appVoiceSelect" class="voice-dropdown">
+            <option value="">Loading voices...</option>
+          </select>
+          <button id="testAppVoiceBtn" class="btn-test-voice" title="Preview app voice"><span class="material-icons">play_arrow</span></button>
+        </div>
+        <!-- Apply to all games button (only shown on home screen) -->
+        <div class="game-actions" id="applyVoiceToAllContainer" style="display: none; margin-top: 15px;">
+          <button class="btn btn-secondary btn-full-width" id="applyVoiceToAllBtn">
+            <span class="material-icons">sync</span> Apply to all games
+          </button>
+          <p class="settings-help" style="margin-top: 5px;">Removes per-game voice overrides so all games use these defaults.</p>
+        </div>
+        </div>
+      </div>
+
       <!-- Voice Commands Help -->
-      <div class="settings-section collapsible collapsed">
-        <h3 class="section-header"><span class="material-icons">mic</span> Voxi Voice Commands</h3>
+      <div class="settings-section collapsible collapsed" id="voiceCommandsSection">
+        <h3 class="section-header"><span class="material-icons">mic</span> Voice Commands</h3>
         <div class="section-content help-content">
           <div class="help-section">
             <strong>Narration Navigation Commands</strong>
@@ -97,112 +227,8 @@
         </div>
       </div>
 
-      <!-- Voice Settings -->
-      <div class="settings-section collapsible collapsed" id="voiceSettingsSection">
-        <h3 class="section-header" id="voiceSettingsHeader"><span class="material-icons">record_voice_over</span> Voice Settings</h3>
-        <div class="section-content">
-        <p class="settings-description" id="voiceSettingsDescription">Configure different voices for narration and app messages</p>
-        <div class="voice-setting">
-          <label for="speechRate">Speech Speed:</label>
-          <div class="slider-wrapper">
-            <div class="slider-container">
-              <span class="slider-label">0.5x</span>
-              <input type="range" id="speechRate" min="0.5" max="1.5" step="0.1" value="1.1" class="speech-slider">
-              <span class="slider-label">1.5x</span>
-            </div>
-            <span id="speechRateValue" class="slider-value">1.1x</span>
-          </div>
-        </div>
-        <div class="voice-setting">
-          <label for="voiceSelect">Narration Voice:</label>
-          <select id="voiceSelect" class="voice-dropdown">
-            <option value="">Loading voices...</option>
-          </select>
-          <button id="testVoiceBtn" class="btn-test-voice" title="Preview voice"><span class="material-icons">play_arrow</span></button>
-        </div>
-        <div class="voice-setting">
-          <label for="appVoiceSelect">App Voice (system messages):</label>
-          <select id="appVoiceSelect" class="voice-dropdown">
-            <option value="">Loading voices...</option>
-          </select>
-          <button id="testAppVoiceBtn" class="btn-test-voice" title="Preview app voice"><span class="material-icons">play_arrow</span></button>
-        </div>
-        <p class="settings-help">Only English voices shown.</p>
-        <!-- Apply to all games button (only shown on home screen) -->
-        <div class="game-actions" id="applyVoiceToAllContainer" style="display: none; margin-top: 15px;">
-          <button class="btn btn-secondary btn-full-width" id="applyVoiceToAllBtn">
-            <span class="material-icons">sync</span> Apply to all games
-          </button>
-          <p class="settings-help" style="margin-top: 5px;">Removes per-game voice overrides so all games use these defaults.</p>
-        </div>
-        </div>
-      </div>
-
-      <!-- Game Data -->
-      <div class="settings-section collapsible collapsed" id="gameSettingsSection">
-        <h3 class="section-header" id="gameSettingsHeader"><span class="material-icons">storage</span> Game Data</h3>
-        <div class="section-content">
-
-          <!-- Quick Save/Restore Buttons -->
-          <div class="game-actions">
-            <button class="btn btn-primary btn-half-width" id="quickSaveBtn" title="F5">
-              <span class="material-icons">save</span> Quick Save
-            </button>
-            <button class="btn btn-primary btn-half-width" id="quickRestoreBtn" title="F9">
-              <span class="material-icons">restore</span> Quick Restore
-            </button>
-          </div>
-
-          <!-- Restart Game -->
-          <div class="game-actions">
-            <button class="btn btn-warning btn-full-width" id="restartGameBtn">
-              <span class="material-icons">replay</span> Restart Current Game
-            </button>
-          </div>
-
-          <!-- Save/Restore Instructions -->
-          <div class="save-restore-info">
-            <h4>💾 Save & Restore</h4>
-            <p>This browser-based interpreter uses the game's native save system:</p>
-            <ul>
-              <li>Type <code>SAVE</code> in the game to save your progress</li>
-              <li>Type <code>RESTORE</code> to load a saved game</li>
-              <li>Saves are stored in your browser's local storage</li>
-            </ul>
-          </div>
-
-          <!-- Export/Import to File -->
-          <div class="save-restore-info">
-            <h4>💾 Backup to Hard Drive</h4>
-            <p>Export your save to a file for backup or to transfer between devices:</p>
-          </div>
-          <div class="game-actions">
-            <button class="btn btn-secondary btn-half-width" id="exportSaveBtn">
-              <span class="material-icons">download</span> Export Save
-            </button>
-            <button class="btn btn-secondary btn-half-width" id="importSaveBtn">
-              <span class="material-icons">upload</span> Import Save
-            </button>
-          </div>
-
-          <!-- Developer Tools (localhost only, injected by JS) -->
-          <div id="devToolsContainer"></div>
-
-          <!-- Clear Data -->
-          <div class="save-restore-info">
-            <h4>⚠️ Danger Zone</h4>
-            <p id="clearDataDescription">Permanently delete all saved games for all IF games:</p>
-          </div>
-          <div class="game-actions">
-            <button class="btn btn-danger btn-full-width" id="clearAllDataBtn">
-              <span class="material-icons">delete_forever</span> <span id="clearDataBtnText">Delete All Data</span>
-            </button>
-          </div>
-        </div>
-      </div>
-
       <!-- Pronunciation Dictionary -->
-      <div class="settings-section collapsible collapsed">
+      <div class="settings-section collapsible collapsed" id="pronunciationSection">
         <h3 class="section-header"><span class="material-icons">spellcheck</span> Pronunciation</h3>
         <div class="section-content">
         <p class="settings-description">Fix words that TTS pronounces incorrectly</p>

@@ -19,6 +19,36 @@ function getGameSignature() {
 }
 
 /**
+ * Clean HTML for saving - remove system messages, app commands, and low confidence voice commands
+ * Keep only: game text and game commands (high confidence)
+ * @param {string} html - Raw HTML from lowerWindow
+ * @returns {string} Cleaned HTML
+ */
+function cleanHTMLForSave(html) {
+    if (!html || !html.trim()) return '';
+
+    // Create a temporary div to parse and filter HTML
+    const temp = document.createElement('div');
+    temp.innerHTML = html;
+
+    // Remove all elements we don't want to save:
+    // 1. System messages (.system-message or .game-text.system-message)
+    temp.querySelectorAll('.system-message').forEach(el => el.remove());
+
+    // 2. App commands (.app-command)
+    temp.querySelectorAll('.app-command').forEach(el => el.remove());
+
+    // 3. Low confidence voice commands (.low-confidence)
+    temp.querySelectorAll('.low-confidence').forEach(el => el.remove());
+
+    // What remains:
+    // - .game-text (game responses)
+    // - .user-command (game commands, but not app-command or low-confidence)
+
+    return temp.innerHTML;
+}
+
+/**
  * Quick save to dedicated quick slot
  * Uses same comprehensive approach as autosave
  */
@@ -58,6 +88,9 @@ export async function quickSave() {
                 lowerWindowHTML = lowerWindowEl.innerHTML;
             }
         }
+
+        // Clean HTML to remove system messages, app commands, and low confidence voice commands
+        lowerWindowHTML = cleanHTMLForSave(lowerWindowHTML);
 
         // Get VoxGlk state
         const { getGeneration, getInputWindowId } = await import('./voxglk.js');
@@ -136,6 +169,9 @@ export async function customSave(saveName) {
                 lowerWindowHTML = lowerWindowEl.innerHTML;
             }
         }
+
+        // Clean HTML to remove system messages, app commands, and low confidence voice commands
+        lowerWindowHTML = cleanHTMLForSave(lowerWindowHTML);
 
         // Get VoxGlk state
         const { getGeneration, getInputWindowId } = await import('./voxglk.js');
@@ -304,6 +340,9 @@ export async function autoSave() {
                 lowerWindowHTML = lowerWindowEl.innerHTML;
             }
         }
+
+        // Clean HTML to remove system messages, app commands, and low confidence voice commands
+        lowerWindowHTML = cleanHTMLForSave(lowerWindowHTML);
 
         // Get VoxGlk state
         const { getGeneration, getInputWindowId } = await import('./voxglk.js');

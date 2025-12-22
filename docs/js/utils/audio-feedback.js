@@ -26,6 +26,15 @@ function getContext() {
 }
 
 /**
+ * Get master volume multiplier (0.0 - 1.0)
+ * Centralized volume control for all audio feedback
+ */
+function getMasterVolume() {
+  const saved = localStorage.getItem('iftalk_masterVolume');
+  return saved ? parseInt(saved) / 100 : 1.0;
+}
+
+/**
  * Play tone for game command sent (short click)
  */
 export function playCommandSent() {
@@ -33,6 +42,7 @@ export function playCommandSent() {
     const ctx = getContext();
     const osc = ctx.createOscillator();
     const gain = ctx.createGain();
+    const masterVol = getMasterVolume();
 
     osc.connect(gain);
     gain.connect(ctx.destination);
@@ -41,7 +51,7 @@ export function playCommandSent() {
     osc.frequency.value = 800;
     osc.type = 'sine';
 
-    gain.gain.setValueAtTime(0.25, ctx.currentTime);
+    gain.gain.setValueAtTime(0.25 * masterVol, ctx.currentTime);
     gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.06);
 
     osc.start(ctx.currentTime);
@@ -62,6 +72,7 @@ export function playAppCommand() {
     const osc = ctx.createOscillator();
     const gain = ctx.createGain();
     const filter = ctx.createBiquadFilter();
+    const masterVol = getMasterVolume();
 
     osc.connect(filter);
     filter.connect(gain);
@@ -74,7 +85,7 @@ export function playAppCommand() {
     filter.type = 'lowpass';
     filter.frequency.value = 400;
 
-    gain.gain.setValueAtTime(0.15, ctx.currentTime);
+    gain.gain.setValueAtTime(0.15 * masterVol, ctx.currentTime);
     gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.12);
 
     osc.start(ctx.currentTime);
@@ -94,6 +105,7 @@ export function playLowConfidence() {
     const gain = ctx.createGain();
     const lfo = ctx.createOscillator();
     const lfoGain = ctx.createGain();
+    const masterVol = getMasterVolume();
 
     lfo.connect(lfoGain);
     lfoGain.connect(osc.frequency);
@@ -105,7 +117,7 @@ export function playLowConfidence() {
     lfoGain.gain.value = 20;
     osc.type = 'sine';
 
-    gain.gain.setValueAtTime(0.12, ctx.currentTime);
+    gain.gain.setValueAtTime(0.12 * masterVol, ctx.currentTime);
     gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.2);
 
     lfo.start(ctx.currentTime);
@@ -128,6 +140,7 @@ export function playBlockedCommand() {
     const ctx = getContext();
     const osc = ctx.createOscillator();
     const gain = ctx.createGain();
+    const masterVol = getMasterVolume();
 
     osc.connect(gain);
     gain.connect(ctx.destination);
@@ -135,7 +148,7 @@ export function playBlockedCommand() {
     osc.frequency.value = 150;  // Higher frequency (more noticeable)
     osc.type = 'sawtooth';
 
-    gain.gain.setValueAtTime(0.25, ctx.currentTime);  // Much louder (4x)
+    gain.gain.setValueAtTime(0.25 * masterVol, ctx.currentTime);  // Much louder (4x)
     gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.15);  // Longer duration
 
     osc.start(ctx.currentTime);
@@ -153,6 +166,7 @@ export function playPlayTone() {
     const ctx = getContext();
     const osc = ctx.createOscillator();
     const gain = ctx.createGain();
+    const masterVol = getMasterVolume();
 
     osc.connect(gain);
     gain.connect(ctx.destination);
@@ -162,7 +176,7 @@ export function playPlayTone() {
     osc.frequency.exponentialRampToValueAtTime(800, ctx.currentTime + 0.1);
     osc.type = 'sine';
 
-    gain.gain.setValueAtTime(0.12, ctx.currentTime);
+    gain.gain.setValueAtTime(0.12 * masterVol, ctx.currentTime);
     gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.12);
 
     osc.start(ctx.currentTime);
@@ -180,6 +194,7 @@ export function playPauseTone() {
     const ctx = getContext();
     const osc = ctx.createOscillator();
     const gain = ctx.createGain();
+    const masterVol = getMasterVolume();
 
     osc.connect(gain);
     gain.connect(ctx.destination);
@@ -189,7 +204,7 @@ export function playPauseTone() {
     osc.frequency.exponentialRampToValueAtTime(300, ctx.currentTime + 0.1);
     osc.type = 'sine';
 
-    gain.gain.setValueAtTime(0.12, ctx.currentTime);
+    gain.gain.setValueAtTime(0.12 * masterVol, ctx.currentTime);
     gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.12);
 
     osc.start(ctx.currentTime);
@@ -205,6 +220,7 @@ export function playPauseTone() {
 export function playMuteTone() {
   try {
     const ctx = getContext();
+    const masterVol = getMasterVolume();
     const freqs = [300, 250, 200];
     freqs.forEach((freq, i) => {
       const osc = ctx.createOscillator();
@@ -214,7 +230,7 @@ export function playMuteTone() {
       osc.frequency.value = freq;
       osc.type = 'sine';
       const start = ctx.currentTime + i * 0.05;
-      gain.gain.setValueAtTime(0.12, start);
+      gain.gain.setValueAtTime(0.12 * masterVol, start);
       gain.gain.exponentialRampToValueAtTime(0.001, start + 0.04);
       osc.start(start);
       osc.stop(start + 0.04);
@@ -230,6 +246,7 @@ export function playMuteTone() {
 export function playUnmuteTone() {
   try {
     const ctx = getContext();
+    const masterVol = getMasterVolume();
     // First note (lower)
     const osc1 = ctx.createOscillator();
     const gain1 = ctx.createGain();
@@ -237,7 +254,7 @@ export function playUnmuteTone() {
     gain1.connect(ctx.destination);
     osc1.frequency.value = 660;
     osc1.type = 'sine';
-    gain1.gain.setValueAtTime(0.12, ctx.currentTime);
+    gain1.gain.setValueAtTime(0.12 * masterVol, ctx.currentTime);
     gain1.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.15);
     osc1.start(ctx.currentTime);
     osc1.stop(ctx.currentTime + 0.15);
@@ -248,7 +265,7 @@ export function playUnmuteTone() {
     gain2.connect(ctx.destination);
     osc2.frequency.value = 880;
     osc2.type = 'sine';
-    gain2.gain.setValueAtTime(0.12, ctx.currentTime + 0.08);
+    gain2.gain.setValueAtTime(0.12 * masterVol, ctx.currentTime + 0.08);
     gain2.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.25);
     osc2.start(ctx.currentTime + 0.08);
     osc2.stop(ctx.currentTime + 0.25);

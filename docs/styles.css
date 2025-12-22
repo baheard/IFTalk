@@ -81,7 +81,7 @@ body {
   background: var(--bg-primary);
   z-index: 9999;
   opacity: 1;
-  transition: opacity 0.2s ease-out;
+  transition: opacity 0.1s ease-out;
   pointer-events: none;
 }
 
@@ -238,7 +238,11 @@ body {
   background: var(--bg-secondary);
   border-left: 1px solid var(--border-subtle);
   box-shadow: -8px 0 30px rgba(0, 0, 0, 0.5);
-  transition: right 0.3s ease;
+  transition: right 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+              opacity 0.3s ease,
+              filter 0.3s ease;
+  filter: blur(8px);
+  opacity: 0;
   z-index: 1000;
   display: flex;
   flex-direction: column;
@@ -247,6 +251,8 @@ body {
 
 .settings-panel.open {
   right: 0;
+  filter: blur(0px);
+  opacity: 1;
 }
 
 .settings-header {
@@ -344,8 +350,9 @@ body {
 
 .settings-description {
   margin: 0 0 15px 0;
-  font-size: 14px;
+  font-weight: 700;
   color: var(--text-muted);
+  margin-bottom: 8px;
 }
 
 /* Collapsible sections */
@@ -498,10 +505,11 @@ body {
 }
 
 .speech-slider::-webkit-slider-runnable-track {
-  height: 6px;
-  border-radius: 3px;
-  background: var(--bg-tertiary);
-  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.3);
+  height: 8px;
+  border-radius: 4px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-subtle);
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.5);
 }
 
 .speech-slider::-webkit-slider-thumb {
@@ -523,10 +531,11 @@ body {
 }
 
 .speech-slider::-moz-range-track {
-  height: 6px;
-  border-radius: 3px;
-  background: var(--bg-tertiary);
-  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.3);
+  height: 8px;
+  border-radius: 4px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-subtle);
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.5);
 }
 
 .speech-slider::-moz-range-thumb {
@@ -555,20 +564,22 @@ body {
   display: flex;
   align-items: center;
   gap: 10px;
-  margin-bottom: 15px;
+  margin: 8px 0;
+  padding: 12px;
+  background: var(--bg-surface);
+  border-radius: 8px;
 }
 
 .voice-setting label {
   font-size: 14px;
   color: var(--text-primary);
-  min-width: 180px;
+  min-width: 120px;
   flex-shrink: 0;
 }
 
 .voice-setting .voice-dropdown {
   flex: 1;
   min-width: 0;
-  max-width: 200px;
   text-overflow: ellipsis;
   overflow: hidden;
 }
@@ -791,6 +802,44 @@ body {
   display: flex;
   gap: 10px;
   margin-bottom: 15px;
+}
+
+/* Visual pairing for related buttons */
+.game-actions-pair-start {
+  margin-bottom: 5px;  /* Tight spacing to next button in pair */
+}
+
+.game-actions-pair-end {
+  margin-bottom: 20px;  /* Larger spacing to next section */
+}
+
+.game-actions-standalone {
+  margin-bottom: 15px;  /* Normal spacing */
+}
+
+/* Compact list-style buttons */
+.btn-compact {
+  padding: 6px 12px;
+  font-size: 13px;
+  border-radius: 6px;
+  border-left: 2px solid transparent;
+  justify-content: flex-start;  /* Left-align content */
+}
+
+.btn-compact:hover {
+  border-left-color: var(--accent-muted);
+}
+
+.btn-compact .material-icons {
+  font-size: 18px;  /* Smaller icons for compact buttons */
+}
+
+/* Divider between sections */
+.settings-divider {
+  height: 1px;
+  background: var(--border-subtle);
+  margin: 20px 0;
+  opacity: 0.5;
 }
 
 .btn-full-width {
@@ -1470,12 +1519,18 @@ body {
   width: 90%;
   position: relative;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
-  animation: slideUp 0.2s ease;
+  animation: perspectiveSlide 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
-@keyframes slideUp {
-  from { transform: translateY(20px); opacity: 0; }
-  to { transform: translateY(0); opacity: 1; }
+@keyframes perspectiveSlide {
+  from {
+    opacity: 0;
+    transform: perspective(1000px) rotateX(-10deg) translateY(40px);
+  }
+  to {
+    opacity: 1;
+    transform: perspective(1000px) rotateX(0deg) translateY(0);
+  }
 }
 
 .resume-dialog h3 {
@@ -1496,7 +1551,7 @@ body {
 
 .resume-dialog-buttons {
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
   gap: 12px;
 }
 
@@ -1508,15 +1563,25 @@ body {
   padding: 14px 20px;
   font-size: 16px;
   border-radius: 8px;
+  flex: 1;
+}
+
+.btn-compact-dialog {
+  padding: 10px 16px !important;
+  font-size: 14px !important;
 }
 
 .resume-dialog-buttons .resume-btn {
-  background: var(--accent-primary);
-  color: var(--bg-primary);
+  border: 1px solid rgba(196, 163, 90, 0.3);
+  background: rgba(196, 163, 90, 0.05);
+  backdrop-filter: blur(10px);
+  color: var(--accent-warm);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
 }
 
 .resume-dialog-buttons .resume-btn:hover {
-  background: var(--accent-warm);
+  background: rgba(196, 163, 90, 0.12);
+  border-color: var(--accent-warm);
 }
 
 .resume-dialog-buttons .restart-btn {
@@ -1528,20 +1593,6 @@ body {
 .resume-dialog-buttons .restart-btn:hover {
   border-color: var(--text-muted);
   color: var(--text-primary);
-}
-
-.resume-dialog-buttons .delete-btn {
-  background: transparent;
-  border: 1px solid var(--border-subtle);
-  color: var(--text-muted);
-  font-size: 14px;
-  padding: 10px 16px;
-}
-
-.resume-dialog-buttons .delete-btn:hover {
-  border-color: #c44;
-  color: #e66;
-  background: rgba(204, 68, 68, 0.1);
 }
 
 .resume-dialog-cancel {
@@ -1798,13 +1849,11 @@ body {
 /* System entry mode - for SAVE/RESTORE/DELETE prompts */
 .message-input.system-entry {
   border-color: var(--color-app-system);
-  border-width: 2px;
   background: rgba(45, 212, 191, 0.08);
 }
 
 .message-input.system-entry:focus {
   border-color: var(--color-app-system);
-  border-width: 2px;
   box-shadow: 0 0 0 2px rgba(45, 212, 191, 0.2);
 }
 

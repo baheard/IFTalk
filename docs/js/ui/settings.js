@@ -33,26 +33,26 @@ export function updateSettingsContext() {
   const gameName = state.currentGameName;
   const displayName = getGameDisplayName(gameName);
 
-  // Game section header (always "Game Data" with storage icon)
+  // Game section header (always "Game" with storage icon)
   const gameHeader = document.getElementById('gameSettingsHeader');
   if (gameHeader) {
-    gameHeader.innerHTML = '<span class="material-icons">storage</span> Game Data';
+    gameHeader.innerHTML = '<span class="material-icons">storage</span> Game';
   }
 
-  // Voice settings header
+  // Audio settings header
   const voiceHeader = document.getElementById('voiceSettingsHeader');
   if (voiceHeader) {
     voiceHeader.innerHTML = onWelcome
-      ? '<span class="material-icons">record_voice_over</span> Default Voice'
-      : '<span class="material-icons">record_voice_over</span> Voice Settings';
+      ? '<span class="material-icons">volume_up</span> Default Audio'
+      : '<span class="material-icons">volume_up</span> Audio';
   }
 
-  // Voice settings description
+  // Audio settings description
   const voiceDesc = document.getElementById('voiceSettingsDescription');
   if (voiceDesc) {
     voiceDesc.textContent = onWelcome
-      ? 'Set default voice settings for all new games'
-      : `Voice settings for ${displayName} (overrides defaults)`;
+      ? 'Set default audio settings for all games'
+      : `Audio settings for ${displayName}`;
   }
 
   // Clear data description
@@ -93,6 +93,24 @@ export function updateSettingsContext() {
   const welcomeDangerZone = document.getElementById('welcomeDangerZone');
   if (welcomeDangerZone) {
     welcomeDangerZone.classList.toggle('hidden', !onWelcome);
+  }
+
+  // Show "Apply to all games" button on welcome screen only
+  const applyVoiceToAllContainer = document.getElementById('applyVoiceToAllContainer');
+  if (applyVoiceToAllContainer) {
+    applyVoiceToAllContainer.style.display = onWelcome ? 'block' : 'none';
+  }
+
+  // Show "Voice Commands" section in-game only (hide on welcome screen)
+  const voiceCommandsSection = document.getElementById('voiceCommandsSection');
+  if (voiceCommandsSection) {
+    voiceCommandsSection.classList.toggle('hidden', onWelcome);
+  }
+
+  // Show "Pronunciation" section in-game only (hide on welcome screen)
+  const pronunciationSection = document.getElementById('pronunciationSection');
+  if (pronunciationSection) {
+    pronunciationSection.classList.toggle('hidden', onWelcome);
   }
 }
 
@@ -267,6 +285,34 @@ export function initSettings() {
       } else {
         updateStatus('Clear data cancelled');
       }
+    });
+  }
+
+  // Master volume slider (global, not per-game)
+  const volumeSlider = document.getElementById('masterVolume');
+  const volumeValue = document.getElementById('masterVolumeValue');
+  if (volumeSlider && volumeValue) {
+    // Load saved volume (global setting)
+    const savedVolume = localStorage.getItem('iftalk_masterVolume');
+    const volume = savedVolume ? parseInt(savedVolume) : 100;
+    volumeSlider.value = volume;
+    volumeValue.textContent = volume + '%';
+    if (state.browserVoiceConfig) {
+      state.browserVoiceConfig.volume = volume / 100;
+    }
+
+    volumeSlider.addEventListener('input', (e) => {
+      const vol = parseInt(e.target.value);
+      volumeValue.textContent = vol + '%';
+
+      // Update voice config
+      if (state.browserVoiceConfig) {
+        state.browserVoiceConfig.volume = vol / 100;
+      }
+
+      // Save globally (not per-game)
+      localStorage.setItem('iftalk_masterVolume', vol.toString());
+      updateStatus(`Volume: ${vol}%`);
     });
   }
 
@@ -640,6 +686,12 @@ export async function loadBrowserVoiceConfig() {
     if (!state.browserVoiceConfig) state.browserVoiceConfig = {};
     state.browserVoiceConfig.rate = savedSpeechRate;
   }
+
+  // Load global volume (not per-game)
+  const savedVolume = localStorage.getItem('iftalk_masterVolume');
+  const volume = savedVolume ? parseInt(savedVolume) / 100 : 1.0;
+  if (!state.browserVoiceConfig) state.browserVoiceConfig = {};
+  state.browserVoiceConfig.volume = volume;
 
   // Populate dropdown after loading config
   if ('speechSynthesis' in window) {
