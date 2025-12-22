@@ -489,132 +489,200 @@ Game at gen:10 → Quick Load → Page reload → glkapi reset to gen:0
 
 ---
 
-## 'R' Key Restore / Dialog.open (December 19, 2024)
+## In-Game Save/Restore Dialogs (December 22, 2024)
 
 ### Overview
 
-Games like Anchorhead show "[Press 'R' to restore; any other key to begin]" on the intro screen. Pressing 'R' now correctly triggers the game's native restore mechanism, which uses our autosave system.
+Games can trigger native save/restore dialogs (e.g., "Press 'R' to restore" in Anchorhead intro, or in-game SAVE commands). IFTalk intercepts these dialogs and provides a custom UI using the system entry mode paradigm with save list selection.
 
-### The Problem (Before Fix)
+### Implementation
 
-1. User pressed 'R' on intro screen
-2. VoxGlk sent character code as **number** (82)
-3. glkapi.js `handle_char_input()` expected a **string** ("R")
-4. `input.length` was undefined for numbers → fell into "unknown key" branch
-5. Game received `keycode_Unknown` instead of 'R'
-6. Game started instead of triggering restore
+**System Entry Mode Approach:**
+- Shows save list as game output (like typed SAVE/RESTORE commands)
+- Enters system entry mode with text input prompt
+- User types save name (or number) to select
+- ESC or empty Enter to cancel
+- Page reload for restore (safe VM state management)
 
-### The Fix
+### Dialog Interceptor
 
-**1. Fixed char input format (`voxglk.js`)**:
+**File:** `docs/js/game/commands.js` - `initDialogInterceptor()`
+
+Listens for `iftalk-dialog-open` events from Dialog.open():
+
 ```javascript
-// Before: value: charCode (number 82)
-// After:  value: charValue (string "R")
+window.addEventListener('iftalk-dialog-open', (e) => {
+    const { tosave, usage, gameid, callback } = e.detail;
 
-if (typeof text === 'string' && text.length === 1) {
-    charValue = text;  // Regular single character - send as-is
-} else if (typeof text === 'string') {
-    charValue = text;  // Special key name like "left", "return"
-} else {
-    charValue = String.fromCharCode(text);  // Backwards compat
-}
+    if (usage === 'save') {
+        if (!tosave) {
+            // RESTORE request - show save list and enter system entry mode
+            const allSaves = getUnifiedSavesList();
+            respondAsGame(saveListHTML);
+            gameDialogCallback = callback;
+            awaitingMetaInput = 'game-restore';
+            enterSystemEntryMode('Enter save name to restore (send nothing to cancel)');
+        } else {
+            // SAVE request - show existing saves and prompt for name
+            respondAsGame(saveListHTML);
+            gameDialogCallback = callback;
+            awaitingMetaInput = 'game-save';
+            enterSystemEntryMode('Enter save name (send nothing to cancel)');
+        }
+    }
+});
 ```
 
-**2. Added specialinput handling (`voxglk.js`)**:
+### Restore Flow
+
+**File:** `docs/js/game/commands.js` - `handleGameRestoreResponse()`
+
+```
+1. User presses 'R' at intro screen
+   ↓
+2. Game calls glk_fileref_create_by_prompt()
+   ↓
+3. VoxGlk calls Dialog.open(false, 'save', gameid, callback)
+   ↓
+4. Dialog interceptor catches event
+   ↓
+5. Shows save list: "Restore - Choose a file to restore. (# or name)"
+   ↓
+6. Enters system entry mode (text input enabled)
+   ↓
+7. User types save name or number (e.g., "mysave" or "3")
+   OR
+   User presses ESC or empty Enter to cancel
+   ↓
+8a. Cancel path:
+    - Clear all system messages
+    - Call callback(null)
+    - Game shows "Restore failed." and continues
+   ↓
+8b. Valid save path:
+    - Set sessionStorage: { type: 'customsave', key: saveName }
+    - Show "Restoring from 'saveName'..."
+    - Reload page
+   ↓
+9. Page reload triggers autorestore flow
+   ↓
+10. Game loads at saved position
+```
+
+### Save Flow
+
+**File:** `docs/js/game/commands.js` - `handleGameSaveResponse()`
+
+```
+1. Game calls glk_fileref_create_by_prompt() for save
+   ↓
+2. VoxGlk calls Dialog.open(true, 'save', gameid, callback)
+   ↓
+3. Dialog interceptor catches event
+   ↓
+4. Shows existing saves and prompt: "Save - Enter a file name for your save."
+   ↓
+5. Enters system entry mode
+   ↓
+6. User types save name (validation: alphanumeric, spaces, dashes, underscores)
+   ↓
+7. Validation checks:
+   - Invalid characters? → Re-prompt
+   - Reserved name (quicksave/autosave)? → Re-prompt
+   - Max saves exceeded (5)? → Re-prompt
+   ↓
+8. Set window._customSaveFilename = saveName
+   ↓
+9. Call callback(fileref) with file reference
+   ↓
+10. VM calls Dialog.file_write()
+   ↓
+11. file_write() detects _customSaveFilename flag
+   ↓
+12. Saves in custom format: Quetzal + display HTML + VoxGlk state
+```
+
+### Cancellation Handling
+
+**ESC Key:**
+- `keyboard.js` calls `cancelMetaInput()` on Escape press
+- Clears system messages before calling callback(null)
+- Game receives null and shows "Restore/Save failed."
+
+**Empty Enter:**
+- `handleMetaResponse()` detects empty input
+- Same cleanup and callback(null) flow
+
+**Re-Prompting on Errors:**
+- When invalid input (save not found, invalid name, etc.)
+- Restore `awaitingMetaInput` flag before re-entering system entry mode
+- Enables ESC/Enter cancellation after errors
+
+### Custom Save Format
+
+**File:** `docs/lib/dialog-stub.js` - `file_write()`, `file_read()`
+
+**Storage Key:** `iftalk_customsave_{gameName}_{saveName}`
+
+**Format:**
 ```javascript
-if (arg.specialinput) {
-    if (arg.specialinput.type === 'fileref_prompt') {
-        Dialog.open(writable, arg.specialinput.filetype, gameid, (fileref) => {
-            acceptCallback({
-                type: 'specialresponse',
-                response: 'fileref_prompt',
-                value: fileref
-            });
-        });
-        return;
+{
+    timestamp: "2024-12-22T...",
+    gameName: "anchorhead",
+    saveName: "mysave",
+    quetzalData: "<base64 Quetzal>",  // VM memory state
+    displayHTML: {
+        statusBar: "<HTML>",
+        upperWindow: "<HTML>",
+        lowerWindow: "<HTML>"
+    },
+    voxglkState: {
+        generation: 5,
+        inputWindowId: 1
     }
 }
 ```
 
-**3. Implemented Dialog.open for restore (`dialog-stub.js`)**:
+### System Entry Mode
+
+**Keyboard Behavior:**
+- **Char input suppressed** - `if (inputType === 'char' && !systemEntryMode)`
+- **Text input visible** - `if (systemEntryMode || inputType === 'line')`
+- **Auto-focus enabled** - Typing anywhere focuses input
+- **ESC cancellation** - Returns null to game dialog
+
+### Page Reload Pattern
+
+**Why Page Reload:**
+- Avoids VM crash from calling `restore_file()` then returning to dialog callback
+- Resets glkapi.js generation counter to clean state
+- Same proven approach as Quick Load and typed RESTORE
+
+**How It Works:**
 ```javascript
-function dialog_open(tosave, usage, gameid, callback) {
-    if (!tosave) {  // RESTORE
-        // Priority: autosave → quicksave → custom saves → error
-        if (autosaveExists) {
-            triggerAutorestore('autosave', gameName);
-            return;
-        }
-        if (quicksaveExists) {
-            triggerAutorestore('quicksave', signature);
-            return;
-        }
-        // ... check custom saves ...
-        alert('No saved games found.');
-        callback(null);
-    }
-}
+sessionStorage.setItem('iftalk_pending_restore', JSON.stringify({
+    type: 'customsave',
+    key: save.name,
+    gameName: state.currentGameName
+}));
+window.location.reload();
 ```
-
-**4. Added pending restore detection (`game-loader.js`)**:
-```javascript
-const pendingRestoreJson = sessionStorage.getItem('iftalk_pending_restore');
-if (pendingRestoreJson) {
-    sessionStorage.removeItem('iftalk_pending_restore');
-    const pendingRestore = JSON.parse(pendingRestoreJson);
-    window.shouldAutoRestore = true;
-    window.pendingRestoreType = pendingRestore.type;
-    window.pendingRestoreKey = pendingRestore.key;
-}
-```
-
-### Full Flow
-
-```
-1. User at intro screen: "[Press 'R' to restore; any other key to begin]"
-   ↓
-2. User presses 'R' (uppercase)
-   ↓
-3. VoxGlk.sendInput() sends: { type: 'char', value: 'R' }
-   ↓
-4. VM receives 'R', game code calls Z-machine @restore opcode
-   ↓
-5. ZVM calls glk_fileref_create_by_prompt()
-   ↓
-6. glkapi.js sets ui_specialinput = { type: 'fileref_prompt', filemode: 'read' }
-   ↓
-7. GlkOte.update() sends specialinput to VoxGlk
-   ↓
-8. VoxGlk detects specialinput, calls Dialog.open(false, ...)
-   ↓
-9. Dialog.open() checks for saves:
-   - Found autosave? → triggerAutorestore('autosave', gameName)
-   - Found quicksave? → triggerAutorestore('quicksave', signature)
-   - Found custom save? → callback(fileref) [native restore]
-   - Nothing? → alert('No saved games found.') + callback(null)
-   ↓
-10. If autosave found:
-    - sessionStorage.setItem('iftalk_pending_restore', JSON.stringify({type, key}))
-    - window.location.reload()
-    ↓
-11. Page reloads, game-loader.js detects pending restore
-    ↓
-12. Sets window.shouldAutoRestore = true
-    ↓
-13. Normal autorestore flow takes over (see "How It Works" above)
-```
-
-### Save Types
-
-| Type | Storage Key | Format | Priority |
-|------|-------------|--------|----------|
-| Autosave | `iftalk_autosave_{gameName}` | VM snapshot + HTML | 1 (highest) |
-| Quicksave | `iftalk_quicksave_{signature}` | VM snapshot + HTML | 2 |
-| Custom | `iftalk_save_{filename}` | Quetzal (native) | 3 |
 
 ### Files Modified
 
-- `public/js/game/voxglk.js` - Char input format fix, specialinput handling
-- `public/lib/dialog-stub.js` - dialog_open(), triggerAutorestore(), findQuicksaveKey()
-- `public/js/game/game-loader.js` - Pending restore detection
+- `docs/js/game/commands.js` - Dialog interceptor, handlers, cancellation
+- `docs/js/input/keyboard.js` - System entry mode input handling
+- `docs/lib/dialog-stub.js` - Custom save format read/write
+
+### Testing Checklist
+
+- ✅ Press 'R' at Anchorhead intro → shows save list
+- ✅ Select save by name → restores correctly
+- ✅ Select save by number → restores correctly
+- ✅ ESC to cancel → shows "Restore failed"
+- ✅ Empty Enter to cancel → shows "Restore failed"
+- ✅ Invalid save name → re-prompts, ESC still works
+- ✅ In-game SAVE → shows save list, saves correctly
+- ✅ Reserved name rejected → re-prompts
+- ✅ Max saves (5) enforced → error + re-prompt
 
