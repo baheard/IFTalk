@@ -446,6 +446,9 @@ function loadPronunciationUI() {
 const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
   (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
 
+// Detect Windows
+const isWindows = /Win/.test(navigator.platform);
+
 // iOS preferred voices (starred, shown at top, in order)
 // Order: Karen (default), Daniel, Tessa
 const IOS_PREFERRED_VOICES = [
@@ -518,6 +521,7 @@ export function getDefaultVoice(voices) {
 /**
  * Get the best available app voice from preferences
  * On iOS: Default to Daniel (en-GB) for app voice
+ * On Windows: Default to Zira (en-US) for app voice
  * @param {Array} voices - Available voices
  * @returns {SpeechSynthesisVoice|null} Best matching voice or null
  */
@@ -540,6 +544,15 @@ export function getDefaultAppVoice(voices) {
       );
       if (match) return match;
     }
+  }
+
+  // On Windows, prefer Zira for app voice
+  if (isWindows) {
+    const zira = englishVoices.find(v =>
+      v.name.includes('Zira') ||
+      v.name === 'Microsoft Zira - English (United States)'
+    );
+    if (zira) return zira;
   }
 
   // Try each preferred voice in order
