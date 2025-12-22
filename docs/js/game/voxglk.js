@@ -480,8 +480,6 @@ export function createVoxGlk(textOutputCallback) {
                 const isGenOne = generation === 1;
                 const shouldSendBootstrap = isManualRestore || isGenOne;
 
-                console.log('[VoxGlk] Restore successful (type:', restoreType, 'bootstrap:', shouldSendBootstrap + ')');
-
                 if (shouldSendBootstrap) {
                   // Wake VM by sending dummy input to fulfill intro's pending request
                   setTimeout(() => {
@@ -753,7 +751,6 @@ export function createVoxGlk(textOutputCallback) {
      * Restore VoxGlk state after VM restore
      */
     restore_state: function(savedGeneration, savedInputWindowId) {
-      console.log('[VoxGlk] Restoring state (generation:', savedGeneration + ')');
       generation = savedGeneration;
       inputWindowId = savedInputWindowId;
       inputEnabled = true;

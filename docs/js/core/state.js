@@ -68,7 +68,10 @@ const _state = {
   pendingCommandProcessed: false,
 
   // Voice config
-  browserVoiceConfig: null
+  browserVoiceConfig: null,
+
+  // Lock screen state
+  isScreenLocked: false
 };
 
 // Add getter/setter for autoplayEnabled with logging

@@ -1,0 +1,454 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Button Samples - Voxi</title>
+  <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+  <style>
+    :root {
+      --bg-primary: #0d0f12;
+      --bg-secondary: #14171c;
+      --bg-surface: #1a1e24;
+      --bg-elevated: #22272e;
+      --accent-primary: #aec8ff;
+      --accent-warm: #c4a35a;
+      --accent-muted: #5c6370;
+      --text-primary: #e6e4e0;
+      --text-secondary: #a8a5a0;
+      --text-muted: #bbb;
+      --border-subtle: rgba(255, 255, 255, 0.08);
+      --border-accent: rgba(139, 157, 195, 0.3);
+      --highlight-active: rgba(139, 157, 195, 0.2);
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: linear-gradient(145deg, var(--bg-primary) 0%, var(--bg-secondary) 100%);
+      color: var(--text-primary);
+      min-height: 100vh;
+      padding: 40px 20px;
+    }
+
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    h1 {
+      font-size: 36px;
+      font-weight: 600;
+      margin-bottom: 16px;
+      color: var(--text-primary);
+      letter-spacing: -0.01em;
+      text-align: center;
+    }
+
+    .subtitle {
+      font-size: 16px;
+      font-style: italic;
+      color: var(--text-muted);
+      margin-bottom: 40px;
+      text-align: center;
+    }
+
+    .sample-section {
+      margin-bottom: 50px;
+      background: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      border-radius: 12px;
+      padding: 30px;
+    }
+
+    .sample-section h2 {
+      font-size: 20px;
+      color: var(--accent-warm);
+      margin-bottom: 20px;
+    }
+
+    .button-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 20px;
+    }
+
+    /* Style 1: Current (Gradient Glow) */
+    .btn-style-1 {
+      padding: 12px 24px;
+      border: 1px solid rgba(196, 163, 90, 0.4);
+      border-radius: 8px;
+      background: linear-gradient(135deg, rgba(196, 163, 90, 0.15) 0%, rgba(196, 163, 90, 0.08) 100%);
+      color: var(--accent-warm);
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+    }
+
+    .btn-style-1:hover {
+      transform: translateY(-2px);
+      background: linear-gradient(135deg, rgba(196, 163, 90, 0.25) 0%, rgba(196, 163, 90, 0.15) 100%);
+      border-color: rgba(196, 163, 90, 0.6);
+      box-shadow: 0 4px 16px rgba(196, 163, 90, 0.25);
+    }
+
+    /* Style 2: Solid Gold */
+    .btn-style-2 {
+      padding: 12px 24px;
+      border: none;
+      border-radius: 8px;
+      background: var(--accent-warm);
+      color: var(--bg-primary);
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+    }
+
+    .btn-style-2:hover {
+      transform: translateY(-2px);
+      filter: brightness(1.2);
+      box-shadow: 0 4px 16px rgba(196, 163, 90, 0.4);
+    }
+
+    /* Style 3: Outlined Ghost */
+    .btn-style-3 {
+      padding: 12px 24px;
+      border: 2px solid var(--accent-warm);
+      border-radius: 8px;
+      background: transparent;
+      color: var(--accent-warm);
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+
+    .btn-style-3:hover {
+      background: rgba(196, 163, 90, 0.1);
+      box-shadow: 0 0 20px rgba(196, 163, 90, 0.2);
+      transform: translateY(-2px);
+    }
+
+    /* Style 4: Soft Elevated */
+    .btn-style-4 {
+      padding: 12px 24px;
+      border: 1px solid rgba(196, 163, 90, 0.2);
+      border-radius: 8px;
+      background: var(--bg-elevated);
+      color: var(--accent-warm);
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+    }
+
+    .btn-style-4:hover {
+      background: rgba(196, 163, 90, 0.08);
+      border-color: var(--accent-warm);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+      transform: translateY(-1px);
+    }
+
+    /* Style 5: Glossy */
+    .btn-style-5 {
+      padding: 12px 24px;
+      border: 1px solid rgba(196, 163, 90, 0.3);
+      border-radius: 8px;
+      background: linear-gradient(180deg, rgba(196, 163, 90, 0.2) 0%, rgba(196, 163, 90, 0.05) 100%);
+      color: var(--accent-warm);
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .btn-style-5::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: -100%;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
+      transition: left 0.5s;
+    }
+
+    .btn-style-5:hover::before {
+      left: 100%;
+    }
+
+    .btn-style-5:hover {
+      border-color: var(--accent-warm);
+      box-shadow: 0 4px 12px rgba(196, 163, 90, 0.3);
+    }
+
+    /* Style 6: Minimal Underline */
+    .btn-style-6 {
+      padding: 12px 24px;
+      border: none;
+      border-bottom: 2px solid transparent;
+      border-radius: 0;
+      background: transparent;
+      color: var(--accent-warm);
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+
+    .btn-style-6:hover {
+      border-bottom-color: var(--accent-warm);
+      transform: translateY(-2px);
+    }
+
+    /* Style 7: Frosted Glass */
+    .btn-style-7 {
+      padding: 12px 24px;
+      border: 1px solid rgba(196, 163, 90, 0.3);
+      border-radius: 8px;
+      background: rgba(196, 163, 90, 0.05);
+      backdrop-filter: blur(10px);
+      color: var(--accent-warm);
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+    }
+
+    .btn-style-7:hover {
+      background: rgba(196, 163, 90, 0.12);
+      border-color: var(--accent-warm);
+    }
+
+    /* Style 8: Pill Shape */
+    .btn-style-8 {
+      padding: 12px 28px;
+      border: 1px solid rgba(196, 163, 90, 0.4);
+      border-radius: 50px;
+      background: rgba(196, 163, 90, 0.1);
+      color: var(--accent-warm);
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+
+    .btn-style-8:hover {
+      background: rgba(196, 163, 90, 0.2);
+      border-color: var(--accent-warm);
+      box-shadow: 0 0 20px rgba(196, 163, 90, 0.3);
+      transform: scale(1.05);
+    }
+
+    /* Style 9: Neumorphic */
+    .btn-style-9 {
+      padding: 12px 24px;
+      border: none;
+      border-radius: 8px;
+      background: var(--bg-surface);
+      color: var(--accent-warm);
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      box-shadow:
+        6px 6px 12px rgba(0, 0, 0, 0.4),
+        -6px -6px 12px rgba(255, 255, 255, 0.02);
+    }
+
+    .btn-style-9:hover {
+      box-shadow:
+        3px 3px 6px rgba(0, 0, 0, 0.4),
+        -3px -3px 6px rgba(255, 255, 255, 0.02),
+        inset 0 0 0 1px rgba(196, 163, 90, 0.3);
+    }
+
+    .material-icons {
+      font-size: 18px;
+      vertical-align: middle;
+      margin-right: 4px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Button Style Samples</h1>
+    <p class="subtitle">Choose your preferred primary button style for Voxi</p>
+
+    <div class="sample-section">
+      <h2>Style 1: Current (Gradient Glow)</h2>
+      <div class="button-grid">
+        <button class="btn-style-1">
+          <span class="material-icons">play_arrow</span>
+          Play Game
+        </button>
+        <button class="btn-style-1">
+          <span class="material-icons">settings</span>
+          Settings
+        </button>
+        <button class="btn-style-1">
+          <span class="material-icons">save</span>
+          Save Progress
+        </button>
+      </div>
+    </div>
+
+    <div class="sample-section">
+      <h2>Style 2: Solid Gold</h2>
+      <div class="button-grid">
+        <button class="btn-style-2">
+          <span class="material-icons">play_arrow</span>
+          Play Game
+        </button>
+        <button class="btn-style-2">
+          <span class="material-icons">settings</span>
+          Settings
+        </button>
+        <button class="btn-style-2">
+          <span class="material-icons">save</span>
+          Save Progress
+        </button>
+      </div>
+    </div>
+
+    <div class="sample-section">
+      <h2>Style 3: Outlined Ghost</h2>
+      <div class="button-grid">
+        <button class="btn-style-3">
+          <span class="material-icons">play_arrow</span>
+          Play Game
+        </button>
+        <button class="btn-style-3">
+          <span class="material-icons">settings</span>
+          Settings
+        </button>
+        <button class="btn-style-3">
+          <span class="material-icons">save</span>
+          Save Progress
+        </button>
+      </div>
+    </div>
+
+    <div class="sample-section">
+      <h2>Style 4: Soft Elevated</h2>
+      <div class="button-grid">
+        <button class="btn-style-4">
+          <span class="material-icons">play_arrow</span>
+          Play Game
+        </button>
+        <button class="btn-style-4">
+          <span class="material-icons">settings</span>
+          Settings
+        </button>
+        <button class="btn-style-4">
+          <span class="material-icons">save</span>
+          Save Progress
+        </button>
+      </div>
+    </div>
+
+    <div class="sample-section">
+      <h2>Style 5: Glossy (Shimmer Effect)</h2>
+      <div class="button-grid">
+        <button class="btn-style-5">
+          <span class="material-icons">play_arrow</span>
+          Play Game
+        </button>
+        <button class="btn-style-5">
+          <span class="material-icons">settings</span>
+          Settings
+        </button>
+        <button class="btn-style-5">
+          <span class="material-icons">save</span>
+          Save Progress
+        </button>
+      </div>
+    </div>
+
+    <div class="sample-section">
+      <h2>Style 6: Minimal Underline</h2>
+      <div class="button-grid">
+        <button class="btn-style-6">
+          <span class="material-icons">play_arrow</span>
+          Play Game
+        </button>
+        <button class="btn-style-6">
+          <span class="material-icons">settings</span>
+          Settings
+        </button>
+        <button class="btn-style-6">
+          <span class="material-icons">save</span>
+          Save Progress
+        </button>
+      </div>
+    </div>
+
+    <div class="sample-section">
+      <h2>Style 7: Frosted Glass</h2>
+      <div class="button-grid">
+        <button class="btn-style-7">
+          <span class="material-icons">play_arrow</span>
+          Play Game
+        </button>
+        <button class="btn-style-7">
+          <span class="material-icons">settings</span>
+          Settings
+        </button>
+        <button class="btn-style-7">
+          <span class="material-icons">save</span>
+          Save Progress
+        </button>
+      </div>
+    </div>
+
+    <div class="sample-section">
+      <h2>Style 8: Pill Shape</h2>
+      <div class="button-grid">
+        <button class="btn-style-8">
+          <span class="material-icons">play_arrow</span>
+          Play Game
+        </button>
+        <button class="btn-style-8">
+          <span class="material-icons">settings</span>
+          Settings
+        </button>
+        <button class="btn-style-8">
+          <span class="material-icons">save</span>
+          Save Progress
+        </button>
+      </div>
+    </div>
+
+    <div class="sample-section">
+      <h2>Style 9: Neumorphic</h2>
+      <div class="button-grid">
+        <button class="btn-style-9">
+          <span class="material-icons">play_arrow</span>
+          Play Game
+        </button>
+        <button class="btn-style-9">
+          <span class="material-icons">settings</span>
+          Settings
+        </button>
+        <button class="btn-style-9">
+          <span class="material-icons">save</span>
+          Save Progress
+        </button>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

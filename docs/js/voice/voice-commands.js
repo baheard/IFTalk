@@ -72,6 +72,21 @@ export function processVoiceKeywords(transcript, handlers, confidence = null) {
     return false;
   }
 
+  // When screen locked, only respond to "unlock"
+  if (state.isScreenLocked) {
+    if (lower === 'unlock') {
+      markCommandProcessed();
+      displayAppCommand('unlock', confidence);
+      // Import and call unlock function
+      import('../utils/lock-screen.js').then(module => {
+        module.unlockScreen();
+      });
+      return false;
+    }
+    // Block all other commands when locked
+    return false;
+  }
+
   // NAVIGATION COMMANDS (never sent to game)
 
   if (lower === 'restart' || lower === 'reset' || lower === 'repeat') {

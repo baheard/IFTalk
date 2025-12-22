@@ -17,7 +17,7 @@
   - Narration runs entirely in browser with `speechSynthesis`
   - No server round-trip for audio generation
 - **Speech Recognition**: Web Speech Recognition API (webkitSpeechRecognition)
-- **Save/Restore**: Use in-game SAVE and RESTORE commands (ZVM native mechanism)
+- **Save/Restore**: Custom system with autosave + `save [name]` / `restore [name]` commands
 
 ## File Structure
 
@@ -288,6 +288,19 @@ For detailed technical information, see the `reference/` folder:
    - Helpers manage settings + saves together: `clearAllGameData('lostpig')` removes settings, quicksave, and glkote save
    - Separation of concerns: game-settings.js (storage) → settings.js (UI) → game-loader.js (triggers)
    - Status messages show game name when changing settings: "Narrator voice: Karen (lostpig)"
+
+### December 22, 2024 - Mobile Keyboard Scroll Fix
+1. **Mobile Keyboard Aware Scrolling** - New content scrolls into view even with keyboard open
+   - File: `public/js/utils/scroll.js:45-81`
+   - `scrollToNewContent()` now uses Visual Viewport API (same as narration scroll logic)
+   - Detects actual visible height when keyboard is open
+   - Accounts for viewport offset when viewport shifts down
+   - Positions new content in upper portion of visible area (8% buffer from top)
+   - **Before**: New content could be hidden behind mobile keyboard
+   - **After**: New content always visible at top of viewport, even with keyboard open
+   - Uses smooth scroll animation for better UX
+   - Consistent behavior whether narration is active or not
+   - **Note**: Does NOT auto-scroll when keyboard opens/closes - only when NEW content arrives
 
 ### What Works Now
 - ✅ Game selection and loading

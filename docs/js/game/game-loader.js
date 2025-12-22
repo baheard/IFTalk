@@ -171,14 +171,11 @@ export async function startGame(gamePath, onOutput) {
 
     // Fade out loading overlay (100ms delay + 100ms fade)
     const loadingOverlay = document.getElementById('loadingOverlay');
-    console.log('[Overlay] StartGame ready to fade. Overlay exists?', !!loadingOverlay, 'Classes:', loadingOverlay?.className);
     if (loadingOverlay) {
       setTimeout(() => {
-        console.log('[Overlay] Adding fade-out class');
         loadingOverlay.classList.add('fade-out');
         // Remove from DOM after animation completes
         loadingOverlay.addEventListener('transitionend', () => {
-          console.log('[Overlay] Transition ended, removing overlay');
           loadingOverlay.remove();
 
           // Dispatch event so save-manager knows fade is complete
@@ -359,11 +356,9 @@ function renderRecentlyPlayedSection(onOutput) {
 
       const choice = await showResumeDialog(gameUrl, gameName);
       if (choice === 'resume') {
-        console.log('[CustomGame] Resume chosen, showing overlay');
         showLoadingOverlay();
         startGame(gameUrl, onOutput);
       } else if (choice === 'restart') {
-        console.log('[CustomGame] Restart chosen, showing overlay');
         // Autosave already deleted by showResumeDialog
         showLoadingOverlay();
         startGame(gameUrl, onOutput);
@@ -376,15 +371,10 @@ function renderRecentlyPlayedSection(onOutput) {
  * Show loading overlay for transition effect
  */
 function showLoadingOverlay() {
-  console.log('[Overlay] showLoadingOverlay() called');
-
   // Remove any existing overlay first
   const existing = document.getElementById('loadingOverlay');
   if (existing) {
-    console.log('[Overlay] Found existing overlay, removing it. Classes:', existing.className);
     existing.remove();
-  } else {
-    console.log('[Overlay] No existing overlay found');
   }
 
   // Create new overlay
@@ -392,7 +382,6 @@ function showLoadingOverlay() {
   overlay.className = 'loading-overlay';
   overlay.id = 'loadingOverlay';
   document.body.appendChild(overlay);
-  console.log('[Overlay] Created and appended new overlay');
 
   // Force reflow to ensure the overlay is visible before any transition
   overlay.offsetHeight;
@@ -488,11 +477,9 @@ export function initGameSelection(onOutput) {
         // Show resume/restart dialog
         const choice = await showResumeDialog(gamePath, gameName);
         if (choice === 'resume') {
-          console.log('[GameCard] Resume chosen, showing overlay');
           showLoadingOverlay();
           startGame(gamePath, onOutput);
         } else if (choice === 'restart') {
-          console.log('[GameCard] Restart chosen, showing overlay');
           // Autosave already deleted by showResumeDialog
           showLoadingOverlay();
           startGame(gamePath, onOutput);
@@ -626,13 +613,11 @@ export function initGameSelection(onOutput) {
 
   // Handle browser back button - return to welcome screen
   window.addEventListener('popstate', (event) => {
-    console.log('[Back] Popstate event. _inGame:', window._inGame);
     // If we're in a game, return to welcome screen
     if (window._inGame) {
       // Clear last game and reload for clean state
       // (Reloading is simpler than trying to reset all VM/VoxGlk state)
       localStorage.removeItem('iftalk_last_game');
-      console.log('[Back] Reloading page to return to welcome screen');
       location.reload();
     }
   });

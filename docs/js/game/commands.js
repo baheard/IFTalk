@@ -850,16 +850,13 @@ function waitForInputAndContinue(attempts = 0) {
   const maxAttempts = 20; // 20 * 50ms = 1 second max wait
 
   if (attempts >= maxAttempts) {
-    console.log('[Commands] Gave up waiting for input after', maxAttempts, 'attempts');
     return;
   }
 
   const inputReady = isInputEnabled();
   const currentType = getInputType();
-  console.log('[Commands] Waiting for input, attempt:', attempts, 'enabled:', inputReady, 'type:', currentType);
 
   if (inputReady && currentType === 'char') {
-    console.log('[Commands] Input ready, sending return char');
     sendInput('return', 'char');
   } else if (!inputReady) {
     // Keep waiting

@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>IFTalk Sound Effects</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      max-width: 600px;
+      margin: 40px auto;
+      padding: 20px;
+      background: #1a1a2e;
+      color: #eee;
+    }
+    h1 { color: #00d9ff; margin-bottom: 30px; }
+    .sound-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 15px 20px;
+      margin-bottom: 10px;
+      background: #252540;
+      border-radius: 8px;
+      transition: background 0.2s;
+    }
+    .sound-row:hover { background: #2a2a4a; }
+    .sound-name {
+      font-size: 1em;
+      color: #eee;
+      flex: 1;
+    }
+    button {
+      background: #00d9ff;
+      color: #1a1a2e;
+      border: none;
+      padding: 8px 20px;
+      border-radius: 6px;
+      font-size: 0.9em;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    button:hover {
+      background: #00f5ff;
+      transform: scale(1.05);
+    }
+    button:active {
+      transform: scale(0.98);
+    }
+  </style>
+</head>
+<body>
+  <h1>IFTalk Sound Effects</h1>
+
+  <div class="sound-row">
+    <div class="sound-name">Game Command Sent</div>
+    <button onclick="playCommandSent()">Play</button>
+  </div>
+
+  <div class="sound-row">
+    <div class="sound-name">App Command Sent</div>
+    <button onclick="playAppCommand()">Play</button>
+  </div>
+
+  <div class="sound-row">
+    <div class="sound-name">Low Confidence Voice</div>
+    <button onclick="playLowConfidence()">Play</button>
+  </div>
+
+  <div class="sound-row">
+    <div class="sound-name">Microphone Muted</div>
+    <button onclick="playMuteTone()">Play</button>
+  </div>
+
+  <div class="sound-row">
+    <div class="sound-name">Microphone Unmuted</div>
+    <button onclick="playUnmuteTone()">Play</button>
+  </div>
+
+  <div class="sound-row">
+    <div class="sound-name">Command Blocked</div>
+    <button onclick="playBlockedCommand()">Play</button>
+  </div>
+
+  <script>
+    let audioCtx = null;
+
+    function getContext() {
+      if (!audioCtx) {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      }
+      if (audioCtx.state === 'suspended') {
+        audioCtx.resume();
+      }
+      return audioCtx;
+    }
+
+    function getMasterVolume() {
+      const saved = localStorage.getItem('iftalk_masterVolume');
+      return saved ? parseInt(saved) / 100 : 1.0;
+    }
+
+    function playCommandSent() {
+      const ctx = getContext();
+      const masterVol = getMasterVolume();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.frequency.value = 800;
+      osc.type = 'sine';
+      gain.gain.setValueAtTime(0.25 * masterVol, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.06);
+      osc.start(ctx.currentTime);
+      osc.stop(ctx.currentTime + 0.06);
+    }
+
+    function playAppCommand() {
+      const ctx = getContext();
+      const masterVol = getMasterVolume();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      const filter = ctx.createBiquadFilter();
+      osc.connect(filter);
+      filter.connect(gain);
+      gain.connect(ctx.destination);
+      osc.frequency.value = 600;
+      osc.type = 'sine';
+      filter.type = 'lowpass';
+      filter.frequency.value = 400;
+      gain.gain.setValueAtTime(0.15 * masterVol, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.12);
+      osc.start(ctx.currentTime);
+      osc.stop(ctx.currentTime + 0.12);
+    }
+
+    function playLowConfidence() {
+      const ctx = getContext();
+      const masterVol = getMasterVolume();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      const lfo = ctx.createOscillator();
+      const lfoGain = ctx.createGain();
+      lfo.connect(lfoGain);
+      lfoGain.connect(osc.frequency);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.frequency.value = 200;
+      lfo.frequency.value = 8;
+      lfoGain.gain.value = 20;
+      osc.type = 'sine';
+      gain.gain.setValueAtTime(0.12 * masterVol, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.2);
+      lfo.start(ctx.currentTime);
+      osc.start(ctx.currentTime);
+      lfo.stop(ctx.currentTime + 0.2);
+      osc.stop(ctx.currentTime + 0.2);
+    }
+
+    function playMuteTone() {
+      const ctx = getContext();
+      const masterVol = getMasterVolume();
+      const freqs = [300, 250, 200];
+      freqs.forEach((freq, i) => {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.frequency.value = freq;
+        osc.type = 'sine';
+        const start = ctx.currentTime + i * 0.05;
+        gain.gain.setValueAtTime(0.12 * masterVol, start);
+        gain.gain.exponentialRampToValueAtTime(0.001, start + 0.04);
+        osc.start(start);
+        osc.stop(start + 0.04);
+      });
+    }
+
+    function playUnmuteTone() {
+      const ctx = getContext();
+      const masterVol = getMasterVolume();
+      const osc1 = ctx.createOscillator();
+      const gain1 = ctx.createGain();
+      osc1.connect(gain1);
+      gain1.connect(ctx.destination);
+      osc1.frequency.value = 660;
+      osc1.type = 'sine';
+      gain1.gain.setValueAtTime(0.12 * masterVol, ctx.currentTime);
+      gain1.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.15);
+      osc1.start(ctx.currentTime);
+      osc1.stop(ctx.currentTime + 0.15);
+      const osc2 = ctx.createOscillator();
+      const gain2 = ctx.createGain();
+      osc2.connect(gain2);
+      gain2.connect(ctx.destination);
+      osc2.frequency.value = 880;
+      osc2.type = 'sine';
+      gain2.gain.setValueAtTime(0.12 * masterVol, ctx.currentTime + 0.08);
+      gain2.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.25);
+      osc2.start(ctx.currentTime + 0.08);
+      osc2.stop(ctx.currentTime + 0.25);
+    }
+
+    function playBlockedCommand() {
+      const ctx = getContext();
+      const masterVol = getMasterVolume();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.frequency.value = 150;
+      osc.type = 'sawtooth';
+      gain.gain.setValueAtTime(0.25 * masterVol, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.15);
+      osc.start(ctx.currentTime);
+      osc.stop(ctx.currentTime + 0.15);
+    }
+  </script>
+</body>
+</html>

@@ -149,11 +149,8 @@ export function initKeyboardInput() {
 
     const inputType = getInputType();
 
-    if (inputType === 'char') {
-      // Char mode - tap anywhere to send Enter
-      e.preventDefault();
-      sendInput('\n', 'char');
-    } else if (inputType === 'line' && messageInputEl) {
+    // Removed char mode tap-to-continue - users must use keyboard or char panel buttons
+    if (inputType === 'line' && messageInputEl) {
       // Line mode - focus message input (no scroll until they type)
       messageInputEl.focus({ preventScroll: true });
     }

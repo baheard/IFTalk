@@ -226,9 +226,6 @@ function processStyledContent(contentArray) {
         if (escapedText && !isStandalonePrompt) {
           // Mark input-style text to use app voice instead of narrator
           const voiceAttr = cssClass === 'glk-input' ? ' data-voice="app"' : '';
-          if (cssClass === 'glk-input') {
-            console.log('[Renderer] Generated glk-input span:', escapedText);
-          }
           currentLine += `<span class="${cssClass}" style="white-space: pre-wrap;"${voiceAttr}>${escapedText}</span>`;
         }
 
@@ -313,9 +310,6 @@ function processStyledContent(contentArray) {
         if (escapedText && !isStandalonePrompt) {
           // Mark input-style text to use app voice instead of narrator
           const voiceAttr = cssClass === 'glk-input' ? ' data-voice="app"' : '';
-          if (cssClass === 'glk-input') {
-            console.log('[Renderer] Generated glk-input span (obj):', escapedText);
-          }
           if (customStyle) {
             // Custom colors override - use both class and inline style
             currentLine += `<span class="${cssClass}" style="${customStyle}"${voiceAttr}>${escapedText}</span>`;
@@ -434,8 +428,6 @@ function renderStatusBar(content) {
                   typeof line.content[0] === 'string' &&
                   line.content.length >= 2;
 
-  console.log('[StatusBar] Raw line content:', JSON.stringify(line.content).substring(0, 200));
-
   if (isFlat) {
     // Process flat array: [style1, text1, style2, text2, ...]
     for (let i = 1; i < line.content.length; i += 2) {
@@ -453,8 +445,6 @@ function renderStatusBar(content) {
       }
     });
   }
-
-  console.log('[StatusBar] Extracted fullText:', fullText);
 
 
   // Split into parts by 2+ spaces

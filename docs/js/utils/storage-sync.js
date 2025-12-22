@@ -85,7 +85,6 @@ function mergeSaves(remoteSaves) {
       // No local version - use remote
       localStorage.setItem(key, value);
       synced++;
-      console.log(`[Sync] Added: ${key}`);
     } else {
       // Compare timestamps if both exist
       try {
@@ -97,7 +96,6 @@ function mergeSaves(remoteSaves) {
           if (remoteData.timestamp > localData.timestamp) {
             localStorage.setItem(key, value);
             synced++;
-            console.log(`[Sync] Updated (newer): ${key}`);
           }
         }
       } catch {
@@ -106,6 +104,5 @@ function mergeSaves(remoteSaves) {
     }
   }
 
-  console.log(`[Sync] Complete: ${synced} updated, ${total} total from remote`);
   return { synced, total };
 }

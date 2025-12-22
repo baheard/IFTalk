@@ -276,14 +276,6 @@ export function initVoiceRecognition(processVoiceKeywords) {
   };
 
   recognition.onend = () => {
-    console.log('[Voice] Recognition ended. State:', {
-      listeningEnabled: state.listeningEnabled,
-      isRecognitionActive: state.isRecognitionActive,
-      ttsIsSpeaking: state.ttsIsSpeaking,
-      isNarrating: state.isNarrating,
-      isMuted: state.isMuted
-    });
-
     state.isListening = false;
     state.isRecognitionActive = false;
 
@@ -295,8 +287,6 @@ export function initVoiceRecognition(processVoiceKeywords) {
       setTimeout(() => {
         if (state.listeningEnabled && !state.isRecognitionActive) {
           try {
-            console.log('[Voice] Attempting to restart recognition (muted:', state.isMuted, ')...');
-
             // Clear transcript display if not showing confirmed text
             if (dom.voiceTranscript && !dom.voiceTranscript.classList.contains('confirmed')) {
               updateVoiceTranscript(state.isMuted ? 'Muted' : 'Listening...', 'listening');
@@ -305,24 +295,14 @@ export function initVoiceRecognition(processVoiceKeywords) {
             }
 
             recognition.start();
-            console.log('[Voice] Recognition restarted successfully');
           } catch (err) {
             // Ignore if already running
             if (err.message && !err.message.includes('already')) {
               console.error('[Voice] Restart error:', err);
-            } else {
-              console.log('[Voice] Recognition already running (expected)');
             }
           }
-        } else {
-          console.log('[Voice] Not restarting recognition:', {
-            listeningEnabled: state.listeningEnabled,
-            isRecognitionActive: state.isRecognitionActive
-          });
         }
       }, 200); // Reduced from 300ms
-    } else {
-      console.log('[Voice] Not attempting restart (listening disabled)');
     }
   };
 

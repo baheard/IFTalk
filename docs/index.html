@@ -49,6 +49,14 @@
         <input type="checkbox" id="keepAwakeToggle" class="toggle-switch">
       </div>
 
+      <!-- Lock Screen Button (mobile-only) -->
+      <div class="global-settings-row">
+        <button class="btn btn-secondary btn-full-width" id="lockScreenBtn">
+          <span class="material-icons">lock</span>
+          Lock Screen Now
+        </button>
+      </div>
+
       <!-- About (welcome screen only) -->
       <div class="settings-section collapsible collapsed hidden" id="aboutSection">
         <h3 class="section-header"><span class="material-icons">auto_stories</span> About</h3>
@@ -119,11 +127,11 @@
           <!-- Save/Restore Instructions -->
           <div class="save-restore-info">
             <h4>💾 Save & Restore</h4>
-            <p>This browser-based interpreter uses the game's native save system:</p>
+            <p>Progress autosaves after each turn. To save manually:</p>
             <ul>
-              <li>Type <code>SAVE</code> in the game to save your progress</li>
-              <li>Type <code>RESTORE</code> to load a saved game</li>
-              <li>Saves are stored in your browser's local storage</li>
+              <li><code>save [name]</code> — Save with a custom name</li>
+              <li><code>restore [name]</code> — Restore from a named save</li>
+              <li><code>quicksave</code> / <code>quickload</code> — Quick save/load</li>
             </ul>
           </div>
 
@@ -501,6 +509,25 @@
 
 
   <div class="status" id="status">Select a game to start</div>
+
+  <!-- Lock Screen Overlay -->
+  <div class="lock-screen-overlay hidden" id="lockScreenOverlay">
+    <div class="lock-screen-content">
+      <div class="lock-screen-icon">
+        <span class="material-icons">lock</span>
+      </div>
+      <div class="lock-screen-instructions">
+        Say "unlock" or press and hold
+      </div>
+      <button class="unlock-button" id="unlockButton">
+        <div class="unlock-button-inner">
+          <span class="material-icons">lock_open</span>
+          <span class="unlock-text">Hold to Unlock</span>
+        </div>
+        <div class="unlock-progress" id="unlockProgress"></div>
+      </button>
+    </div>
+  </div>
 
   <script type="module" src="js/app.js"></script>
 </body>

@@ -61,11 +61,6 @@ export function ensureChunksReady() {
   const upperHTML = upperEl ? upperEl.innerHTML : '';
   const mainHTML = mainEl ? mainEl.innerHTML : '';
 
-  // Debug: Log if we find glk-input in the main HTML
-  if (mainHTML && mainHTML.includes('glk-input')) {
-    console.log('[ensureChunksReady] Main HTML has glk-input:', mainHTML.substring(0, 300));
-  }
-
   const hasStatus = statusHTML && statusHTML.trim();
   const hasUpper = upperHTML && upperHTML.trim();
   const hasMain = mainHTML && mainHTML.trim();
@@ -259,8 +254,6 @@ export function addGameText(text, isCommand = false, isVoiceCommand = false, isA
     if (isLowConfidence) classNames.push('low-confidence');
     div.className = classNames.join(' ');
 
-    console.log('[addGameText] Command:', text, 'isVoice:', isVoiceCommand, 'confidence:', confidence, 'classes:', div.className);
-
     // Build the command display
     // Format: ">command" for typed, ">command (95%) 🎤" for voice
     const displayText = (text === '' || text === '[ENTER]') ? '[ENTER]' : escapeHtml(text);
@@ -281,11 +274,6 @@ export function addGameText(text, isCommand = false, isVoiceCommand = false, isA
     // LAZY CHUNKING: Just render HTML, don't create chunks yet
     // Chunks will be created on-demand when narration is requested
     div.innerHTML = text;
-
-    // Debug: Log if glk-input is in incoming HTML
-    if (text.includes('glk-input')) {
-      console.log('[addGameText] Received HTML with glk-input:', text.substring(0, 300));
-    }
 
     // Invalidate existing chunks - they're for old content
     state.chunksValid = false;

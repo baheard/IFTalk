@@ -69,28 +69,18 @@ export function insertTemporaryMarkers(html, skipLineBreaks = false) {
 export function createNarrationChunks(html) {
   if (!html) return [];
 
-  // Debug: Log incoming HTML to see glk-input spans
-  const hasGlkInput = html.includes('glk-input');
-  const hasDataVoice = html.includes('data-voice="app"');
-  if (hasGlkInput || hasDataVoice) {
-    console.log('[Chunking] Found glk-input:', hasGlkInput, 'data-voice:', hasDataVoice);
-    console.log('[Chunking] HTML sample:', html.substring(0, 500));
-  }
-
   // Mark app voice spans before converting to plain text
   // Add ⚑APP⚑ markers around text that should use app voice
   // Match both data-voice="app" AND glk-input class (game echoes user commands)
   let markedHTML = html
     // First, mark any span with data-voice="app"
     .replace(/<span([^>]*data-voice="app"[^>]*)>(.*?)<\/span>/gi, (match, attrs, content) => {
-      console.log('[Chunking] Marked data-voice span:', content);
       return `⚑APP⚑${content}⚑APP⚑`;
     })
     // Also mark glk-input spans (echoed commands) even if data-voice is missing
     .replace(/<span[^>]*class="[^"]*glk-input[^"]*"[^>]*>(.*?)<\/span>/gi, (match, content) => {
       // Skip if already marked as APP
       if (content.includes('⚑APP⚑')) return match;
-      console.log('[Chunking] Marked glk-input span:', content);
       return `⚑APP⚑${content}⚑APP⚑`;
     });
 
@@ -130,11 +120,6 @@ export function createNarrationChunks(html) {
     })
     // Filter out app voice chunks and empty chunks
     .filter(chunk => chunk.voice !== 'app' && chunk.text.trim() !== '');
-
-  // Debug: Log final chunks
-  if (hasGlkInput || hasDataVoice) {
-    console.log('[Chunking] Final chunks:', chunks.map(c => ({ text: c.text.substring(0, 30), voice: c.voice })));
-  }
 
   return chunks;
 }

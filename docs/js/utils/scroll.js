@@ -37,6 +37,7 @@ export function scrollToTop(container) {
  * Smart scroll for new content after command
  * Scrolls toward bottom, but stops if top of new content would go off-screen.
  * Rule: Always keep the top of new text visible.
+ * Accounts for mobile keyboard using Visual Viewport API.
  *
  * @param {HTMLElement} newElement - The newly added content element
  * @param {HTMLElement} [container] - Container to scroll (defaults to gameOutput)
@@ -49,19 +50,34 @@ export function scrollToNewContent(newElement, container) {
   const containerRect = el.getBoundingClientRect();
   const newElementRect = newElement.getBoundingClientRect();
 
-  // Calculate how far new element's top is from container's top
-  const newTextTopOffset = newElementRect.top - containerRect.top;
+  // Calculate target's position in the scrollable content
+  const targetPositionInContent = el.scrollTop + (newElementRect.top - containerRect.top);
 
-  // Calculate scroll needed to put new text at top of viewport
-  const scrollToShowNewTextTop = el.scrollTop + newTextTopOffset;
+  // Account for mobile keyboard using visual viewport API
+  // When keyboard is up:
+  // - visualViewport.height is smaller (keyboard covers bottom)
+  // - visualViewport.offsetTop may be non-zero (viewport shifted down)
+  const vv = window.visualViewport;
+  const visibleHeight = vv ? vv.height : window.innerHeight;
+  const viewportOffset = vv ? vv.offsetTop : 0;
+
+  // Position text in the upper portion of the visible area (above keyboard)
+  // Add viewport offset to account for when visual viewport has shifted
+  const bufferFromTop = Math.max(20, visibleHeight * 0.08) + viewportOffset;
+
+  const targetScroll = Math.max(0, targetPositionInContent - bufferFromTop);
 
   // Calculate scroll to reach bottom
   const scrollToBottom = el.scrollHeight - el.clientHeight;
 
   // Use the smaller of the two - this ensures new text top stays visible
-  const targetScroll = Math.min(scrollToBottom, scrollToShowNewTextTop);
+  // while not scrolling past the bottom
+  const finalScroll = Math.min(scrollToBottom, targetScroll);
 
-  el.scrollTop = targetScroll;
+  el.scrollTo({
+    top: finalScroll,
+    behavior: 'smooth'
+  });
 }
 
 /**

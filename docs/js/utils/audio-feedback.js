@@ -56,8 +56,6 @@ export function playCommandSent() {
 
     osc.start(ctx.currentTime);
     osc.stop(ctx.currentTime + 0.06);
-
-    console.log('[Audio] Command sent tone played');
   } catch (err) {
     console.error('[Audio] Command sent tone error:', err);
   }

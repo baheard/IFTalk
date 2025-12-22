@@ -37,6 +37,7 @@ import { initGameSelection } from './game/game-loader.js';
 
 // Utility modules
 import { initKeepAwake, enableKeepAwake, disableKeepAwake, isKeepAwakeEnabled, activateIfEnabled } from './utils/wake-lock.js';
+import { initLockScreen, lockScreen, unlockScreen, isScreenLocked, toggleLockScreen } from './utils/lock-screen.js';
 import { playMuteTone, playUnmuteTone } from './utils/audio-feedback.js';
 
 // Voice command handlers (exported so typed commands can use them too)
@@ -127,10 +128,9 @@ export const voiceCommandHandlers = {
     // Just verify it's active, start it if needed
     if (state.recognition && !state.isRecognitionActive) {
       try {
-        console.log('[Voice] Starting recognition after unmute');
         state.recognition.start();
       } catch (err) {
-        console.log('[Voice] Recognition already running or start failed:', err.message);
+        // Recognition already running or start failed
       }
     }
   },
@@ -157,7 +157,6 @@ export const voiceCommandHandlers = {
     }
 
     // DON'T stop voice recognition - keep it running to listen for "unmute"
-    console.log('[Voice] Muted but still listening for "unmute" command');
   },
   sendCommandDirect: (cmd) => sendCommandDirect(cmd)
 };
@@ -170,13 +169,10 @@ function handleGameOutput(text) {
   // properly with a 50ms delay to let the old loop exit cleanly
   state.pendingNarrationText = text;
 
-  console.log('[HandleGameOutput] Received new game output, currentChunkIndex:', state.currentChunkIndex, 'restoredChunkIndex:', state.restoredChunkIndex);
-
   // STRICT CHECK: Auto-start narration ONLY if autoplay is explicitly enabled
   if (state.autoplayEnabled === true) {
     // Check if we have a restored chunk index from autoload
     const startIndex = state.restoredChunkIndex !== null ? state.restoredChunkIndex : 0;
-    console.log('[HandleGameOutput] Autoplay enabled, starting narration from chunk', startIndex, '(restored:', state.restoredChunkIndex !== null, ')');
 
     // Clear the restored index so it's only used once
     state.restoredChunkIndex = null;
@@ -187,8 +183,6 @@ function handleGameOutput(text) {
 
     // Start narration (chunks will be created on-demand)
     speakTextChunked(null, startIndex);
-  } else {
-    console.log('[HandleGameOutput] Autoplay not enabled, NOT starting narration');
   }
 }
 
@@ -321,6 +315,15 @@ async function initApp() {
     });
   }
 
+  // Initialize lock screen (mobile only)
+  initLockScreen();
+  const lockScreenBtn = document.getElementById('lockScreenBtn');
+  if (lockScreenBtn) {
+    lockScreenBtn.addEventListener('click', () => {
+      lockScreen();
+    });
+  }
+
   // Initialize mute button state to match default (muted)
   if (dom.muteBtn) {
     const icon = dom.muteBtn.querySelector('.material-icons');
@@ -349,14 +352,6 @@ async function initApp() {
   const pausePlayBtn = document.getElementById('pausePlayBtn');
   if (pausePlayBtn) {
     pausePlayBtn.addEventListener('click', async () => {
-      console.log('[Play Button] Clicked. State:', {
-        autoplayEnabled: state.autoplayEnabled,
-        isNarrating: state.isNarrating,
-        narrationEnabled: state.narrationEnabled,
-        chunksLength: state.narrationChunks.length,
-        currentChunkIndex: state.currentChunkIndex
-      });
-
       if (state.autoplayEnabled) {
         // Currently in AUTOPLAY mode - switch to MANUAL mode
         state.autoplayEnabled = false;
@@ -374,7 +369,6 @@ async function initApp() {
         // Start playing from current position (if not at end)
         if (state.narrationChunks.length > 0 && state.currentChunkIndex < state.narrationChunks.length) {
           // Not at end - resume from current position
-          console.log('[Play Button] Starting narration from current chunk:', state.currentChunkIndex);
           speakTextChunked(null, state.currentChunkIndex);
         } else {
           // At end or no chunks - try to read the last game response
@@ -394,13 +388,8 @@ async function initApp() {
             if (ensureChunksReady() && state.narrationChunks.length > 0) {
               // Play the last game response from the beginning
               state.currentChunkIndex = 0;
-              console.log('[Play Button] Reading last game response, chunks:', state.narrationChunks.length);
               speakTextChunked(null, 0);
-            } else {
-              console.log('[Play Button] No content to narrate, autoplay armed');
             }
-          } else {
-            console.log('[Play Button] No game text found, autoplay armed for next content');
           }
         }
 
@@ -446,6 +435,13 @@ async function initApp() {
       skipToChunk(-1, () => speakTextChunked(null, state.currentChunkIndex));
     } else if (e.key === 'ArrowRight') {
       skipToChunk(1, () => speakTextChunked(null, state.currentChunkIndex));
+    }
+
+    // Ctrl+L - Lock/unlock screen (for testing)
+    if (e.key === 'l' && e.ctrlKey) {
+      e.preventDefault();
+      toggleLockScreen();
+      return;
     }
 
     // Escape - exit autoplay mode
