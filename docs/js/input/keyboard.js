@@ -192,7 +192,8 @@ function handleKeyPress(e) {
   const inputType = getInputType();
 
   // In char mode (press any key), send any key immediately
-  if (inputType === 'char') {
+  // BUT NOT during system entry mode (save/restore prompts)
+  if (inputType === 'char' && !systemEntryMode) {
     // Don't capture modifier keys alone
     if (e.key === 'Shift' || e.key === 'Control' || e.key === 'Alt' || e.key === 'Meta') {
       return;
@@ -244,8 +245,8 @@ function handleKeyPress(e) {
 
   // If typing and not focused on message input, focus it and capture the keystroke
   if (e.target !== messageInputEl && e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) {
-    // Only for line input mode
-    if (getInputType() === 'line' && messageInputEl && !messageInputEl.classList.contains('hidden')) {
+    // For line input mode OR system entry mode (save/restore prompts)
+    if ((getInputType() === 'line' || systemEntryMode) && messageInputEl && !messageInputEl.classList.contains('hidden')) {
       messageInputEl.focus({ preventScroll: true });
       messageInputEl.value += e.key;
       state.hasManualTyping = true;
@@ -288,13 +289,14 @@ function updateInputVisibility() {
   if (messageInputRowEl) {
     const wasHidden = messageInputRowEl.classList.contains('hidden');
 
-    if (inputType === 'line') {
-      // Line mode - show message input row
+    // ALWAYS show input during system entry mode (save/restore prompts)
+    if (systemEntryMode || inputType === 'line') {
+      // Line mode or system entry - show message input row
       messageInputRowEl.classList.remove('hidden');
 
       // Toggle between text input and voice indicator based on mute state
-      if (isMuted) {
-        // Muted - show text input, hide voice indicator
+      if (isMuted || systemEntryMode) {
+        // Muted or system entry - show text input, hide voice indicator
         if (messageInputEl) messageInputEl.classList.remove('hidden');
         if (voiceListeningIndicatorEl) voiceListeningIndicatorEl.classList.add('hidden');
 

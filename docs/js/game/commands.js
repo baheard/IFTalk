@@ -111,7 +111,9 @@ export async function sendCommandDirect(cmd, isVoiceCommand = null, confidence =
 }
 
 // State tracking for interactive meta-commands
-let awaitingMetaInput = null; // 'save', 'restore', 'delete', or null
+let awaitingMetaInput = null; // 'save', 'restore', 'delete', 'game-save', 'game-restore', or null
+let gameDialogCallback = null; // Callback for in-game save/restore dialogs
+let gameDialogRef = null; // File reference for in-game dialogs
 const MAX_SAVES = 5;
 
 /**
@@ -238,6 +240,7 @@ These commands work whether typed or spoken:<br>
 <b>Navigation:</b> PAUSE, PLAY, SKIP, BACK, RESTART<br>
 <b>Save/Load:</b> SAVE, RESTORE, DELETE SAVE, QUICK SAVE, QUICK LOAD<br>
 <b>Audio:</b> MUTE, UNMUTE, STATUS<br>
+<b>Game:</b> QUIT - Auto-save and return to game selection<br>
 <b>Special:</b> PRINT [text] - Send literal text to game<br>
 <br>
 For game commands, type anything else.<br>
@@ -322,6 +325,10 @@ See Settings panel for more help.
       if (h.restoreLatest) h.restoreLatest();
       return true;
 
+    case 'quit':
+    case 'exit':
+      return await handleQuitCommand();
+
     default:
       // Check for "load slot X" or "restore slot X" pattern
       const slotMatch = cmd.match(/^(?:load|restore)\s+slot\s+(\d+)$/);
@@ -346,19 +353,16 @@ function formatSaveEntry(save, index) {
 }
 
 /**
- * Get unified list of all saves (custom + quicksave + autosave) for display
+ * Get unified list of all saves (custom + quicksave) for display
  * Sorted by timestamp, newest first
+ * Note: Autosave is excluded - it's automatic and managed by the system
  */
 function getUnifiedSavesList() {
   const saves = getCustomSaves();
   const quicksave = getQuicksave();
-  const autosave = getAutosave();
 
   if (quicksave) {
     saves.push(quicksave);
-  }
-  if (autosave) {
-    saves.push(autosave);
   }
 
   // Sort by timestamp, newest first
@@ -438,7 +442,6 @@ async function handleDeleteCommand() {
 
   let message = '<div class="system-message"><b>Delete which save?</b><br>';
   message += formatSavesList(allSaves);
-  message += '<br><i>Note: To delete the autosave and start fresh, use "Restart Game" in Settings.</i>';
   message += '</div>';
 
   respondAsGame(message);
@@ -458,9 +461,25 @@ async function handleMetaResponse(input) {
   awaitingMetaInput = null; // Reset state
 
   if (!input || input.trim() === '') {
-    // User cancelled - just exit system entry mode
+    // User cancelled - exit system entry mode
     exitSystemEntryMode();
-    respondAsGame('<div class="system-message"><i>Cancelled.</i></div>');
+
+    // If this was a game dialog (save/restore from in-game), clear system messages and return null
+    if ((mode === 'game-save' || mode === 'game-restore') && gameDialogCallback) {
+      // Clear all system messages before showing game's response
+      const systemMessages = document.querySelectorAll('.system-message');
+      systemMessages.forEach(msg => msg.remove());
+
+      setTimeout(() => {
+        gameDialogCallback(null);
+        gameDialogCallback = null;
+        gameDialogRef = null;
+      }, 0);
+    } else {
+      // For typed commands, show cancellation message
+      respondAsGame('<div class="system-message"><i>Cancelled.</i></div>');
+    }
+
     return true;
   }
 
@@ -481,6 +500,12 @@ async function handleMetaResponse(input) {
 
     case 'delete':
       return await handleDeleteResponse(input.trim(), allSaves);
+
+    case 'game-save':
+      return await handleGameSaveResponse(input.trim(), customSaves);
+
+    case 'game-restore':
+      return await handleGameRestoreResponse(input.trim(), allSaves);
 
     default:
       return false;
@@ -607,6 +632,150 @@ async function handleDeleteResponse(input, saves) {
 }
 
 /**
+ * Handle QUIT command - auto-save and return to game selection
+ */
+async function handleQuitCommand() {
+  // Auto-save current progress
+  const { autoSave } = await import('./save-manager.js');
+  await autoSave();
+
+  // Show confirmation message
+  respondAsGame('<div class="system-message">Game saved. Returning to game selection...</div>');
+
+  // Return to game selection after brief delay
+  setTimeout(() => {
+    // Clear last game so it doesn't auto-resume
+    localStorage.removeItem('iftalk_last_game');
+
+    // Reload to return to welcome screen
+    window.location.reload();
+  }, 1000);
+
+  return true;
+}
+
+/**
+ * Handle game-initiated save dialog (when game asks to save)
+ */
+async function handleGameSaveResponse(input, saves) {
+  // Check if name is valid (no special characters that could break localStorage)
+  if (!/^[a-zA-Z0-9_ -]+$/.test(input)) {
+    respondAsGame('<div class="system-message">Invalid save name. Use only letters, numbers, spaces, dashes, and underscores.</div>');
+
+    // Re-prompt by re-entering system entry mode
+    // IMPORTANT: Restore awaitingMetaInput flag so ESC/Enter cancellation works
+    awaitingMetaInput = 'game-save';
+    setTimeout(() => {
+      enterSystemEntryMode('Enter save name (send nothing to cancel)');
+    }, 100);
+    return true;
+  }
+
+  // Check for reserved names
+  const reservedNames = ['quicksave', 'autosave'];
+  if (reservedNames.includes(input.toLowerCase())) {
+    respondAsGame('<div class="system-message">That name is reserved. Please choose a different name.</div>');
+
+    // Re-prompt
+    // IMPORTANT: Restore awaitingMetaInput flag so ESC/Enter cancellation works
+    awaitingMetaInput = 'game-save';
+    setTimeout(() => {
+      enterSystemEntryMode('Enter save name (send nothing to cancel)');
+    }, 100);
+    return true;
+  }
+
+  // Check if this would exceed max saves (and it's a new name)
+  const existingSave = saves.find(s => s.name.toLowerCase() === input.toLowerCase());
+  if (!existingSave && saves.length >= MAX_SAVES) {
+    respondAsGame(`<div class="system-message">Maximum ${MAX_SAVES} saves reached. Please overwrite an existing save or delete one first.</div>`);
+
+    // Re-prompt
+    // IMPORTANT: Restore awaitingMetaInput flag so ESC/Enter cancellation works
+    awaitingMetaInput = 'game-save';
+    setTimeout(() => {
+      enterSystemEntryMode('Enter save name (send nothing to cancel)');
+    }, 100);
+    return true;
+  }
+
+  // Set flag so Dialog.file_write() knows to use custom save format
+  window._customSaveFilename = input;
+
+  // Return file reference to callback - VM will save through Dialog.file_write()
+  if (gameDialogCallback && gameDialogRef) {
+    respondAsGame(`<div class="system-message">Saving game as "${input}"...</div>`);
+
+    setTimeout(() => {
+      gameDialogCallback(gameDialogRef);
+      gameDialogCallback = null;
+      gameDialogRef = null;
+    }, 0);
+  }
+
+  return true;
+}
+
+/**
+ * Handle game-initiated restore dialog (when game asks to restore)
+ */
+async function handleGameRestoreResponse(input, saves) {
+  // Check if input is a number
+  const num = parseInt(input);
+  let save = null;
+
+  if (!isNaN(num) && num >= 1 && num <= saves.length) {
+    save = saves[num - 1];
+  } else {
+    // Try to find by name (case-insensitive)
+    save = saves.find(s => s.name.toLowerCase() === input.toLowerCase());
+  }
+
+  if (!save) {
+    respondAsGame('<div class="system-message">Save not found. Please try again.</div>');
+
+    // Re-prompt by re-entering system entry mode
+    // IMPORTANT: Restore awaitingMetaInput flag so ESC/Enter cancellation works
+    awaitingMetaInput = 'game-restore';
+    setTimeout(() => {
+      enterSystemEntryMode('Enter save name to restore (send nothing to cancel)');
+    }, 100);
+    return true;
+  }
+
+  // Only allow restoring custom saves (not quicksave or autosave) for in-game restore
+  if (save.type !== 'customsave') {
+    respondAsGame('<div class="system-message">Can only restore custom saves from in-game. Use Quick Load button for quicksave.</div>');
+
+    // Re-prompt
+    // IMPORTANT: Restore awaitingMetaInput flag so ESC/Enter cancellation works
+    awaitingMetaInput = 'game-restore';
+    setTimeout(() => {
+      enterSystemEntryMode('Enter save name to restore (send nothing to cancel)');
+    }, 100);
+    return true;
+  }
+
+  // Use page reload approach (same as Quick Load and typed RESTORE command)
+  // This avoids the crash from calling restore_file() and then returning to dialog callback
+  sessionStorage.setItem('iftalk_pending_restore', JSON.stringify({
+    type: 'customsave',
+    key: save.name,
+    gameName: state.currentGameName
+  }));
+
+  respondAsGame(`<div class="system-message">Restoring from "${save.name}"...</div>`);
+
+  // Reload page - autorestore will handle the restore during startup
+  // Dialog callback will never be called (page is reloading anyway)
+  setTimeout(() => {
+    window.location.reload();
+  }, 500);
+
+  return true;
+}
+
+/**
  * Respond as if the game sent output
  * @param {string} html - HTML content to display
  */
@@ -638,11 +807,26 @@ export async function sendCommand() {
  * Cancel system entry mode (called when Escape is pressed)
  */
 export function cancelMetaInput() {
-  console.log('[Commands] cancelMetaInput called, awaitingMetaInput:', awaitingMetaInput);
   if (awaitingMetaInput) {
+    const mode = awaitingMetaInput;
     awaitingMetaInput = null;
     exitSystemEntryMode();
-    respondAsGame('<div class="system-message"><i>Cancelled.</i></div>');
+
+    // If this was a game dialog (save/restore from in-game), clear system messages and return null
+    if ((mode === 'game-save' || mode === 'game-restore') && gameDialogCallback) {
+      // Clear all system messages before showing game's response
+      const systemMessages = document.querySelectorAll('.system-message');
+      systemMessages.forEach(msg => msg.remove());
+
+      setTimeout(() => {
+        gameDialogCallback(null);
+        gameDialogCallback = null;
+        gameDialogRef = null;
+      }, 0);
+    } else {
+      // For typed commands, show cancellation message
+      respondAsGame('<div class="system-message"><i>Cancelled.</i></div>');
+    }
   }
 }
 
@@ -674,19 +858,75 @@ function waitForInputAndContinue(attempts = 0) {
 
 /**
  * Initialize dialog event listener
- * Always returns null for game's native save/restore dialogs.
- * Users should use typed SAVE and RESTORE commands instead.
+ * Handles in-game save/restore prompts (like "press r to restore" in Anchorhead)
  */
 export function initDialogInterceptor() {
   window.addEventListener('iftalk-dialog-open', (e) => {
-    const { callback } = e.detail;
+    const { tosave, usage, gameid, callback } = e.detail;
 
-    // Defer the callback to allow the event loop to complete
-    // This matches glkote.js's defer_func() pattern for dialog failures
-    if (callback) {
-      setTimeout(() => {
-        callback(null);
-      }, 0);
+    // Check if this is a save/restore request
+    if (usage === 'save') {
+      if (!tosave) {
+        // RESTORE request from game
+        const allSaves = getUnifiedSavesList();
+
+        if (allSaves.length === 0) {
+          respondAsGame('<div class="system-message">No saved games found. Use SAVE command first.</div>');
+
+          // Return null to indicate no save available
+          if (callback) {
+            setTimeout(() => {
+              callback(null);
+            }, 0);
+          }
+          return;
+        }
+
+        // Show restore prompt
+        let message = '<div class="system-message"><b>Restore - Choose a file to restore. (# or name)</b><br>';
+        message += formatSavesList(allSaves);
+        message += '</div>';
+
+        respondAsGame(message);
+
+        // Store callback and file reference
+        gameDialogCallback = callback;
+        gameDialogRef = Dialog.file_construct_ref('temp', usage, gameid);
+        awaitingMetaInput = 'game-restore';
+
+        // Enter system entry mode with prompt
+        enterSystemEntryMode('Enter save name to restore (send nothing to cancel)');
+
+      } else {
+        // SAVE request from game
+        const allSaves = getUnifiedSavesList();
+
+        let message = '<div class="system-message"><b>Save - Enter a file name for your save.</b>';
+
+        if (allSaves.length > 0) {
+          message += '<br>Existing saves:<br>';
+          message += formatSavesList(allSaves);
+        }
+
+        message += '</div>';
+
+        respondAsGame(message);
+
+        // Store callback and file reference
+        gameDialogCallback = callback;
+        gameDialogRef = Dialog.file_construct_ref('temp', usage, gameid);
+        awaitingMetaInput = 'game-save';
+
+        // Enter system entry mode with prompt
+        enterSystemEntryMode('Enter save name (send nothing to cancel)');
+      }
+    } else {
+      // Unsupported dialog type - return null
+      if (callback) {
+        setTimeout(() => {
+          callback(null);
+        }, 0);
+      }
     }
   });
 }

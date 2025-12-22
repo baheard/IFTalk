@@ -32,6 +32,68 @@ function file_construct_temp_ref(usage) {
 
 function file_write(ref, content, israw) {
     try {
+        // Check if this is a custom save filename (set by game dialog interceptor)
+        if (ref.usage === 'save' && window._customSaveFilename) {
+            // This is a game-initiated save - store in custom save format with metadata
+            var gameName = window.state ? window.state.currentGameName : 'unknown';
+            var saveName = window._customSaveFilename;
+            window._customSaveFilename = null; // Clear after use
+
+            // Convert Quetzal data to base64
+            var quetzalData;
+            if (israw && typeof content === 'string') {
+                quetzalData = btoa(content);
+            } else if (content instanceof ArrayBuffer || content instanceof Uint8Array) {
+                var bytes = new Uint8Array(content);
+                quetzalData = btoa(String.fromCharCode.apply(null, bytes));
+            } else {
+                console.error('[Dialog] Unexpected save data format:', typeof content, content);
+                return false;
+            }
+
+            // Get display HTML
+            var statusBarEl = document.getElementById('statusBar');
+            var upperWindowEl = document.getElementById('upperWindow');
+            var lowerWindowEl = document.getElementById('lowerWindow');
+
+            var lowerWindowHTML = '';
+            if (lowerWindowEl) {
+                var commandLine = document.getElementById('commandLine');
+                if (commandLine) {
+                    var clone = lowerWindowEl.cloneNode(true);
+                    var commandLineClone = clone.querySelector('#commandLine');
+                    if (commandLineClone) {
+                        commandLineClone.remove();
+                    }
+                    lowerWindowHTML = clone.innerHTML;
+                } else {
+                    lowerWindowHTML = lowerWindowEl.innerHTML;
+                }
+            }
+
+            // Save with extended metadata
+            var saveData = {
+                timestamp: new Date().toISOString(),
+                gameName: gameName,
+                saveName: saveName,
+                quetzalData: quetzalData,
+                displayHTML: {
+                    statusBar: statusBarEl ? statusBarEl.innerHTML : '',
+                    upperWindow: upperWindowEl ? upperWindowEl.innerHTML : '',
+                    lowerWindow: lowerWindowHTML
+                },
+                voxglkState: window._voxglkInstance ? {
+                    generation: window._voxglkInstance.generation || 0,
+                    inputWindowId: window._voxglkInstance.inputWindowId || null
+                } : {}
+            };
+
+            var customKey = 'iftalk_customsave_' + gameName + '_' + saveName;
+            localStorage.setItem(customKey, JSON.stringify(saveData));
+            return true;
+        }
+
+        // Normal Dialog save
         var key = 'iftalk_' + ref.usage + '_' + ref.filename;
         localStorage.setItem(key, israw ? content : JSON.stringify(content));
         return true;
@@ -43,6 +105,59 @@ function file_write(ref, content, israw) {
 
 function file_read(ref, israw) {
     try {
+        // Check if this is a custom save filename (set by game dialog interceptor)
+        if (ref.usage === 'save' && window._customRestoreFilename) {
+            // This is a game-initiated restore - read from custom save format
+            var gameName = window.state ? window.state.currentGameName : 'unknown';
+            var saveName = window._customRestoreFilename;
+            window._customRestoreFilename = null; // Clear after use
+
+            var customKey = 'iftalk_customsave_' + gameName + '_' + saveName;
+            var saveDataStr = localStorage.getItem(customKey);
+
+            if (!saveDataStr) {
+                console.error('[Dialog] Custom save not found:', saveName);
+                return null;
+            }
+
+            var saveData = JSON.parse(saveDataStr);
+
+            // Decode base64 Quetzal data to binary string (Dialog.file_read returns strings when israw=true)
+            var binaryString = atob(saveData.quetzalData);
+
+            // Schedule display HTML restoration after VM restore completes
+            setTimeout(function() {
+                if (saveData.displayHTML) {
+                    var statusBarEl = document.getElementById('statusBar');
+                    var upperWindowEl = document.getElementById('upperWindow');
+                    var lowerWindowEl = document.getElementById('lowerWindow');
+
+                    if (statusBarEl && saveData.displayHTML.statusBar) {
+                        statusBarEl.innerHTML = saveData.displayHTML.statusBar;
+                        statusBarEl.style.display = '';
+                    }
+                    if (upperWindowEl) {
+                        upperWindowEl.innerHTML = saveData.displayHTML.upperWindow || '';
+                        if (saveData.displayHTML.upperWindow && saveData.displayHTML.upperWindow.trim()) {
+                            upperWindowEl.style.display = '';
+                        } else {
+                            upperWindowEl.style.display = 'none';
+                        }
+                    }
+                    if (lowerWindowEl && saveData.displayHTML.lowerWindow) {
+                        var commandLine = document.getElementById('commandLine');
+                        lowerWindowEl.innerHTML = saveData.displayHTML.lowerWindow;
+                        if (commandLine) {
+                            lowerWindowEl.appendChild(commandLine);
+                        }
+                    }
+                }
+            }, 100);
+
+            return binaryString; // Return binary string (Dialog uses strings for raw data)
+        }
+
+        // Normal Dialog read
         var key = 'iftalk_' + ref.usage + '_' + ref.filename;
         var data = localStorage.getItem(key);
         if (data === null) return null;
@@ -54,8 +169,24 @@ function file_read(ref, israw) {
 }
 
 function file_ref_exists(ref) {
+    // Check for custom save/restore
+    if (ref.usage === 'save' && window._customRestoreFilename) {
+        var gameName = window.state ? window.state.currentGameName : 'unknown';
+        var saveName = window._customRestoreFilename;
+        var customKey = 'iftalk_customsave_' + gameName + '_' + saveName;
+        var exists = localStorage.getItem(customKey) !== null;
+        return exists;
+    }
+
+    if (ref.usage === 'save' && window._customSaveFilename) {
+        // For save, we'll create the file, so it "exists" for the VM's purposes
+        return true;
+    }
+
+    // Normal Dialog check
     var key = 'iftalk_' + ref.usage + '_' + ref.filename;
-    return localStorage.getItem(key) !== null;
+    var exists = localStorage.getItem(key) !== null;
+    return exists;
 }
 
 function file_remove_ref(ref) {
