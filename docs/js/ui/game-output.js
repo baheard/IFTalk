@@ -395,3 +395,8 @@ export function clearSystemMessages() {
     });
   }
 }
+
+// Export addGameText to window for use by dialog-stub.js (non-module context)
+if (typeof window !== 'undefined') {
+  window.addGameTextFromDialog = addGameText;
+}

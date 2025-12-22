@@ -9,6 +9,7 @@ import { state } from '../core/state.js';
 import { updateStatus } from '../utils/status.js';
 import { showMessageInput } from '../input/keyboard.js';
 import { scrollToBottom } from '../utils/scroll.js';
+import { addGameText } from '../ui/game-output.js';
 
 /**
  * Get current game signature from ZVM
@@ -121,6 +122,9 @@ export async function quickSave() {
         const key = `iftalk_quicksave_${gameSignature}`;
         localStorage.setItem(key, JSON.stringify(saveData));
 
+        // Show system message in game area
+        addGameText('<div class="system-message">Game saved - quicksave</div>', false);
+
         updateStatus('Quick saved', 'success');
         return true;
 
@@ -201,6 +205,9 @@ export async function customSave(saveName) {
 
         const key = `iftalk_customsave_${state.currentGameName}_${saveName}`;
         localStorage.setItem(key, JSON.stringify(saveData));
+
+        // Show system message in game area
+        addGameText(`<div class="system-message">Game saved - ${saveName}</div>`, false);
 
         return true;
 
@@ -289,6 +296,9 @@ export async function customLoad(saveName) {
 
             // Set flag to skip narration - position at end of chunks, not beginning
             state.skipNarrationAfterLoad = true;
+
+            // Show system message in game area
+            addGameText(`<div class="system-message">Game restored - ${saveName}</div>`, false);
 
             return true;
         } else {
@@ -568,6 +578,9 @@ export async function quickLoad() {
 
             // Set flag to skip narration - position at end of chunks, not beginning
             state.skipNarrationAfterLoad = true;
+
+            // Show system message in game area
+            addGameText('<div class="system-message">Game restored - quicksave</div>', false);
 
             updateStatus('Quick loaded', 'success');
             return true;

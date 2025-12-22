@@ -90,6 +90,12 @@ function file_write(ref, content, israw) {
 
             var customKey = 'iftalk_customsave_' + gameName + '_' + saveName;
             localStorage.setItem(customKey, JSON.stringify(saveData));
+
+            // Show system message in game area
+            if (window.addGameTextFromDialog) {
+                window.addGameTextFromDialog('<div class="system-message">Game saved - ' + saveName + '</div>', false);
+            }
+
             return true;
         }
 

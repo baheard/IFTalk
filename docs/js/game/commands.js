@@ -226,6 +226,30 @@ async function interceptMetaCommand(cmd, displayCmd = null) {
     return true; // Intercepted - don't send the "print" prefix to game
   }
 
+  // Check for commands with arguments first (before exact matches)
+  // Match "save [name]", "restore [name]", "load [name]"
+  // Use originalCmd to preserve case of save names
+  const saveMatch = originalCmd.match(/^save\s+(.+)$/i);
+  if (saveMatch) {
+    const saveName = saveMatch[1].trim();
+    const customSaves = getCustomSaves();
+    return await handleSaveResponse(saveName, customSaves);
+  }
+
+  const restoreMatch = originalCmd.match(/^(?:restore|load)\s+(.+)$/i);
+  if (restoreMatch) {
+    const saveName = restoreMatch[1].trim();
+    const allSaves = getUnifiedSavesList();
+    return await handleRestoreResponse(saveName, allSaves);
+  }
+
+  const deleteMatch = originalCmd.match(/^delete(?:\s+save)?\s+(.+)$/i);
+  if (deleteMatch) {
+    const saveName = deleteMatch[1].trim();
+    const allSaves = getUnifiedSavesList();
+    return await handleDeleteResponse(saveName, allSaves);
+  }
+
   // Check for meta-commands
   // Note: Commands are already displayed by sendCommandDirect(), so we don't display them again here
   switch (cmd) {
@@ -238,7 +262,7 @@ async function interceptMetaCommand(cmd, displayCmd = null) {
 These commands work whether typed or spoken:<br>
 <br>
 <b>Navigation:</b> PAUSE, PLAY, SKIP, BACK, RESTART<br>
-<b>Save/Load:</b> SAVE, RESTORE, DELETE SAVE, QUICK SAVE, QUICK LOAD<br>
+<b>Save/Load:</b> SAVE [name], RESTORE [name], DELETE [name], QUICK SAVE, QUICK LOAD<br>
 <b>Audio:</b> MUTE, UNMUTE, STATUS<br>
 <b>Game:</b> QUIT - Auto-save and return to game selection<br>
 <b>Repair:</b> REPAIR - Fix broken game state (if not responding)<br>
@@ -552,11 +576,10 @@ async function handleSaveResponse(saveName, saves) {
   const { customSave } = await import('./save-manager.js');
   const success = await customSave(saveName);
 
-  if (success) {
-    respondAsGame(`<div class="system-message">Game saved as "${saveName}".</div>`);
-  } else {
+  if (!success) {
     respondAsGame('<div class="system-message">Save failed. Please try again.</div>');
   }
+  // Success message is shown by customSave() itself
 
   return true;
 }
@@ -715,9 +738,8 @@ async function handleGameSaveResponse(input, saves) {
   window._customSaveFilename = input;
 
   // Return file reference to callback - VM will save through Dialog.file_write()
+  // Dialog.file_write() will show "Game saved - {name}" message
   if (gameDialogCallback && gameDialogRef) {
-    respondAsGame(`<div class="system-message">Saving game as "${input}"...</div>`);
-
     setTimeout(() => {
       gameDialogCallback(gameDialogRef);
       gameDialogCallback = null;
