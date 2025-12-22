@@ -26,6 +26,11 @@ let skipNextUpdateAfterBootstrap = false; // Skip next update after bootstrap in
 let autosaveCounter = 0; // Count autosaves to skip the first N
 let introInputType = null; // Track the input type from the first request (gen 1) for bootstrap
 
+// Watchdog timer for detecting broken VM state
+let watchdogTimer = null; // Timer for detecting when VM doesn't respond to input
+let lastInputGeneration = null; // Generation when last input was sent
+let isAutoRepairInProgress = false; // Prevent multiple concurrent repairs
+
 /**
  * Calculate metrics based on actual window dimensions
  * @returns {Object} Metrics object for Glk
@@ -124,6 +129,142 @@ function handleResize() {
 }
 
 /**
+ * Auto-repair broken VM state by performing a save/restore cycle
+ * This fixes the issue where the VM stops responding to commands
+ */
+async function autoRepairVMState() {
+  if (isAutoRepairInProgress) {
+    console.log('[VoxGlk] Auto-repair already in progress, skipping');
+    return false;
+  }
+
+  try {
+    isAutoRepairInProgress = true;
+    console.warn('[VoxGlk] ⚠️ BROKEN STATE DETECTED - VM not responding to input');
+    console.warn('[VoxGlk] Attempting auto-repair via save/restore cycle...');
+
+    const { updateStatus } = await import('../utils/status.js');
+    const { addGameText } = await import('../ui/game-output.js');
+
+    const repairMessage = '⚠️ Error found in current save, attempting to repair...';
+    updateStatus(repairMessage, 'processing');
+
+    // Add message to game output (visible)
+    addGameText(`<div class="system-message">${repairMessage}</div>`, false);
+
+    // Trigger TTS manually for app voice (like system messages do)
+    if (window.handleGameOutput) {
+      window.handleGameOutput('Error found in current save, attempting to repair');
+    }
+
+    // Step 1: Save current state
+    const { autoSave } = await import('./save-manager.js');
+    const saved = await autoSave();
+
+    if (!saved) {
+      console.error('[VoxGlk] Auto-repair failed: Could not save current state');
+      updateStatus('⚠️ Repair failed - could not save state', 'error');
+      isAutoRepairInProgress = false;
+      return false;
+    }
+
+    console.log('[VoxGlk] State saved, triggering page reload for repair...');
+
+    // Step 2: Set flag to track repair attempt (prevents infinite loop)
+    sessionStorage.setItem('iftalk_last_repair_attempt', Date.now().toString());
+
+    // Step 3: Reload page to restore (like Quick Load does)
+    // This is the cleanest way to reset all VM/VoxGlk/GlkAPI state
+    setTimeout(() => {
+      // Don't set pending restore flag - just let normal autorestore flow handle it
+      window.location.reload();
+    }, 1000);
+
+    return true;
+
+  } catch (error) {
+    console.error('[VoxGlk] Auto-repair failed:', error);
+    const { updateStatus } = await import('../utils/status.js');
+    updateStatus('⚠️ Repair failed: ' + error.message, 'error');
+    isAutoRepairInProgress = false;
+    return false;
+  }
+}
+
+/**
+ * Clear watchdog timer when VM responds normally
+ */
+function clearWatchdog() {
+  if (watchdogTimer) {
+    clearTimeout(watchdogTimer);
+    watchdogTimer = null;
+    lastInputGeneration = null;
+
+    // Clear repair attempt flag since VM responded successfully
+    // This indicates the repair worked (or there was no repair needed)
+    sessionStorage.removeItem('iftalk_last_repair_attempt');
+  }
+}
+
+/**
+ * Start watchdog timer to detect broken VM state
+ * If VM doesn't respond within timeout, trigger auto-repair
+ */
+function startWatchdog(currentGeneration) {
+  // Don't start watchdog during restore or repair operations
+  if (isAutoRepairInProgress || skipNextUpdateAfterBootstrap) {
+    console.log('[VoxGlk] Skipping watchdog - restore/repair in progress');
+    return;
+  }
+
+  // Clear any existing watchdog
+  clearWatchdog();
+
+  // Store the generation when input was sent
+  lastInputGeneration = currentGeneration;
+
+  // Set timeout - if VM doesn't respond in 5 seconds, it's broken
+  watchdogTimer = setTimeout(async () => {
+    // Check if generation has advanced
+    if (generation === lastInputGeneration) {
+      console.error('[VoxGlk] ❌ WATCHDOG TIMEOUT - VM did not respond to input');
+      console.error('[VoxGlk] Last input at generation:', lastInputGeneration);
+      console.error('[VoxGlk] Current generation:', generation);
+
+      // Check if we recently attempted a repair (within last 15 seconds)
+      const lastRepairAttempt = sessionStorage.getItem('iftalk_last_repair_attempt');
+      if (lastRepairAttempt) {
+        const timeSinceRepair = Date.now() - parseInt(lastRepairAttempt);
+        if (timeSinceRepair < 15000) {
+          console.error('[VoxGlk] ❌ REPAIR FAILED - Auto-repair was attempted but state is still broken');
+          console.error('[VoxGlk] Time since last repair:', timeSinceRepair, 'ms');
+
+          const { updateStatus } = await import('../utils/status.js');
+          const { addGameText } = await import('../ui/game-output.js');
+
+          const errorMsg = '❌ Auto-repair failed. The save file may be corrupted. Please restart the game from Settings.';
+          updateStatus(errorMsg, 'error');
+          addGameText(`<div class="system-message">${errorMsg}</div>`, false);
+
+          if (window.handleGameOutput) {
+            window.handleGameOutput('Auto-repair failed. The save file may be corrupted. Please restart the game from Settings.');
+          }
+
+          // Clear the flag so user can try manual operations
+          sessionStorage.removeItem('iftalk_last_repair_attempt');
+          return;
+        }
+      }
+
+      // Trigger auto-repair (only if not recently attempted)
+      await autoRepairVMState();
+    } else {
+      console.log('[VoxGlk] Watchdog cleared - generation advanced normally');
+    }
+  }, 5000); // 5 second timeout
+}
+
+/**
  * Create VoxGlk display interface
  * This is what Glk will use (passed as options.GlkOte)
  *
@@ -147,6 +288,8 @@ export function createVoxGlk(textOutputCallback) {
       inputWindowId = null;
       autosaveCounter = 0; // Reset counter for new game session
       introInputType = null; // Reset intro input type for new game
+      clearWatchdog(); // Clear any stale watchdog timer
+      isAutoRepairInProgress = false; // Reset repair flag
 
       // Store the accept callback - we'll use it to send input later
       acceptCallback = options.accept;
@@ -203,6 +346,8 @@ export function createVoxGlk(textOutputCallback) {
         // Always update generation from Glk - this is the current turn number
         if (arg.gen !== undefined) {
           generation = arg.gen;
+          // Clear watchdog since VM responded with a new generation
+          clearWatchdog();
         }
 
         // Suppress output after bootstrap input (the "I beg your pardon" response)
@@ -624,6 +769,8 @@ export function sendInput(text, type = 'line') {
   console.log('[VoxGlk] Sending input event:', inputEvent);
   acceptCallback(inputEvent);
 
+  // Start watchdog to detect if VM doesn't respond
+  startWatchdog(generation);
 
   // Disable input until next request
   inputEnabled = false;
