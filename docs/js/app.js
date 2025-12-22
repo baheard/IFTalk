@@ -123,19 +123,22 @@ export const voiceCommandHandlers = {
       messageInput.placeholder = 'Speak a command...';
     }
 
-    // Start voice recognition
+    // Voice recognition should already be running (listening for "unmute")
+    // Just verify it's active, start it if needed
     if (state.recognition && !state.isRecognitionActive) {
       try {
+        console.log('[Voice] Starting recognition after unmute');
         state.recognition.start();
       } catch (err) {
-        console.error('[Voice] Failed to start recognition:', err);
+        console.log('[Voice] Recognition already running or start failed:', err.message);
       }
     }
   },
   mute: () => {
     playMuteTone();
     state.isMuted = true;
-    state.listeningEnabled = false;
+    // Keep listeningEnabled = true so recognition keeps running for "unmute"
+    // state.listeningEnabled = false; // DON'T disable - need to hear "unmute"
     const icon = dom.muteBtn?.querySelector('.material-icons');
     if (icon) icon.textContent = 'mic_off';
     if (dom.muteBtn) {
@@ -144,23 +147,17 @@ export const voiceCommandHandlers = {
       dom.muteBtn.style.setProperty('--mic-intensity', '0');
     }
     stopVoiceMeter();
-    updateStatus('Microphone muted');
+    updateStatus('Microphone muted (say "unmute" to re-enable)');
     updateNavButtons();
 
     // Update message input placeholder
     const messageInput = document.getElementById('messageInput');
     if (messageInput) {
-      messageInput.placeholder = 'Type a command...';
+      messageInput.placeholder = 'Type a command or say "unmute"...';
     }
 
-    // Stop voice recognition
-    if (state.recognition && state.isRecognitionActive) {
-      try {
-        state.recognition.stop();
-      } catch (err) {
-        console.error('[Voice] Failed to stop recognition:', err);
-      }
-    }
+    // DON'T stop voice recognition - keep it running to listen for "unmute"
+    console.log('[Voice] Muted but still listening for "unmute" command');
   },
   sendCommandDirect: (cmd) => sendCommandDirect(cmd)
 };

@@ -47,9 +47,9 @@ export function showConfirmedTranscript(text, isNavCommand = false, confidence =
     clearTimeout(state.transcriptResetTimeout);
   }
 
-  // Add confidence percentage if provided and below threshold
+  // Add confidence percentage if provided (always show for voice commands)
   let displayText = text;
-  if (confidence !== null && confidence < LOW_CONFIDENCE_THRESHOLD) {
+  if (confidence !== null) {
     const confidencePercent = (confidence * 100).toFixed(0);
     displayText = `${text} (${confidencePercent}%)`;
   }
@@ -109,7 +109,8 @@ export function initVoiceRecognition(processVoiceKeywords) {
     state.isRecognitionActive = true;
     state.hasProcessedResult = false;
 
-    if (!state.isNarrating) {
+    // Only update status UI if not muted (still listening for "unmute" though)
+    if (!state.isNarrating && !state.isMuted) {
       updateStatus('🎤 Listening... Speak now!');
     }
   };
@@ -289,12 +290,12 @@ export function initVoiceRecognition(processVoiceKeywords) {
     // Voice commands are now sent immediately in onresult handler
     // No need to check for input field or auto-send here
 
-    // Always restart listening if continuous mode enabled (works even during TTS now)
-    if (state.listeningEnabled && !state.isMuted) {
+    // Always restart listening if enabled (even when muted - to listen for "unmute")
+    if (state.listeningEnabled) {
       setTimeout(() => {
-        if (state.listeningEnabled && !state.isMuted && !state.isRecognitionActive) {
+        if (state.listeningEnabled && !state.isRecognitionActive) {
           try {
-            console.log('[Voice] Attempting to restart recognition...');
+            console.log('[Voice] Attempting to restart recognition (muted:', state.isMuted, ')...');
 
             // Clear transcript display if not showing confirmed text
             if (dom.voiceTranscript && !dom.voiceTranscript.classList.contains('confirmed')) {
@@ -316,13 +317,12 @@ export function initVoiceRecognition(processVoiceKeywords) {
         } else {
           console.log('[Voice] Not restarting recognition:', {
             listeningEnabled: state.listeningEnabled,
-            isMuted: state.isMuted,
             isRecognitionActive: state.isRecognitionActive
           });
         }
       }, 200); // Reduced from 300ms
     } else {
-      console.log('[Voice] Not attempting restart (disabled or muted)');
+      console.log('[Voice] Not attempting restart (listening disabled)');
     }
   };
 

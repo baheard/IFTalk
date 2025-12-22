@@ -262,12 +262,13 @@ export function addGameText(text, isCommand = false, isVoiceCommand = false, isA
     console.log('[addGameText] Command:', text, 'isVoice:', isVoiceCommand, 'confidence:', confidence, 'classes:', div.className);
 
     // Build the command display
-    // Format: ">command" for typed, ">command 🎤" for voice (mic icon only)
+    // Format: ">command" for typed, ">command (95%) 🎤" for voice
     const displayText = (text === '' || text === '[ENTER]') ? '[ENTER]' : escapeHtml(text);
-    // Show mic icon for voice commands (confidence only shown on blocked commands)
+    // Show confidence percentage and mic icon for voice commands
+    const confidenceLabel = (isVoiceCommand && confidence !== null) ? ` <span class="confidence-percent">(${Math.round(confidence * 100)}%)</span>` : '';
     const voiceIndicator = isVoiceCommand ? ' <span class="voice-indicator material-icons">mic</span>' : '';
 
-    div.innerHTML = `<span class="command-label">&gt;</span><span class="command-text">${displayText}</span>${voiceIndicator}`;
+    div.innerHTML = `<span class="command-label">&gt;</span><span class="command-text">${displayText}</span>${confidenceLabel}${voiceIndicator}`;
   } else {
     // Game text - cleared only when Z-machine sends clear command
     div.className = 'game-text';

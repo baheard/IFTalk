@@ -1177,9 +1177,10 @@ body {
   color: var(--accent-primary);
 }
 
-/* Low confidence commands - muted gray */
+/* Low confidence commands - red like blocked, but no info message */
 .user-command.low-confidence {
-  color: #9ca3af;
+  color: #ef4444;
+  opacity: 0.8;
 }
 
 /* Voice indicator mic icon in user commands */

@@ -425,13 +425,15 @@ export async function autoLoad() {
         if (result === 2) { // ZVM returns 2 on successful restore
             updateStatus('Restored from last session', 'success');
 
-            // Restore VoxGlk state (generation, inputWindowId)
-            if (saveData.voxglkState && window._voxglkInstance) {
-                window._voxglkInstance.restore_state(
-                    saveData.voxglkState.generation,
-                    saveData.voxglkState.inputWindowId
-                );
-            }
+            console.log('[SaveManager] ===== AUTOSAVE RESTORE DEBUG =====');
+            console.log('[SaveManager] VM restore successful (result=2)');
+            console.log('[SaveManager] Saved VoxGlk state:', saveData.voxglkState);
+
+            // DON'T restore VoxGlk generation - keep it at 1 (current intro state)
+            // After page reload, glkapi.js is at gen:1, so VoxGlk must stay at gen:1
+            // The saved generation is just VM memory state, not the UI turn counter
+            // voxglk.js will send bootstrap with gen:1 which will be accepted
+            console.log('[SaveManager] SKIPPING restore_state() - keeping generation at 1 for bootstrap');
 
             // Restore display HTML so user sees saved content immediately
             if (saveData.displayHTML) {
