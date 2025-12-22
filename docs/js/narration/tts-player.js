@@ -181,7 +181,7 @@ export async function playWithBrowserTTS(text, voiceType = 'narrator') {
       utterance.voice = selectedVoice;
     }
 
-    utterance.rate = state.browserVoiceConfig?.rate || 1.1;
+    utterance.rate = state.browserVoiceConfig?.rate || 1.0;
     utterance.pitch = state.browserVoiceConfig?.pitch || 1.0;
     utterance.volume = state.browserVoiceConfig?.volume ?? 1.0;
 

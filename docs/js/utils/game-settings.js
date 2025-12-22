@@ -172,7 +172,7 @@ export function getDefaultSettings() {
   return {
     narratorVoice: null,      // Auto-selected based on platform
     appVoice: null,           // Auto-selected based on platform
-    speechRate: 1.1,          // 1.1x speed default
+    speechRate: 1.0,          // 1.0x speed default
     autoplay: false,          // Don't auto-play narration
     // Future settings can be added here:
     // highlightColor: null,

@@ -55,14 +55,6 @@ export function updateSettingsContext() {
       : `Audio settings for ${displayName}`;
   }
 
-  // Clear data description
-  const clearDesc = document.getElementById('clearDataDescription');
-  if (clearDesc) {
-    clearDesc.textContent = onWelcome
-      ? 'Permanently delete all data for all games:'
-      : `Delete all data for ${displayName}:`;
-  }
-
   // Clear data button text
   const clearBtnText = document.getElementById('clearDataBtnText');
   if (clearBtnText) {
@@ -321,7 +313,7 @@ export function initSettings() {
   const speechRateValue = document.getElementById('speechRateValue');
   if (speechRateSlider && speechRateValue) {
     // Load saved speech rate (uses hierarchy: game -> app defaults -> 1.0)
-    const savedRate = getGameSetting('speechRate', 1.1);
+    const savedRate = getGameSetting('speechRate', 1.0);
     speechRateSlider.value = savedRate;
     speechRateValue.textContent = savedRate.toFixed(1) + 'x';
     if (state.browserVoiceConfig) {
@@ -708,7 +700,7 @@ export function reloadSettingsForGame() {
   // Load per-game settings
   const savedNarratorVoice = getGameSetting('narratorVoice');
   const savedAppVoice = getGameSetting('appVoice');
-  const savedSpeechRate = getGameSetting('speechRate', 1.1);
+  const savedSpeechRate = getGameSetting('speechRate', 1.0);
 
   if (!state.browserVoiceConfig) state.browserVoiceConfig = {};
 
@@ -830,7 +822,7 @@ export function initVoiceSelection() {
       const voice = voices.find(v => v.name === dom.voiceSelect.value);
 
       if (voice) utterance.voice = voice;
-      utterance.rate = state.browserVoiceConfig?.rate || 1.1;
+      utterance.rate = state.browserVoiceConfig?.rate || 1.0;
       utterance.pitch = state.browserVoiceConfig?.pitch || 1.0;
 
       speechSynthesis.cancel();
@@ -854,7 +846,7 @@ export function initVoiceSelection() {
       const voice = voices.find(v => v.name === dom.appVoiceSelect.value);
 
       if (voice) utterance.voice = voice;
-      utterance.rate = state.browserVoiceConfig?.rate || 1.1;
+      utterance.rate = state.browserVoiceConfig?.rate || 1.0;
       utterance.pitch = state.browserVoiceConfig?.pitch || 1.0;
 
       speechSynthesis.cancel();
