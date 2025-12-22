@@ -53,12 +53,10 @@ export function createApp() {
     const reset = '\x1b[0m';
     const color = colors[level] || colors.log;
 
-    // Format args for display
+    // Format args for display (suppress console output)
     const message = args.map(arg =>
       typeof arg === 'object' ? JSON.stringify(arg, null, 2) : String(arg)
     ).join(' ');
-
-    console.log(`${color}[${timestamp}] [${level.toUpperCase()}] ${message}${reset}`);
 
     res.sendStatus(200);
   });

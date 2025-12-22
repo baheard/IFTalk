@@ -11,7 +11,7 @@ import { updateStatus } from '../utils/status.js';
 import { fixPronunciation } from '../utils/pronunciation.js';
 import { recordSpokenChunk } from '../voice/echo-detection.js';
 import { updateTextHighlight, removeHighlight } from './highlighting.js';
-import { getDefaultVoice } from '../ui/settings.js';
+import { getDefaultVoice, getDefaultAppVoice } from '../ui/settings.js';
 import { scrollToBottom } from '../utils/scroll.js';
 
 // Keep-alive audio context for mobile background playback
@@ -65,8 +65,6 @@ export function startKeepAlive() {
         stopKeepAlive();
       });
     }
-
-    console.log('[KeepAlive] Started background audio context');
   } catch (err) {
     console.warn('[KeepAlive] Failed to start:', err);
   }
@@ -83,7 +81,6 @@ export function stopKeepAlive() {
       // Ignore
     }
     keepAliveContext = null;
-    console.log('[KeepAlive] Stopped background audio context');
   }
 }
 
@@ -396,10 +393,10 @@ export function speakAppMessage(text) {
     const voices = speechSynthesis.getVoices();
     const appVoiceName = state.browserVoiceConfig?.appVoice;
 
-    // Use configured app voice, or fall back to our preferred default
+    // Use configured app voice, or fall back to our preferred app voice default
     let appVoice = appVoiceName ? voices.find(v => v.name === appVoiceName) : null;
     if (!appVoice) {
-      appVoice = getDefaultVoice(voices);
+      appVoice = getDefaultAppVoice(voices);
     }
 
     if (appVoice) {

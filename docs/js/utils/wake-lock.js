@@ -20,11 +20,9 @@ async function requestWakeLock() {
 
   try {
     wakeLock = await navigator.wakeLock.request('screen');
-    console.log('[KeepAwake] Screen wake lock acquired');
 
     // Listen for release (e.g., if system takes it back)
     wakeLock.addEventListener('release', () => {
-      console.log('[KeepAwake] Wake lock was released');
       wakeLock = null;
     });
 
@@ -43,7 +41,6 @@ async function releaseWakeLock() {
   if (wakeLock) {
     try {
       await wakeLock.release();
-      console.log('[KeepAwake] Wake lock released');
     } catch (e) {
       // Already released
     }
@@ -109,7 +106,6 @@ export function initKeepAwake() {
   // (wake locks are automatically released when page is hidden)
   document.addEventListener('visibilitychange', async () => {
     if (document.visibilityState === 'visible' && enabled && !wakeLock) {
-      console.log('[KeepAwake] Page visible, re-acquiring wake lock');
       await requestWakeLock();
     }
   });

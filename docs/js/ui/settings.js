@@ -484,7 +484,7 @@ const VOICE_PREFERENCES = [
 
 /**
  * Get the best available voice from preferences
- * On iOS: Default to Karen (en-AU)
+ * On iOS: Default to Karen (en-AU) for narrator
  * @param {Array} voices - Available voices
  * @returns {SpeechSynthesisVoice|null} Best matching voice or null
  */
@@ -494,6 +494,46 @@ export function getDefaultVoice(voices) {
   // On iOS, default to Karen first
   if (isIOS) {
     for (const pref of IOS_PREFERRED_VOICES) {
+      const match = englishVoices.find(v =>
+        v.name === pref.name ||
+        v.name.includes(pref.name)
+      );
+      if (match) return match;
+    }
+  }
+
+  // Try each preferred voice in order
+  for (const preferred of VOICE_PREFERENCES) {
+    const match = englishVoices.find(v =>
+      v.name === preferred ||
+      v.name.includes(preferred)
+    );
+    if (match) return match;
+  }
+
+  // Fallback: first English voice
+  return englishVoices[0] || null;
+}
+
+/**
+ * Get the best available app voice from preferences
+ * On iOS: Default to Daniel (en-GB) for app voice
+ * @param {Array} voices - Available voices
+ * @returns {SpeechSynthesisVoice|null} Best matching voice or null
+ */
+export function getDefaultAppVoice(voices) {
+  const englishVoices = voices.filter(v => v.lang.startsWith('en'));
+
+  // On iOS, prefer Daniel for app voice (different from narrator)
+  if (isIOS) {
+    // Try Daniel first, then Karen, then Tessa
+    const appPreferredOrder = [
+      { name: 'Daniel', lang: 'en-GB' },
+      { name: 'Karen', lang: 'en-AU' },
+      { name: 'Tessa', lang: 'en-ZA' }
+    ];
+
+    for (const pref of appPreferredOrder) {
       const match = englishVoices.find(v =>
         v.name === pref.name ||
         v.name.includes(pref.name)
@@ -529,9 +569,8 @@ function getIOSPreferredIndex(voice) {
 
 /**
  * Filter and sort voices
- * - On iOS: Only show preferred voices (Karen, Daniel, Tessa)
  * - Deduplicate voices (iOS returns duplicates)
- * - Preferred voices at top, rest alphabetically
+ * - Preferred (starred) voices at top, then all other English voices alphabetically
  */
 function filterAndSortVoices(voices) {
   // Filter to English voices only
@@ -545,12 +584,7 @@ function filterAndSortVoices(voices) {
     return true;
   });
 
-  // On iOS, restrict to only preferred voices
-  if (isIOS) {
-    filtered = filtered.filter(voice => getIOSPreferredIndex(voice) !== -1);
-  }
-
-  // Sort: preferred voices first (in order), then local voices, then alphabetically
+  // Sort: preferred voices first (in order), then all other voices alphabetically
   filtered.sort((a, b) => {
     const aPreferred = getIOSPreferredIndex(a);
     const bPreferred = getIOSPreferredIndex(b);
@@ -627,9 +661,10 @@ export function populateVoiceDropdown() {
   if (dom.appVoiceSelect) {
     dom.appVoiceSelect.innerHTML = '';
 
-    // Get saved voice (undefined means use default)
+    // Get saved voice (undefined means use default app voice)
     const savedAppVoice = state.browserVoiceConfig?.appVoice;
-    const selectedAppVoice = savedAppVoice || defaultVoice?.name;
+    const defaultAppVoice = getDefaultAppVoice(voices);
+    const selectedAppVoice = savedAppVoice || defaultAppVoice?.name;
 
     filteredVoices.forEach((voice) => {
       const option = document.createElement('option');

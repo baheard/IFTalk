@@ -14,5 +14,4 @@ const PORT = config.port || 3000;
 
 httpServer.listen(PORT, async () => {
   const localIP = await getLocalIP();
-  console.log(`\n🎮 IFTalk running on http://localhost:${PORT}\n`);
 });

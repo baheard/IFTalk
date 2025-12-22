@@ -134,14 +134,6 @@ export function initVoiceRecognition(processVoiceKeywords) {
       }
     }
 
-    console.log('[Voice] onresult:', {
-      interim: interimTranscript,
-      final: finalTranscript,
-      confidence: finalConfidence,
-      isNarrating: state.isNarrating,
-      ttsIsSpeaking: state.ttsIsSpeaking
-    });
-
     // Show live transcript (but not when muted)
     if (interimTranscript && !state.isMuted) {
       // Cancel any pending confirmed transition
@@ -177,7 +169,6 @@ export function initVoiceRecognition(processVoiceKeywords) {
         if (isEchoOfSpokenText(finalTranscript)) {
           // Echo detected: play BUZZ (blocked) and show as blocked
           playBlockedCommand();
-          console.log(`[Voice] Echo detected - blocking: "${finalTranscript}"`);
 
           // Show in transcript area as blocked (echo)
           showConfirmedTranscript(`${finalTranscript} (blocked)`, false, 0);
@@ -200,7 +191,6 @@ export function initVoiceRecognition(processVoiceKeywords) {
       if (isLowConfidence) {
         // Low confidence: display but don't act
         playLowConfidence();
-        console.log(`[Voice] Low confidence (${(finalConfidence * 100).toFixed(0)}%) - not executing: "${finalTranscript}"`);
 
         // Show in transcript area WITH confidence percentage
         showConfirmedTranscript(finalTranscript, false, finalConfidence);

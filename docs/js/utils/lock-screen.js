@@ -39,8 +39,6 @@ export function initLockScreen() {
     console.warn('[LockScreen] DOM elements not found - lock screen disabled');
     return;
   }
-
-  console.log('[LockScreen] Initialized');
 }
 
 /**
@@ -48,11 +46,9 @@ export function initLockScreen() {
  */
 export function lockScreen() {
   if (state.isScreenLocked) {
-    console.log('[LockScreen] Already locked');
     return;
   }
 
-  console.log('[LockScreen] Locking screen');
   state.isScreenLocked = true;
 
   // Enable keep awake mode (prevent screen sleep during lock)
@@ -60,7 +56,6 @@ export function lockScreen() {
   import('./wake-lock.js').then(module => {
     wasKeepAwakeEnabledBeforeLock = module.isKeepAwakeEnabled();
     if (!wasKeepAwakeEnabledBeforeLock) {
-      console.log('[LockScreen] Enabling keep awake while locked');
       module.enableKeepAwake();
     }
   });
@@ -96,17 +91,14 @@ export function lockScreen() {
  */
 export function unlockScreen() {
   if (!state.isScreenLocked) {
-    console.log('[LockScreen] Already unlocked');
     return;
   }
 
-  console.log('[LockScreen] Unlocking screen');
   state.isScreenLocked = false;
 
   // Restore keep awake mode to previous state
   import('./wake-lock.js').then(module => {
     if (!wasKeepAwakeEnabledBeforeLock) {
-      console.log('[LockScreen] Disabling keep awake (was off before lock)');
       module.disableKeepAwake();
     }
   });
@@ -190,11 +182,8 @@ function handleUnlockHoldStart(e) {
 
   // Set timer for 1 second - unlock when complete
   holdTimer = setTimeout(() => {
-    console.log('[LockScreen] Hold complete - unlocking');
     unlockScreen();
   }, 1000);
-
-  console.log('[LockScreen] Hold started');
 }
 
 /**
@@ -207,7 +196,6 @@ function handleUnlockHoldEnd(e) {
   e.preventDefault();
 
   const holdDuration = Date.now() - holdStartTime;
-  console.log('[LockScreen] Hold ended after', holdDuration, 'ms');
 
   // Clear timer and reset UI
   clearHoldTimer();
@@ -256,8 +244,6 @@ function pauseNonEssentialAnimations() {
       el.dataset.wasPaused = 'true'; // Was already paused
     }
   });
-
-  console.log('[LockScreen] Paused', highlights.length, 'animations');
 }
 
 /**
@@ -272,6 +258,4 @@ function resumeAnimations() {
     }
     delete el.dataset.wasPaused;
   });
-
-  console.log('[LockScreen] Resumed animations');
 }
