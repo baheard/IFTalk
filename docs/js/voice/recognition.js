@@ -238,8 +238,9 @@ export function initVoiceRecognition(processVoiceKeywords) {
               dom.voiceIndicator.classList.remove('active');
             }
 
+            // DISABLED: Testing if we need this scroll
             // Scroll to bottom after command
-            scrollToBottom();
+            // scrollToBottom();
           });
         }, 400); // 400ms delay to show the recognized command
       } else {
