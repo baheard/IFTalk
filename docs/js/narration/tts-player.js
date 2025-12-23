@@ -323,8 +323,9 @@ export async function speakTextChunked(text, startFromIndex = 0) {
 
       removeHighlight();
 
+      // DISABLED: Testing if we need this scroll
       // Scroll to bottom
-      scrollToBottom();
+      // scrollToBottom();
 
       updateStatus('Ready');
       updateNavButtons();

@@ -61,9 +61,10 @@ export function scrollToNewContent(newElement, container) {
   const visibleHeight = vv ? vv.height : window.innerHeight;
   const viewportOffset = vv ? vv.offsetTop : 0;
 
-  // Position text in the upper portion of the visible area (above keyboard)
+  // Position text near the top of the visible area to maximize content shown
+  // 22px buffer: tested sweet spot that prevents text cutoff while maximizing visible content
   // Add viewport offset to account for when visual viewport has shifted
-  const bufferFromTop = Math.max(20, visibleHeight * 0.08) + viewportOffset;
+  const bufferFromTop = 22 + viewportOffset;
 
   const targetScroll = Math.max(0, targetPositionInContent - bufferFromTop);
 
