@@ -266,6 +266,11 @@ export function addGameText(text, isCommand = false, isVoiceCommand = false, isA
     // Game text - cleared only when Z-machine sends clear command
     div.className = 'game-text';
 
+    // Check if this is a system message (for auto-narration)
+    const tempCheck = document.createElement('div');
+    tempCheck.innerHTML = text;
+    const isSystemMessage = tempCheck.querySelector('.system-message') !== null;
+
     // Stop any active narration when new content arrives
     if (state.isNarrating) {
       stopNarration();
@@ -280,6 +285,18 @@ export function addGameText(text, isCommand = false, isVoiceCommand = false, isA
     state.narrationChunks = []; // Clear old chunks to prevent reading stale data
     state.currentChunkIndex = 0;
     state.currentChunkStartTime = 0;
+
+    // Auto-narrate system messages using app voice (only if narration is active)
+    if (isSystemMessage && (state.isNarrating || state.autoplayEnabled)) {
+      // Import and call speakAppMessage asynchronously
+      import('../narration/tts-player.js').then(({ speakAppMessage }) => {
+        // Extract text from system message
+        const systemText = tempCheck.querySelector('.system-message').textContent.trim();
+        speakAppMessage(systemText);
+      }).catch(err => {
+        console.error('[Game Output] Failed to auto-narrate system message:', err);
+      });
+    }
   }
 
   if (dom.lowerWindow) {

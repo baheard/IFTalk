@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>IF Talk - Voice-Powered Interactive Fiction</title>
+  <link rel="icon" type="image/png" href="favicon.png">
   <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
   <link href="https://fonts.googleapis.com/css2?family=Crimson+Pro:ital,wght@0,400;0,600;1,400&family=IBM+Plex+Mono:wght@400;500&family=Inter:wght@400;500;600&family=Literata:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
 
@@ -14,7 +15,13 @@
   <!-- ifvms ZVM interpreter -->
   <script src="lib/zvm.js"></script>
 
+  <!-- Google Identity Services (OAuth 2.0) -->
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
+
   <link rel="stylesheet" href="styles.css">
+
+  <meta name="viewport" content="width=device-width, initial-scale=1, interactive-widget=resizes-content">
+
 </head>
 <body>
 
@@ -29,223 +36,403 @@
     </div>
 
     <div class="settings-content">
-      <!-- Current Game Display -->
-      <div class="current-game-display" id="currentGameDisplay">
-        <span class="current-game-info">
-          <span class="current-game-label">Currently playing:</span>
-          <span class="current-game-name" id="currentGameName">No game loaded</span>
-        </span>
-        <button class="btn btn-sm btn-secondary" id="selectGameBtn">
-          <span class="material-icons">arrow_back</span> Home
-        </button>
-      </div>
 
-      <!-- Global Settings (always visible) -->
-      <div class="global-settings-row">
-        <label for="keepAwakeToggle" class="keep-awake-label">
-          <span class="material-icons">screen_lock_landscape</span>
-          Keep Screen On
-        </label>
-        <input type="checkbox" id="keepAwakeToggle" class="toggle-switch">
-      </div>
-
-      <!-- Lock Screen Button (mobile-only) -->
-      <div class="global-settings-row">
-        <button class="btn btn-secondary btn-full-width" id="lockScreenBtn">
-          <span class="material-icons">lock</span>
-          Lock Screen Now
-        </button>
-      </div>
-
-      <!-- About (welcome screen only) -->
-      <div class="settings-section collapsible collapsed hidden" id="aboutSection">
-        <h3 class="section-header"><span class="material-icons">auto_stories</span> About</h3>
-        <div class="section-content about-content">
-          <p><strong>Voxi</strong> is a voice-enabled interactive fiction player designed for hands-free audio play.</p>
-          <ul class="about-features">
-            <li><span class="material-icons">record_voice_over</span> <strong>TTS Narration</strong> <span class="desc">Game read aloud with adjustable speed and voice</span></li>
-            <li><span class="material-icons">mic</span> <strong>Voice Commands</strong> <span class="desc">Play hands-free with speech recognition</span></li>
-            <li><span class="material-icons">save</span> <strong>Auto-Save</strong> <span class="desc">Progress autosaved; resume where you left off</span></li>
-            <li><span class="material-icons">phone_iphone</span> <strong>Mobile Friendly</strong> <span class="desc">Works on phones, tablets, and desktops</span></li>
-          </ul>
-        </div>
-      </div>
-
-      <!-- Game Data -->
-      <div class="settings-section collapsible collapsed" id="gameSettingsSection">
-        <h3 class="section-header" id="gameSettingsHeader"><span class="material-icons">storage</span> Game</h3>
+      <!-- Quick Actions Section -->
+      <div class="settings-section collapsible collapsed" id="quickActionsSection">
+        <h3 class="section-header">
+          <span class="material-icons">bolt</span> Quick Actions
+        </h3>
         <div class="section-content">
-
-          <!-- BUTTONS SECTION -->
-
-          <!-- Pair 1: Quick Save/Restore -->
-          <div class="game-actions game-actions-pair-start">
-            <button class="btn btn-secondary btn-compact btn-full-width" id="quickSaveBtn" title="F5">
-              <span class="material-icons">save</span> Quick Save
+          <!-- Home / Currently Playing (in-game only) -->
+          <div class="current-game-display game-section-item" id="currentGameDisplay">
+            <span class="current-game-info">
+              <span class="current-game-label">Currently playing:</span>
+              <span class="current-game-name" id="currentGameName">No game loaded</span>
+            </span>
+            <button class="btn btn-sm btn-secondary" id="selectGameBtn">
+              <span class="material-icons">arrow_back</span> Home
             </button>
           </div>
-          <div class="game-actions game-actions-pair-end">
-            <button class="btn btn-secondary btn-compact btn-full-width" id="quickRestoreBtn" title="F9">
+
+          <!-- Keep Screen Awake toggle (mobile-only) -->
+          <div class="setting-item mobile-only">
+            <label>
+              Keep Screen Awake
+              <input type="checkbox" id="keepAwakeToggle" class="toggle-switch">
+            </label>
+            <p class="setting-description">Prevent device from going to sleep</p>
+          </div>
+
+          <!-- Lock Screen Now button (mobile-only) -->
+          <button id="lockScreenBtn" class="compact-btn">
+            <span class="material-icons">screen_lock_portrait</span>
+            Lock Screen Now
+          </button>
+
+          <!-- Quick Save/Load buttons (in-game only) -->
+          <div class="quick-actions-buttons game-section-item">
+            <button id="quickSaveBtn" class="compact-btn quick-action-btn" title="F5">
+              <span class="material-icons">save</span> Quick Save
+            </button>
+            <button id="quickRestoreBtn" class="compact-btn quick-action-btn" title="F9">
               <span class="material-icons">restore</span> Quick Restore
             </button>
           </div>
+        </div>
+      </div>
 
-          <!-- Standalone: Restart -->
-          <div class="game-actions game-actions-standalone">
-            <button class="btn btn-warning btn-compact btn-full-width" id="restartGameBtn">
-              <span class="material-icons">replay</span> Restart Current Game
+      <!-- Audio Section -->
+      <div class="settings-section collapsible collapsed" id="audioSection">
+        <h3 class="section-header">
+          <span class="material-icons">volume_up</span> Audio
+        </h3>
+        <div class="section-content">
+          <!-- Master Volume -->
+          <div class="setting-item">
+            <label>Volume</label>
+            <div class="slider-container">
+              <input type="range" id="masterVolume" min="0" max="100" step="5" value="100" class="slider">
+              <span id="masterVolumeValue" class="slider-value">100%</span>
+            </div>
+          </div>
+
+          <!-- Speech Speed -->
+          <div class="setting-item">
+            <label>Speech Speed</label>
+            <div class="slider-container">
+              <span class="slider-label">0.5x</span>
+              <input type="range" id="speechRate" min="0.5" max="1.5" step="0.1" value="1.0" class="slider">
+              <span class="slider-label">1.5x</span>
+              <span id="speechRateValue" class="slider-value">1.0x</span>
+            </div>
+          </div>
+
+          <!-- Narration Voice -->
+          <div class="setting-item">
+            <label>Narration Voice</label>
+            <div class="voice-controls">
+              <select id="voiceSelect" class="voice-select">
+                <option value="">Loading voices...</option>
+              </select>
+              <button id="testVoiceBtn" class="test-voice-btn">
+                <span class="material-icons">play_arrow</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- App Voice -->
+          <div class="setting-item">
+            <label>App Voice</label>
+            <div class="voice-controls">
+              <select id="appVoiceSelect" class="voice-select">
+                <option value="">Loading voices...</option>
+              </select>
+              <button id="testAppVoiceBtn" class="test-voice-btn">
+                <span class="material-icons">play_arrow</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Sound Effects -->
+          <div class="setting-item">
+            <label>
+              Sound Effects
+              <input type="checkbox" id="soundEffectsToggle" class="toggle-switch" checked>
+            </label>
+            <p class="setting-description">Audio feedback for commands and actions</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Voice & Input Section -->
+      <div class="settings-section collapsible collapsed" id="voiceInputSection">
+        <h3 class="section-header">
+          <span class="material-icons">mic</span> Voice & Input
+        </h3>
+        <div class="section-content">
+          <!-- Voice Controls toggle -->
+          <div class="setting-item">
+            <label>
+              Voice Controls
+              <input type="checkbox" id="voiceControlsToggle" class="toggle-switch" checked>
+            </label>
+            <p class="setting-description">Show voice navigation bar (play, pause, skip controls)</p>
+          </div>
+
+          <!-- Tap to Examine toggle -->
+          <div class="setting-item">
+            <label>
+              Tap to Examine
+              <input type="checkbox" id="tapToExamineToggle" class="toggle-switch">
+            </label>
+            <p class="setting-description">Tap words to hear their examination</p>
+          </div>
+
+          <!-- Voice Commands (collapsible help) -->
+          <div class="settings-section collapsible collapsed" id="voiceCommandsSection">
+            <h4 class="section-header">Voice Commands</h4>
+            <div class="section-content help-content">
+              <div class="help-section">
+                <strong>Narration Navigation Commands</strong>
+                <ul class="help-commands">
+                  <li><span class="material-icons">skip_previous</span> <code>"Restart"</code> <code>"Reset"</code> <code>"Repeat"</code></li>
+                  <li><span class="material-icons">fast_rewind</span> <code>"Back"</code> <code>"Back 3"</code> <code>"Go Back 5"</code></li>
+                  <li><span class="material-icons">pause</span> <code>"Stop"</code> <code>"Pause"</code></li>
+                  <li><span class="material-icons">play_arrow</span> <code>"Play"</code> <code>"Resume"</code></li>
+                  <li><span class="material-icons">fast_forward</span> <code>"Skip"</code> <code>"Skip 3"</code> <code>"Forward 5"</code></li>
+                  <li><span class="material-icons">skip_next</span> <code>"Skip All"</code> <code>"End"</code></li>
+                  <li><span class="material-icons">mic</span> <code>"Mute"</code> <code>"Unmute"</code></li>
+                </ul>
+              </div>
+              <div class="help-section">
+                <strong>Save/Load Commands</strong>
+                <ul class="help-commands">
+                  <li><span class="material-icons">save</span> <code>"Quick Save"</code></li>
+                  <li><span class="material-icons">restore</span> <code>"Quick Load"</code> <code>"Quick Restore"</code></li>
+                </ul>
+              </div>
+              <div class="help-section">
+                <strong>Game Commands</strong>
+                <ul class="help-commands">
+                  <li><span class="material-icons">keyboard_return</span> <code>"Enter"</code> — Press Enter</li>
+                  <li><span class="material-icons">info</span> <code>"Status"</code> — Dictate in-game status bar</li>
+                  <li><span class="material-icons">text_fields</span> <code>"Print [text]"</code> — Send literal text</li>
+                  <li><span class="material-icons">lightbulb</span> <code>"Get hint"</code> — Get AI hint from ChatGPT</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+
+          <!-- Pronunciation Dictionary -->
+          <div class="settings-section collapsible collapsed" id="pronunciationSection">
+            <h4 class="section-header">Pronunciation</h4>
+            <div class="section-content">
+              <p class="setting-description">Fix words that TTS pronounces incorrectly</p>
+              <div id="pronunciationList" class="pronunciation-list"></div>
+              <div class="add-pronunciation">
+                <input type="text" id="newWord" placeholder="Word (e.g., Anchorhead)" class="pronunciation-input">
+                <input type="text" id="newPronunciation" placeholder="Say as (e.g., Anchor-head)" class="pronunciation-input">
+                <button id="addPronunciationBtn" class="btn-small btn-primary">
+                  <span class="material-icons">add</span> Add
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Get Hint -->
+      <div class="settings-section collapsible collapsed" id="hintSection">
+        <h3 class="section-header">
+          <span class="material-icons">lightbulb</span> Get Hint
+        </h3>
+        <div class="section-content">
+          <p class="settings-description">Get AI-powered hints from ChatGPT</p>
+
+          <!-- Hint type dropdown -->
+          <div class="voice-setting">
+            <label for="hintTypeSelect">Hint Type:</label>
+            <select id="hintTypeSelect" class="voice-dropdown">
+              <option value="general">General Hint</option>
+              <option value="puzzle">Puzzle Help</option>
+              <option value="location">Navigation Help</option>
+            </select>
+          </div>
+
+          <!-- Get Hint button -->
+          <div class="game-actions" style="margin-top: 15px;">
+            <button class="btn btn-secondary btn-full-width" id="getHintBtn">
+              <span class="material-icons">lightbulb</span> Get Hint from ChatGPT
             </button>
           </div>
 
-          <!-- Pair 2: Export/Import -->
-          <div class="game-actions game-actions-pair-start">
-            <button class="btn btn-secondary btn-compact btn-full-width" id="exportSaveBtn">
-              <span class="material-icons">download</span> Export Save
+          <!-- Help text -->
+          <p class="settings-help" style="margin-top: 15px;">
+            Sends room description and inventory to ChatGPT for context-aware hints. Keyboard shortcut: <kbd>Ctrl+Shift+H</kbd>
+            ChatGPT will open in a new tab with the prompt ready.
+          </p>
+        </div>
+      </div>
+
+      <!-- Saves & Data Section -->
+      <div class="settings-section collapsible collapsed" id="savesDataSection">
+        <h3 class="section-header">
+          <span class="material-icons">storage</span> Saves & Data
+        </h3>
+        <div class="section-content">
+          <!-- Auto-save toggle -->
+          <div class="setting-item">
+            <label>
+              Auto-save
+              <input type="checkbox" id="autosaveToggle" class="toggle-switch" checked>
+            </label>
+            <p class="setting-description">Automatically save after each turn</p>
+          </div>
+
+          <!-- Auto-export toggle (placeholder) -->
+          <div class="setting-item disabled">
+            <label>
+              Auto-export
+              <span class="badge">Coming Soon</span>
+            </label>
+            <input type="checkbox" id="autoexportToggle" class="toggle-switch" disabled>
+            <p class="setting-description">Automatically export saves to file</p>
+          </div>
+
+          <!-- Export/Import buttons -->
+          <div class="game-actions-pair">
+            <button id="exportSaveBtn" class="compact-btn game-actions-pair-start">
+              <span class="material-icons">upload</span> Export
+            </button>
+            <button id="importSaveBtn" class="compact-btn game-actions-pair-end">
+              <span class="material-icons">download</span> Import
             </button>
           </div>
-          <div class="game-actions game-actions-pair-end">
-            <button class="btn btn-secondary btn-compact btn-full-width" id="importSaveBtn">
-              <span class="material-icons">upload</span> Import Save
-            </button>
-          </div>
+
+          <!-- Sync from GitHub (placeholder) -->
+          <button id="syncGitHubBtn" class="compact-btn disabled" disabled>
+            <span class="material-icons">sync</span> Sync from GitHub
+            <span class="badge">Coming Soon</span>
+          </button>
 
           <!-- Developer Tools (localhost only, injected by JS) -->
           <div id="devToolsContainer"></div>
 
-          <!-- Standalone: Delete -->
-          <div class="game-actions game-actions-standalone">
-            <button class="btn btn-danger btn-compact btn-full-width" id="clearAllDataBtn">
-              <span class="material-icons">delete_forever</span> <span id="clearDataBtnText">Delete Game Data</span>
+          <!-- Save/Restore help info -->
+          <div class="settings-section collapsible collapsed" id="saveHelpSection">
+            <h4 class="section-header">Save and Restore Help</h4>
+            <div class="section-content">
+              <div class="save-restore-info">
+                <h4>💾 Save & Restore</h4>
+                <p>Progress autosaves after each turn. To save manually:</p>
+                <ul>
+                  <li><code>save [name]</code> — Save with a custom name</li>
+                  <li><code>restore [name]</code> — Restore from a named save</li>
+                  <li><code>quicksave</code> / <code>quickload</code> — Quick save/load</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+
+          <!-- Reset/Delete buttons (in-game only) -->
+          <div class="game-section-item danger-zone">
+            <button id="restartGameBtn" class="compact-btn">
+              <span class="material-icons">refresh</span> Reset Current Game
             </button>
+
+            <button id="clearAllDataBtn" class="compact-btn danger-btn">
+              <span class="material-icons">delete_forever</span> Delete Game Data
+            </button>
+            <p class="warning-text">Deletes saves for this game only</p>
           </div>
 
-          <!-- DIVIDER -->
-          <div class="settings-divider"></div>
-
-          <!-- INFO PANELS SECTION -->
-
-          <!-- Save/Restore Instructions -->
-          <div class="save-restore-info">
-            <h4>💾 Save & Restore</h4>
-            <p>Progress autosaves after each turn. To save manually:</p>
-            <ul>
-              <li><code>save [name]</code> — Save with a custom name</li>
-              <li><code>restore [name]</code> — Restore from a named save</li>
-              <li><code>quicksave</code> / <code>quickload</code> — Quick save/load</li>
-            </ul>
+          <!-- Delete All Data (welcome only) -->
+          <div id="deleteAllDataSection" class="welcome-section-item danger-zone">
+            <button id="deleteAllAppDataBtn" class="compact-btn danger-btn">
+              <span class="material-icons">delete_forever</span> Delete All App Data
+            </button>
+            <p class="warning-text">Removes all games, saves, and settings</p>
           </div>
-
         </div>
       </div>
 
-      <!-- Audio Settings -->
-      <div class="settings-section collapsible collapsed" id="voiceSettingsSection">
-        <h3 class="section-header" id="voiceSettingsHeader"><span class="material-icons">volume_up</span> Audio</h3>
+      <!-- Cloud Sync Section -->
+      <div class="settings-section collapsible collapsed" id="cloudSyncSection">
+        <h3 class="section-header">
+          <span class="material-icons">cloud</span> Cloud Sync
+        </h3>
         <div class="section-content">
-        <p class="settings-description" id="voiceSettingsDescription">Configure audio playback and voices</p>
-        <div class="voice-setting">
-          <label for="masterVolume">Volume:</label>
-          <div class="slider-wrapper">
-            <div class="slider-container">
-              <span class="slider-label">0%</span>
-              <input type="range" id="masterVolume" min="0" max="100" step="5" value="100" class="speech-slider">
-              <span class="slider-label">100%</span>
+          <p class="settings-description">
+            Sync your saves to Google Drive for backup and cross-device play
+          </p>
+
+          <!-- Sign-in area (shown when not signed in) -->
+          <div id="gdriveSignInArea">
+            <button class="btn btn-primary btn-full-width" id="gdriveSignInBtn">
+              <span class="material-icons">cloud_upload</span>
+              Sign in with Google
+            </button>
+            <p class="settings-help">
+              Optional: Enable cloud backup and sync across devices
+            </p>
+          </div>
+
+          <!-- Account area (shown when signed in) -->
+          <div id="gdriveAccountArea" class="hidden">
+            <div class="gdrive-account-info">
+              <span class="material-icons">account_circle</span>
+              <span id="gdriveEmail">user@example.com</span>
             </div>
-            <span id="masterVolumeValue" class="slider-value">100%</span>
-          </div>
-        </div>
-        <div class="voice-setting">
-          <label for="speechRate">Speech Speed:</label>
-          <div class="slider-wrapper">
-            <div class="slider-container">
-              <span class="slider-label">0.5x</span>
-              <input type="range" id="speechRate" min="0.5" max="1.5" step="0.1" value="1.1" class="speech-slider">
-              <span class="slider-label">1.5x</span>
+
+            <div class="gdrive-sync-status">
+              <span id="gdriveSyncStatus">Last synced: Never</span>
             </div>
-            <span id="speechRateValue" class="slider-value">1.1x</span>
+
+            <!-- Auto-Sync toggle (Phase 3) -->
+            <div class="setting-item">
+              <label>
+                Auto-Sync
+                <input type="checkbox" id="autoSyncToggle" class="toggle-switch">
+              </label>
+              <p class="setting-description">Automatically upload saves after each turn (5-second delay)</p>
+            </div>
+
+            <!-- Backup History toggle (Phase 4) -->
+            <div class="setting-item">
+              <label>
+                Keep Backup History
+                <input type="checkbox" id="backupHistoryToggle" class="toggle-switch">
+              </label>
+              <p class="setting-description">Keep last 10 versions of each save for recovery</p>
+            </div>
+
+            <div class="game-actions" style="margin-top: 15px;">
+              <button class="btn btn-secondary btn-full-width" id="gdriveSyncNowBtn">
+                <span class="material-icons">sync</span>
+                Sync Now
+              </button>
+            </div>
+
+            <!-- View Backup History button (Phase 4) -->
+            <div class="game-actions" style="margin-top: 10px;">
+              <button class="btn btn-secondary btn-full-width" id="viewBackupsBtn">
+                <span class="material-icons">history</span>
+                View Backup History
+              </button>
+            </div>
+
+            <div class="game-actions" style="margin-top: 10px;">
+              <button class="btn btn-secondary btn-full-width" id="gdriveSignOutBtn">
+                <span class="material-icons">logout</span>
+                Sign Out
+              </button>
+            </div>
+
+            <!-- Backup History Modal (Phase 4) -->
+            <div id="backupHistoryModal" class="modal hidden">
+              <div class="modal-content">
+                <div class="modal-header">
+                  <h3>Backup History</h3>
+                  <button class="modal-close" id="closeBackupModal">
+                    <span class="material-icons">close</span>
+                  </button>
+                </div>
+
+                <div class="modal-body">
+                  <p class="settings-description">
+                    Last 10 versions of your saves. Click to restore.
+                  </p>
+
+                  <div id="backupList" class="backup-list">
+                    <!-- Populated dynamically -->
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
-        </div>
-        <div class="voice-setting">
-          <label for="voiceSelect">Narration Voice:</label>
-          <select id="voiceSelect" class="voice-dropdown">
-            <option value="">Loading voices...</option>
-          </select>
-          <button id="testVoiceBtn" class="btn-test-voice" title="Preview voice"><span class="material-icons">play_arrow</span></button>
-        </div>
-        <div class="voice-setting">
-          <label for="appVoiceSelect">App Voice:</label>
-          <select id="appVoiceSelect" class="voice-dropdown">
-            <option value="">Loading voices...</option>
-          </select>
-          <button id="testAppVoiceBtn" class="btn-test-voice" title="Preview app voice"><span class="material-icons">play_arrow</span></button>
-        </div>
-        <!-- Apply to all games button (only shown on home screen) -->
-        <div class="game-actions" id="applyVoiceToAllContainer" style="display: none; margin-top: 15px;">
-          <button class="btn btn-secondary btn-full-width" id="applyVoiceToAllBtn">
-            <span class="material-icons">sync</span> Apply to all games
-          </button>
-          <p class="settings-help" style="margin-top: 5px;">Removes per-game voice overrides so all games use these defaults.</p>
-        </div>
         </div>
       </div>
 
-      <!-- Voice Commands Help -->
-      <div class="settings-section collapsible collapsed" id="voiceCommandsSection">
-        <h3 class="section-header"><span class="material-icons">mic</span> Voice Commands</h3>
-        <div class="section-content help-content">
-          <div class="help-section">
-            <strong>Narration Navigation Commands</strong>
-            <ul class="help-commands">
-              <li><span class="material-icons">skip_previous</span> <code>"Restart"</code> <code>"Reset"</code> <code>"Repeat"</code></li>
-              <li><span class="material-icons">fast_rewind</span> <code>"Back"</code></li>
-              <li><span class="material-icons">pause</span> <code>"Stop"</code> <code>"Pause"</code></li>
-              <li><span class="material-icons">play_arrow</span> <code>"Play"</code> <code>"Resume"</code></li>
-              <li><span class="material-icons">fast_forward</span> <code>"Skip"</code></li>
-              <li><span class="material-icons">skip_next</span> <code>"Skip All"</code> <code>"End"</code></li>
-              <li><span class="material-icons">mic</span> <code>"Mute"</code> <code>"Unmute"</code></li>
-            </ul>
-          </div>
-          <div class="help-section">
-            <strong>Save/Load Commands</strong>
-            <ul class="help-commands">
-              <li><span class="material-icons">save</span> <code>"Quick Save"</code></li>
-              <li><span class="material-icons">restore</span> <code>"Quick Load"</code> <code>"Quick Restore"</code></li>
-            </ul>
-          </div>
-          <div class="help-section">
-            <strong>Game Commands</strong>
-            <ul class="help-commands">
-              <li><span class="material-icons">keyboard_return</span> <code>"Enter"</code> — Press Enter</li>
-              <li><span class="material-icons">info</span> <code>"Status"</code> — Dictate in-game status bar</li>
-              <li><span class="material-icons">text_fields</span> <code>"Print [text]"</code> — Send literal text</li>
-            </ul>
-          </div>
-        </div>
-      </div>
-
-      <!-- Pronunciation Dictionary -->
-      <div class="settings-section collapsible collapsed" id="pronunciationSection">
-        <h3 class="section-header"><span class="material-icons">spellcheck</span> Pronunciation</h3>
-        <div class="section-content">
-        <p class="settings-description">Fix words that TTS pronounces incorrectly</p>
-        <div id="pronunciationList" class="pronunciation-list"></div>
-        <div class="add-pronunciation">
-          <input type="text" id="newWord" placeholder="Word (e.g., Anchorhead)" class="pronunciation-input">
-          <input type="text" id="newPronunciation" placeholder="Say as (e.g., Anchor-head)" class="pronunciation-input">
-          <button id="addPronunciationBtn" class="btn-small btn-primary">+ Add</button>
-        </div>
-        </div>
-      </div>
-
-      <!-- Delete All Data (welcome screen only, outside collapsible) -->
-      <div class="welcome-danger-zone hidden" id="welcomeDangerZone">
-        <div class="danger-zone-standalone">
-          <button class="btn btn-danger btn-full-width" id="deleteAllAppDataBtn">
-            <span class="material-icons">delete_forever</span> Delete All App Data
-          </button>
-          <p class="danger-zone-hint">Permanently delete all saves, settings, and progress</p>
-        </div>
-      </div>
     </div>
   </div>
 
@@ -264,10 +451,6 @@
           <h3 class="category-title">📜 Your First Adventure</h3>
           <p class="category-desc">Welcoming games for new players</p>
           <div class="game-category-grid">
-            <button class="game-card" data-game="dreamhold.z8">
-              <div class="game-title">The Dreamhold <span class="save-badge" data-save-indicator></span><span class="game-meta" data-year="2004" data-author="Andrew Plotkin" data-difficulty="Relaxed" data-length="Medium (~1.5-4 hrs)">ⓘ</span></div>
-              <div class="game-desc">Tutorial game designed to teach IF step-by-step</div>
-            </button>
             <button class="game-card" data-game="905.z5">
               <div class="game-title">9:05 <span class="save-badge" data-save-indicator></span><span class="game-meta" data-year="2000" data-author="Adam Cadre" data-difficulty="Relaxed" data-length="Very short (~15-30 min)">ⓘ</span></div>
               <div class="game-desc">Short game with a twist - perfect intro to IF</div>
@@ -275,6 +458,10 @@
             <button class="game-card" data-game="lostpig.z8">
               <div class="game-title">Lost Pig <span class="save-badge" data-save-indicator></span><span class="game-meta" data-year="2007" data-author="Admiral Jota" data-difficulty="Relaxed" data-length="Medium (~1.5-4 hrs)">ⓘ</span></div>
               <div class="game-desc">Comedy adventure - play an orc looking for a pig</div>
+            </button>
+            <button class="game-card" data-game="dreamhold.z8">
+              <div class="game-title">The Dreamhold <span class="save-badge" data-save-indicator></span><span class="game-meta" data-year="2004" data-author="Andrew Plotkin" data-difficulty="Relaxed" data-length="Medium (~1.5-4 hrs)">ⓘ</span></div>
+              <div class="game-desc">Atmospheric fantasy with relaxed exploration</div>
             </button>
             <button class="game-card" data-game="photopia.z5">
               <div class="game-title">Photopia <span class="save-badge" data-save-indicator></span><span class="game-meta" data-year="1998" data-author="Adam Cadre" data-difficulty="Relaxed" data-length="Short (~30 min - 1.5 hrs)">ⓘ</span></div>
@@ -455,7 +642,6 @@
       <button id="skipToEndBtn" class="btn-nav" title="&quot;Skip All&quot;"><span class="material-icons">skip_next</span></button>
       <div class="controls-spacer"></div>
       <button id="muteBtn" class="btn-mic" title="Toggle voice input"><span class="material-icons">mic</span></button>
-      <button id="settingsBtn" class="btn-nav btn-settings" title="Settings"><span class="material-icons">settings</span></button>
     </div>
 
     <!-- Message Input Row -->
@@ -467,6 +653,12 @@
         <span class="voice-meter-dot" id="voiceMeterDot"></span>
         <span class="voice-transcript" id="voiceTranscript">Listening...</span>
       </div>
+      <!-- Clear button (shown when text input is shown) -->
+      <button class="btn-nav" id="clearInputBtn" title="Clear (Esc)" aria-label="Clear input">
+        <span class="material-icons">close</span>
+      </button>
+      <!-- Settings button (always on the right) -->
+      <button id="settingsBtn" class="btn-nav btn-settings" title="Settings"><span class="material-icons">settings</span></button>
     </div>
 
     <!-- Char Input Panel (replaces message input in char mode) -->
@@ -526,6 +718,20 @@
         </div>
         <div class="unlock-progress" id="unlockProgress"></div>
       </button>
+    </div>
+  </div>
+
+  <!-- Confirm Dialog -->
+  <div class="confirm-dialog-overlay hidden" id="confirmDialogOverlay">
+    <div class="confirm-dialog">
+      <h3 class="confirm-dialog-title" id="confirmDialogTitle">Confirm</h3>
+      <p class="confirm-dialog-message" id="confirmDialogMessage">
+        Are you sure?
+      </p>
+      <div class="confirm-dialog-buttons">
+        <button class="btn-confirm-cancel" id="confirmCancelBtn">Cancel</button>
+        <button class="btn-confirm-ok" id="confirmOkBtn">OK</button>
+      </div>
     </div>
   </div>
 

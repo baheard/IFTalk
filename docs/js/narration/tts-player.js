@@ -66,7 +66,7 @@ export function startKeepAlive() {
       });
     }
   } catch (err) {
-    console.warn('[KeepAlive] Failed to start:', err);
+    // KeepAlive failed to start - silently ignored
   }
 }
 
@@ -126,7 +126,6 @@ export async function playAudio(audioDataOrText) {
     };
 
     audio.onerror = () => {
-      console.error('[Audio] Playback error');
       state.currentAudio = null;
       state.isNarrating = false;
       updateStatus('Audio error');
@@ -134,7 +133,6 @@ export async function playAudio(audioDataOrText) {
     };
 
     audio.play().catch(err => {
-      console.error('[Audio] Failed:', err);
       state.currentAudio = null;
       state.isNarrating = false;
       updateStatus('Audio playback failed');
@@ -151,7 +149,6 @@ export async function playAudio(audioDataOrText) {
  */
 export async function playWithBrowserTTS(text, voiceType = 'narrator') {
   if (!('speechSynthesis' in window)) {
-    console.error('[Browser TTS] Not supported - speechSynthesis API not available');
     state.isNarrating = false;
     return;
   }
@@ -190,9 +187,8 @@ export async function playWithBrowserTTS(text, voiceType = 'narrator') {
     };
 
     utterance.onerror = (err) => {
-      // Only log non-interrupted errors
+      // Only show status for non-interrupted errors
       if (err.error !== 'interrupted') {
-        console.error('[Browser TTS] Error:', err.error);
         updateStatus('TTS error: ' + err.error);
       }
       // Don't set isNarrating = false here - let speakTextChunked or stopNarration manage it
@@ -247,7 +243,6 @@ export async function speakTextChunked(text, startFromIndex = 0) {
 
   // LAZY CHUNKING: Create chunks on-demand if needed
   if (!ensureChunksReady()) {
-    console.warn('[TTS] Failed to prepare chunks for narration');
     return;
   }
 

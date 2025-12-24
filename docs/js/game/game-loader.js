@@ -12,6 +12,7 @@ import { stopNarration } from '../narration/tts-player.js';
 import { createVoxGlk, sendInput, getInputType } from './voxglk.js';
 import { updateCurrentGameDisplay, reloadSettingsForGame } from '../ui/settings.js';
 import { activateIfEnabled } from '../utils/wake-lock.js';
+import { confirmDialog } from '../ui/confirm-dialog.js';
 
 /**
  * Start a game using browser-based ZVM
@@ -28,7 +29,7 @@ export async function startGame(gamePath, onOutput) {
     // Update game name display in settings
     updateCurrentGameDisplay(gamePath.split('/').pop());
 
-    // Reload per-game settings (voices, speech rate, etc.)
+    // Update UI for game context (refresh voice dropdowns, inject sync button)
     reloadSettingsForGame();
 
     // Activate keep awake if enabled (requires user gesture - game click qualifies)
@@ -64,14 +65,12 @@ export async function startGame(gamePath, onOutput) {
 
     // Verify ZVM is loaded
     if (typeof window.ZVM === 'undefined') {
-      console.error('[ZVM] ZVM library not loaded');
       updateStatus('Error: Game engine not loaded');
       return;
     }
 
     // Verify Glk is loaded
     if (typeof window.Glk === 'undefined') {
-      console.error('[ZVM] Glk library not loaded');
       updateStatus('Error: Glk library not loaded');
       return;
     }
@@ -142,7 +141,7 @@ export async function startGame(gamePath, onOutput) {
         window.pendingRestoreType = pendingRestore.type;
         window.pendingRestoreKey = pendingRestore.key;
       } catch (e) {
-        console.error('[GameLoader] Failed to parse pending restore:', e);
+        // Failed to parse pending restore - silently ignored
       }
     }
 
@@ -182,8 +181,6 @@ export async function startGame(gamePath, onOutput) {
           window.dispatchEvent(new CustomEvent('loadingFadeComplete'));
         }, { once: true });
       }, 100);
-    } else {
-      console.warn('[Overlay] No overlay found to fade in startGame!');
     }
 
     // Save as last played game for auto-resume
@@ -199,9 +196,6 @@ export async function startGame(gamePath, onOutput) {
     stopNarration();
 
   } catch (error) {
-    console.error('[StartGame] ========== ERROR ==========');
-    console.error('[StartGame] Error:', error);
-    console.error('[StartGame] Stack:', error.stack);
     updateStatus('Error: ' + error.message);
 
     // Return to welcome screen on error
@@ -528,13 +522,11 @@ export function initGameSelection(onOutput) {
   // Restart game button (set flag to skip autoload, then reload)
   const restartGameBtn = document.getElementById('restartGameBtn');
   if (restartGameBtn) {
-    restartGameBtn.addEventListener('click', () => {
+    restartGameBtn.addEventListener('click', async () => {
       // Show confirmation dialog
-      const confirmed = confirm(
-        '⚠️ Restart Game?\n\n' +
-        'This will restart the game from the beginning.\n' +
-        'Your autosave will be lost.\n\n' +
-        'Are you sure you want to continue?'
+      const confirmed = await confirmDialog(
+        'This will restart the game from the beginning.\nYour autosave will be lost.\n\nAre you sure you want to continue?',
+        { title: 'Restart Game?' }
       );
 
       if (confirmed) {
@@ -570,9 +562,9 @@ export function initGameSelection(onOutput) {
       );
 
       if (!hasValidExtension) {
-        const proceed = confirm(
-          'This URL doesn\'t end with a recognized Z-machine extension (.z3, .z4, .z5, .z8, .zblorb).\n\n' +
-          'Try to load it anyway?'
+        const proceed = await confirmDialog(
+          'This URL doesn\'t end with a recognized Z-machine extension (.z3, .z4, .z5, .z8, .zblorb).\n\nTry to load it anyway?',
+          { title: 'Unrecognized File Extension' }
         );
         if (!proceed) return;
       }

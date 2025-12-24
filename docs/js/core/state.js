@@ -71,7 +71,21 @@ const _state = {
   browserVoiceConfig: null,
 
   // Lock screen state
-  isScreenLocked: false
+  isScreenLocked: false,
+
+  // Google Drive sync state
+  gdriveSignedIn: false,
+  gdriveEmail: null,
+  gdriveSyncEnabled: false,
+  gdriveSyncPending: false,
+  gdriveLastSyncTime: null,
+  gdriveError: null,
+
+  // Device tracking
+  deviceId: null,
+  deviceInfo: null,
+  deviceChangeDetected: false,
+  lastDeviceId: null
 };
 
 // Add getter/setter for autoplayEnabled with logging

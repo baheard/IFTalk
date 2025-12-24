@@ -76,7 +76,6 @@ export function renderUpdate(updateObj, persistentWindows = null) {
     updateObj.content.forEach(content => {
       const window = windows.get(content.id);
       if (!window) {
-        console.warn('[VoxGlkRenderer] Unknown window:', content.id);
         return;
       }
 

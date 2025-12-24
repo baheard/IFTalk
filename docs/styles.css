@@ -11,7 +11,8 @@
   --bg-surface: #1a1e24;
   --bg-elevated: #22272e;
 
-  --accent-primary: #aec8ff;
+  /*--accent-primary: #aec8ff;*/
+  --accent-primary: #3a64be;
   --accent-warm: #c4a35a;
   --accent-muted: #5c6370;
 
@@ -125,13 +126,20 @@ body {
   border-radius: 50%;
   background: var(--bg-elevated);
   border: 1px solid var(--border-subtle);
-  transition: all 0.3s ease;
+  color: var(--text-muted);
+  opacity: 0.5;
+  transition: opacity 0.15s;
 }
 
-.voice-help-icon:hover {
-  background: var(--highlight-active);
-  border-color: var(--accent-primary);
-  transform: scale(1.05);
+/* Hover state for desktop only */
+@media (hover: hover) and (pointer: fine) {
+  .voice-help-icon:hover {
+    opacity: 1;
+  }
+}
+
+.voice-help-icon.active {
+  opacity: 1;
 }
 
 .voice-help-tooltip {
@@ -152,7 +160,16 @@ body {
   z-index: 1000;
 }
 
-.voice-help-icon:hover .voice-help-tooltip {
+/* Show tooltip on hover (desktop only - not touch devices) */
+@media (hover: hover) and (pointer: fine) {
+  .voice-help-icon:hover .voice-help-tooltip {
+    opacity: 1;
+    pointer-events: auto;
+  }
+}
+
+/* Show tooltip on tap/click (all devices) - requires JS */
+.voice-help-icon.active .voice-help-tooltip {
   opacity: 1;
   pointer-events: auto;
 }
@@ -518,7 +535,7 @@ body {
   width: 18px;
   height: 18px;
   border-radius: 50%;
-  background: var(--accent-warm);
+  background: var(--accent-primary);
   cursor: pointer;
   transition: transform 0.2s;
   margin-top: -6px;
@@ -542,7 +559,7 @@ body {
   width: 18px;
   height: 18px;
   border-radius: 50%;
-  background: var(--accent-warm);
+  background: var(--accent-primary);
   cursor: pointer;
   border: 2px solid rgba(255, 255, 255, 0.2);
   transition: transform 0.2s;
@@ -708,13 +725,18 @@ body {
 
 .add-pronunciation {
   display: flex;
-  gap: 8px;
-  align-items: center;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  margin-top: 12px;
 }
 
 .pronunciation-input {
-  flex: 1;
-  padding: 8px 12px;
+  width: 100%;
+  padding: 10px 12px;
   background: var(--bg-surface);
   border: 1px solid var(--border-subtle);
   border-radius: 6px;
@@ -726,6 +748,19 @@ body {
 .pronunciation-input:focus {
   outline: none;
   border-color: var(--accent-primary);
+}
+
+.add-pronunciation .btn-small {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+n/* Hint Button */
+#getHintBtn .material-icons {
+  font-size: 18px;
+  margin-right: 8px;
 }
 
 /* Game Section */
@@ -758,7 +793,7 @@ body {
 
 /* Global settings row (mobile only - keep screen on) */
 .global-settings-row {
-  display: none; /* Hidden by default on desktop */
+  display: flex; /* Show on both desktop and mobile */
   justify-content: space-between;
   align-items: center;
   padding: 10px 12px;
@@ -768,14 +803,8 @@ body {
   border: 1px solid var(--border-subtle);
 }
 
-/* Show on touch/mobile devices */
-@media (hover: none), (pointer: coarse) {
-  .global-settings-row {
-    display: flex;
-  }
-}
-
-.keep-awake-label {
+.keep-awake-label,
+.tap-examine-label {
   display: flex;
   align-items: center;
   gap: 8px;
@@ -784,9 +813,70 @@ body {
   cursor: pointer;
 }
 
-.keep-awake-label .material-icons {
+.keep-awake-label .material-icons,
+.tap-examine-label .material-icons:first-child {
   font-size: 18px;
   color: var(--text-secondary);
+}
+
+/* Help icon for settings */
+.setting-help-icon {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  margin-left: 4px;
+  cursor: help;
+}
+
+.setting-help-icon .material-icons {
+  font-size: 16px !important;
+  color: var(--text-muted);
+  opacity: 0.5;
+  transition: opacity 0.15s;
+}
+
+/* Hover state for desktop only */
+@media (hover: hover) and (pointer: fine) {
+  .setting-help-icon:hover .material-icons {
+    opacity: 1;
+  }
+}
+
+/* Tooltip */
+.setting-help-tooltip {
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% + 8px);
+  transform: translateX(-50%);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-accent);
+  border-radius: 8px;
+  padding: 10px 12px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text-secondary);
+  white-space: normal;
+  width: 220px;
+  max-width: 220px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s;
+  z-index: 1000;
+}
+
+/* Show tooltip on hover (desktop only - not touch devices) */
+@media (hover: hover) and (pointer: fine) {
+  .setting-help-icon:hover .setting-help-tooltip {
+    opacity: 1;
+    pointer-events: auto;
+  }
+}
+
+/* Show tooltip on tap/click (all devices) - requires JS */
+.setting-help-icon.active .setting-help-tooltip {
+  opacity: 1;
+  pointer-events: auto;
 }
 
 .lock-screen-label {
@@ -979,6 +1069,334 @@ body {
   transform: scale(1.05);
 }
 
+/* =======================
+   New Settings Menu Styles
+   ======================= */
+
+/* Current game display */
+.current-game-display {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 16px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  margin-bottom: 16px;
+}
+
+.current-game-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.current-game-label {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.6);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.current-game-name {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--accent-warm);
+}
+
+/* Setting item container */
+.setting-item {
+  padding-bottom: 16px;
+  margin-bottom: 16px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.setting-item:last-child {
+  border-bottom: none;
+}
+
+.setting-item label {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-weight: 500;
+  margin-bottom: 8px;
+}
+
+.setting-item.disabled {
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+.setting-description {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.6);
+  margin: 4px 0 0 0;
+}
+
+/* Badge for coming soon features */
+.badge {
+  display: inline-block;
+  padding: 2px 8px;
+  background: var(--accent-warm);
+  color: var(--background-dark);
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 600;
+  margin-left: 8px;
+}
+
+/* Slider container for new settings */
+.setting-item .slider-container {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 8px;
+}
+
+.setting-item .slider {
+  flex: 1;
+  height: 6px;
+  border-radius: 3px;
+  background: transparent;
+  outline: none;
+  -webkit-appearance: none;
+}
+
+.setting-item .slider::-webkit-slider-runnable-track {
+  height: 6px;
+  border-radius: 3px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-subtle);
+}
+
+.setting-item .slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--accent-primary);
+  cursor: pointer;
+  transition: transform 0.2s;
+  margin-top: -5px;
+  border: 2px solid rgba(255, 255, 255, 0.2);
+}
+
+.setting-item .slider::-webkit-slider-thumb:hover {
+  transform: scale(1.15);
+}
+
+.setting-item .slider::-moz-range-track {
+  height: 6px;
+  border-radius: 3px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-subtle);
+}
+
+.setting-item .slider::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--accent-primary);
+  cursor: pointer;
+  border: 2px solid rgba(255, 255, 255, 0.2);
+  transition: transform 0.2s;
+}
+
+.setting-item .slider::-moz-range-thumb:hover {
+  transform: scale(1.15);
+}
+
+.setting-item .slider-value {
+  font-size: 14px;
+  color: var(--accent-warm);
+  min-width: 45px;
+  text-align: right;
+}
+
+.setting-item .slider-label {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.6);
+  min-width: 30px;
+  text-align: center;
+}
+
+/* Voice controls */
+.voice-controls {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.voice-select {
+  flex: 1;
+  padding: 8px;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 4px;
+  color: white;
+  font-size: 14px;
+}
+
+.test-voice-btn {
+  padding: 8px 12px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-subtle);
+  border-radius: 4px;
+  color: var(--text-primary);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-weight: 500;
+  white-space: nowrap;
+  transition: all 0.3s ease;
+}
+
+.test-voice-btn:hover {
+  background: var(--highlight-active);
+  border-color: var(--accent-muted);
+  transform: scale(1.05);
+}
+
+.test-voice-btn .material-icons {
+  font-size: 18px;
+}
+
+/* Compact button styles */
+.compact-btn {
+  padding: 10px 16px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-subtle);
+  border-radius: 6px;
+  color: var(--text-primary);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  margin-bottom: 10px;
+  transition: all 0.2s ease;
+  width: 100%;
+}
+
+.compact-btn:hover {
+  background: var(--highlight-active);
+  border-color: var(--accent-muted);
+}
+
+.compact-btn.disabled,
+.compact-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.compact-btn .material-icons {
+  font-size: 18px;
+}
+
+.game-actions-pair {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 15px;
+}
+
+.game-actions-pair .compact-btn {
+  flex: 1;
+  margin-bottom: 0;
+}
+
+.game-actions-pair-start {
+  /* No special styles, part of flex container */
+}
+
+.game-actions-pair-end {
+  /* No special styles, part of flex container */
+}
+
+/* Context-specific visibility */
+.game-section-item {
+  display: none;
+}
+
+.welcome-section-item {
+  display: none;
+}
+
+/* Quick action buttons */
+.quick-actions-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.quick-action-btn {
+  width: auto;
+  min-width: 160px;
+  align-self: flex-start;
+}
+
+/* Mobile-only elements */
+.mobile-only {
+  display: none !important;
+}
+
+@media (max-width: 768px) {
+  .mobile-only {
+    display: block !important;
+  }
+
+  .mobile-only.setting-item {
+    display: block !important;
+  }
+}
+
+/* Danger zone styling */
+.danger-zone {
+  margin-top: 24px;
+  padding-top: 24px;
+  border-top: 2px solid rgba(255, 100, 100, 0.3);
+}
+
+.danger-zone .warning-text {
+  font-size: 12px;
+  color: rgba(255, 100, 100, 0.8);
+  margin-top: 8px;
+}
+
+.danger-btn {
+  background: rgba(255, 100, 100, 0.2) !important;
+  border: 1px solid rgba(255, 100, 100, 0.5) !important;
+  color: #ff6464 !important;
+}
+
+.danger-btn:hover {
+  background: rgba(255, 100, 100, 0.3) !important;
+}
+
+/* Voice controls visibility */
+#voice-controls {
+  transition: opacity 0.3s ease, transform 0.3s ease, height 0.3s ease;
+}
+
+#voice-controls.hidden {
+  opacity: 0;
+  transform: translateY(20px);
+  pointer-events: none;
+  height: 0;
+  overflow: hidden;
+}
+
+/* Settings icon repositioning when voice controls hidden */
+body.voice-controls-hidden #settings-btn {
+  position: absolute;
+  bottom: 20px;
+  right: 20px;
+}
+
 .btn-talk-mode {
   font-size: var(--font-m);
   padding: 12px 24px;
@@ -1118,6 +1536,12 @@ body {
   text-align: left;
   color: var(--color-game-text);
   letter-spacing: 0.01em;
+  cursor: text; /* Default to text cursor for selection */
+}
+
+/* When tap-to-examine is enabled, use default cursor */
+body.tap-to-examine-enabled .game-text {
+  cursor: default;
 }
 
 /* System/app messages - distinct from game text */
@@ -1846,7 +2270,7 @@ body {
 
 .controls {
   display: flex;
-  justify-content: space-between;
+  justify-content: center;
   align-items: center;
   gap: 4px;
   max-width: 800px;
@@ -1855,8 +2279,8 @@ body {
 }
 
 .controls-spacer {
-  flex: 1;
-  min-width: 20px;
+  width: 20px;
+  flex-shrink: 0;
 }
 
 .btn-nav {
@@ -1877,6 +2301,18 @@ body {
   transform: scale(1.05);
 }
 
+/* Primary color for play/pause button only */
+#pausePlayBtn {
+  background: var(--accent-primary);
+  color: white;
+  border-color: var(--accent-primary);
+}
+
+#pausePlayBtn:hover {
+  background: #4a74ce;
+  border-color: #4a74ce;
+}
+
 .btn-nav:disabled {
   opacity: 0.3;
   cursor: not-allowed;
@@ -1886,24 +2322,23 @@ body {
 .btn-mic {
   padding: 8px 12px;
   border-radius: 50%;
-  border: 1px solid var(--border-subtle);
-  background: var(--bg-elevated);
-  color: var(--text-primary);
+  border: 1px solid var(--accent-primary);
+  background: var(--accent-primary);
+  color: white;
   font-size: 20px;
   cursor: pointer;
-  transition: transform 0.2s, background 0.3s ease;
+  transition: transform 0.2s ease, opacity 0.2s ease, background 0.3s ease;
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
   --mic-intensity: 0;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 2px 8px rgba(58, 100, 190, 0.3);
 }
 
 .btn-mic:hover {
-  transform: scale(1.05);
-  box-shadow: 0 4px 12px rgba(139, 157, 195, 0.4);
   filter: brightness(1.1);
+  transform: scale(1.05);
 }
 
 /* Green glow when listening - brightness based on volume */
@@ -1923,13 +2358,11 @@ body {
 }
 
 .btn-mic.muted {
-  background: var(--bg-elevated);
-  color: var(--text-muted);
-  border: 1px solid var(--border-subtle);
+  opacity: .5;
 }
 
 .btn-mic.muted:hover {
-  background: var(--bg-hover, var(--highlight-active));
+  opacity: 1;
 }
 
 /* Message Input Row */
@@ -1953,7 +2386,7 @@ body {
 }
 
 .message-input {
-  height: 41px;
+  height: 45px;
   flex: 1;
   padding: 10px 16px;
   border: 1px solid var(--border-subtle);
@@ -1963,6 +2396,7 @@ body {
   font-size: var(--font-m);
   font-family: var(--font-mono);
   transition: all 0.3s ease;
+  cursor: text;
 }
 
 .message-input:focus {
@@ -2235,7 +2669,6 @@ body {
   font-family: var(--font-serif);
   font-weight: 700;
   font-size: 1.2rem;
-  display: block;
   margin-bottom: 4px;
 }
 
@@ -2360,6 +2793,12 @@ body {
   padding: 16px 24px;
   display: flex;
   flex-direction: column;
+  cursor: text; /* Default to text cursor for selection */
+}
+
+/* When tap-to-examine is enabled, use default cursor */
+body.tap-to-examine-enabled #lowerWindow {
+  cursor: default;
 }
 
 /* Game output scrollbar styling */
@@ -2471,6 +2910,16 @@ body {
 @keyframes blink {
   0%, 50% { opacity: 1; }
   51%, 100% { opacity: 0; }
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.spinning {
+  animation: spin 1s linear infinite;
+  display: inline-block;
 }
 
 /* CSS Grid-based status line renderer */
@@ -2995,3 +3444,281 @@ body.force-mobile #lowerWindow .blank-line-spacer + .blank-line-spacer {
   }
 }
 
+
+/* Tap-to-Examine Feature Styles */
+/* Cursor handled by JavaScript - shows pointer only over words */
+
+/* Hint Button */
+#getHintBtn .material-icons {
+  font-size: 18px;
+  margin-right: 8px;
+}
+
+/* Google Drive Sync Styles */
+.gdrive-account-info {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px;
+  background: var(--bg-surface, #2a2a2a);
+  border-radius: 8px;
+  margin-bottom: 12px;
+}
+
+.gdrive-account-info .material-icons {
+  color: var(--accent-warm, #e8b86d);
+}
+
+.gdrive-sync-status {
+  font-size: 0.9em;
+  color: var(--text-muted, #888);
+  padding: 8px 0;
+  margin-bottom: 10px;
+}
+
+.btn-primary {
+  background: var(--accent-warm, #e8b86d);
+  color: var(--text-primary, #fff);
+  border: none;
+  padding: 12px 16px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 1em;
+  font-weight: 500;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  transition: background 0.2s;
+}
+
+.btn-primary:hover {
+  background: var(--accent-warm-hover, #d4a55a);
+}
+
+.btn-secondary {
+  background: var(--bg-surface, #2a2a2a);
+  color: var(--text-primary, #fff);
+  border: 1px solid var(--border-subtle, #444);
+  padding: 12px 16px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 1em;
+  font-weight: 500;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  transition: background 0.2s, border-color 0.2s;
+}
+
+.btn-secondary:hover {
+  background: var(--bg-hover, #333);
+  border-color: var(--accent-warm, #e8b86d);
+}
+
+.btn-full-width {
+  width: 100%;
+  justify-content: center;
+}
+
+.hidden {
+  display: none !important;
+}
+
+/* Backup History Modal (Phase 4) */
+.modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10000;
+}
+
+.modal.hidden {
+  display: none;
+}
+
+.modal-content {
+  background: var(--bg-primary, #1a1a1a);
+  border-radius: 12px;
+  max-width: 600px;
+  width: 90%;
+  max-height: 80vh;
+  overflow-y: auto;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px;
+  border-bottom: 1px solid var(--border-subtle, #444);
+}
+
+.modal-header h3 {
+  margin: 0;
+}
+
+.modal-close {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--text-muted, #888);
+  padding: 4px;
+}
+
+.modal-close:hover {
+  color: var(--text-primary, #fff);
+}
+
+.modal-body {
+  padding: 20px;
+}
+
+/* Backup List */
+.backup-items {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 15px;
+}
+
+.backup-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px;
+  background: var(--bg-surface, #2a2a2a);
+  border-radius: 8px;
+  border: 1px solid var(--border-subtle, #444);
+}
+
+.backup-item:hover {
+  border-color: var(--accent-warm, #e8b86d);
+}
+
+.backup-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.backup-date {
+  font-size: 0.9em;
+  color: var(--text-muted, #888);
+}
+
+.backup-device {
+  font-size: 0.85em;
+  color: var(--accent-warm, #e8b86d);
+}
+
+.btn-compact {
+  padding: 8px 12px;
+  font-size: 0.9em;
+  white-space: nowrap;
+}
+
+.restore-backup-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* Confirm Dialog */
+.confirm-dialog-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10001; /* Above modals */
+  opacity: 1;
+  transition: opacity 0.2s ease;
+  animation: fadeIn 0.2s ease;
+}
+
+.confirm-dialog-overlay.hidden {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.confirm-dialog {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: 12px;
+  max-width: 550px;
+  width: 90%;
+  padding: 30px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+  animation: perspectiveSlide 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+  position: relative;
+}
+
+.confirm-dialog-title {
+  font-family: var(--font-serif);
+  font-size: 24px;
+  color: var(--text-primary);
+  margin: 0 0 10px 0;
+  text-align: left;
+}
+
+.confirm-dialog-message {
+  font-family: var(--font-sans);
+  font-size: 16px;
+  line-height: 1.5;
+  color: var(--text-secondary);
+  margin: 0 0 24px 0;
+  white-space: pre-line; /* Preserve line breaks */
+  text-align: left;
+}
+
+.confirm-dialog-buttons {
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+}
+
+.btn-confirm-cancel,
+.btn-confirm-ok {
+  padding: 12px 24px;
+  border: none;
+  border-radius: 8px;
+  font-size: 1em;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  min-width: 100px;
+}
+
+.btn-confirm-cancel {
+  background: var(--bg-surface);
+  color: var(--text-primary);
+}
+
+.btn-confirm-cancel:hover {
+  filter: brightness(1.1);
+}
+
+.btn-confirm-ok {
+  background: var(--accent-primary);
+  color: var(--text-primary);
+}
+
+.btn-confirm-ok:hover {
+  filter: brightness(1.1);
+}
+
+.btn-confirm-ok:active,
+.btn-confirm-cancel:active {
+  transform: translateY(0);
+}

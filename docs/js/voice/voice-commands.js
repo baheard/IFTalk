@@ -14,6 +14,19 @@ import { getInputType } from '../game/voxglk.js';
 import { playBlockedCommand } from '../utils/audio-feedback.js';
 
 /**
+ * Parse number words and digits into integers
+ * @param {string} word - Number word or digit string (e.g., "three", "3")
+ * @returns {number} Parsed number
+ */
+function parseNumberWord(word) {
+  const numberMap = {
+    'one': 1, 'two': 2, 'three': 3, 'four': 4, 'five': 5,
+    'six': 6, 'seven': 7, 'eight': 8, 'nine': 9, 'ten': 10
+  };
+  return numberMap[word] || parseInt(word, 10);
+}
+
+/**
  * Process voice keywords (navigation and game commands)
  * @param {string} transcript - Voice recognition transcript
  * @param {Object} handlers - Object with handler functions for different commands
@@ -72,27 +85,33 @@ export function processVoiceKeywords(transcript, handlers, confidence = null) {
     return false;
   }
 
-  // When screen locked, only respond to "unlock"
-  if (state.isScreenLocked) {
-    if (lower === 'unlock') {
-      markCommandProcessed();
-      displayAppCommand('unlock', confidence);
-      // Import and call unlock function
-      import('../utils/lock-screen.js').then(module => {
-        module.unlockScreen();
-      });
-      return false;
-    }
-    // Block all other commands when locked
+  // NAVIGATION COMMANDS (never sent to game)
+
+  // Screen unlock command
+  if (lower === 'unlock') {
+    markCommandProcessed();
+    displayAppCommand('unlock', confidence);
+    // Import and call unlock function
+    import('../utils/lock-screen.js').then(module => {
+      module.unlockScreen();
+    });
     return false;
   }
-
-  // NAVIGATION COMMANDS (never sent to game)
 
   if (lower === 'restart' || lower === 'reset' || lower === 'repeat') {
     markCommandProcessed();
     displayAppCommand('restart', confidence);
     handlers.restart();
+    return false;
+  }
+
+  // "back N" command (e.g., "back 3", "go back 5", "back three")
+  const backNMatch = lower.match(/^(?:go\s+)?back\s+(\d+|one|two|three|four|five|six|seven|eight|nine|ten)$/);
+  if (backNMatch) {
+    const count = parseNumberWord(backNMatch[1]);
+    markCommandProcessed();
+    displayAppCommand(`back ${count}`, confidence);
+    if (handlers.backN) handlers.backN(count);
     return false;
   }
 
@@ -114,6 +133,16 @@ export function processVoiceKeywords(transcript, handlers, confidence = null) {
     markCommandProcessed();
     displayAppCommand('play', confidence);
     handlers.play();
+    return false;
+  }
+
+  // "skip N" command (e.g., "skip 3", "forward 5", "skip three")
+  const skipNMatch = lower.match(/^(?:skip|forward)\s+(\d+|one|two|three|four|five|six|seven|eight|nine|ten)$/);
+  if (skipNMatch) {
+    const count = parseNumberWord(skipNMatch[1]);
+    markCommandProcessed();
+    displayAppCommand(`skip ${count}`, confidence);
+    if (handlers.skipN) handlers.skipN(count);
     return false;
   }
 
@@ -149,6 +178,13 @@ export function processVoiceKeywords(transcript, handlers, confidence = null) {
     markCommandProcessed();
     displayAppCommand('status', confidence);
     handlers.status();
+    return false;
+  }
+
+  if (lower === 'get hint' || lower === 'hint') {
+    markCommandProcessed();
+    displayAppCommand('get hint', confidence);
+    if (handlers.getHint) handlers.getHint();
     return false;
   }
 

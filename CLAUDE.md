@@ -302,6 +302,128 @@ For detailed technical information, see the `reference/` folder:
    - Consistent behavior whether narration is active or not
    - **Note**: Does NOT auto-scroll when keyboard opens/closes - only when NEW content arrives
 
+### December 24, 2024 - ChatGPT Hints Input Re-enabling Fix
+1. **Fixed Input Re-enabling Race Condition** - Hints work reliably on repeated clicks
+   - File: `docs/js/game/voxglk.js:842-847`
+   - Game responds synchronously to commands, but code was disabling input after game re-enabled it
+   - Now checks if generation advanced before disabling input
+   - **Before**: Second hint request failed with "input not enabled" error
+   - **After**: Can click hints button multiple times without errors
+   - Added detailed logging with emoji indicators (🟢🔴⚡📤) for debugging
+
+2. **ChatGPT Window Opening** - Simplified to new tab each time
+   - File: `docs/js/features/hints.js:354`
+   - Opens ChatGPT in new tab with `_blank` target
+   - **Known limitation**: Multiple ChatGPT tabs may open on repeated hint requests
+   - Cross-origin restrictions prevent reliable window reuse
+   - Users can manually close extra tabs as needed
+
+3. **Google Drive Sync Improvements** - Game-specific sync and local-only conflict backups
+   - Files: `docs/js/utils/gdrive-sync.js`
+   - **Sync scoped to current game**: Sync button only syncs saves for the currently loaded game
+   - **Confirmation before overwrite**: User must confirm before Drive overwrites local saves
+   - **Local-only backups**: Conflict backups now stored in localStorage instead of Drive
+     - Faster (no network round-trip)
+     - Works offline
+     - Preserves your local work before overwrite
+     - Keeps last 2 backups per save type per game
+     - Backup key format: `iftalk_backup_autosave_lostpig_1703435022000`
+   - **Removed unused code**: Deleted `downloadAllSaves()` function and Drive backup infrastructure
+   - **Simplified architecture**: Backups are local, Drive is canonical/shared version
+
+### December 23, 2024 - Tooltip System, Tap-to-Examine Improvements & Input Clearing
+1. **Unified Tooltip System** - Consolidated all tooltip behavior into single function
+   - Files: `docs/js/app.js`, `docs/styles.css`
+   - Single `initHelpTooltips()` handles all tooltip types (game cards, settings, voice help)
+   - Click to toggle on all platforms (desktop + mobile)
+   - Clicking tooltip icon again now closes it properly
+   - Clicking outside closes all tooltips
+   - Consistent behavior across entire app
+
+2. **Fixed Mobile Tooltip Hover Persistence** - CSS hover no longer interferes on mobile
+   - File: `docs/styles.css`
+   - Wrapped all `:hover` rules in `@media (hover: hover) and (pointer: fine)`
+   - Mobile taps no longer activate persistent CSS :hover states
+   - Tooltip visibility controlled entirely by JavaScript `.active` class on mobile
+   - **Before**: Tapping tooltip icon closed it via JS, but CSS :hover kept it visible
+   - **After**: Tapping icon reliably toggles tooltip on/off on mobile
+
+3. **Unified Hover Styling** - All help icons use consistent gray opacity change
+   - Files: `docs/styles.css`
+   - All icons: opacity 0.5 → 1.0 on hover (no primary color change)
+   - Removed scaling, background color changes
+   - Simple, elegant, consistent across app
+   - Icons: `.game-meta`, `.setting-help-icon`, `.voice-help-icon`
+
+4. **Fixed Text Cursor on Desktop** - Text I-beam cursor now shows when tap-to-examine disabled
+   - Files: `docs/js/app.js`, `docs/styles.css`
+   - Root cause: `.game-text` had `cursor: default` which overrode `#lowerWindow` cursor
+   - Fixed: `.game-text { cursor: text }` by default, `cursor: default` when feature enabled
+   - Added initial body class setup on page load
+   - **Before**: Default cursor always, even with feature disabled
+   - **After**: Text cursor for selection when disabled, default cursor when enabled
+
+5. **Tap-to-Examine Input Visibility** - Input scrolls into view when clicking words on mobile
+   - File: `docs/js/input/keyboard.js`
+   - Added `scrollIntoView()` after focusing input in `populateInputWithWord()`
+   - 100ms delay allows keyboard to appear first, then scrolls
+   - **Before**: Clicking word after minimizing keyboard left input hidden behind keyboard
+   - **After**: Input always visible when keyboard appears
+
+6. **Improved Scroll Detection** - Better differentiation between scrolling and tapping
+   - File: `docs/js/input/keyboard.js`
+   - Increased scroll threshold from 10px → 50px
+   - Removed duplicate event listeners (only `lowerWindow`, not `gameOutput`)
+   - Fixed event bubbling issue that bypassed scroll detection
+   - **Before**: Scrolling often triggered word tapping, duplicate events
+   - **After**: Reliable scroll detection, no false taps, cleaner code
+
+7. **Back/Skip N Commands** - Multi-line navigation with voice commands
+   - Files: `docs/js/voice/voice-commands.js`, `docs/js/app.js`, `docs/index.html`
+   - Voice commands: "back 3", "skip 5", "go back 2", "forward 4", etc.
+   - Supports number words: "back three", "skip five", etc. (one through ten)
+   - Supports numeric digits: "back 3", "skip 7", etc.
+   - Added `backN` and `skipN` handlers that call `skipToChunk()` with offset
+   - Help section updated with examples
+
+8. **Favicon Test Page** - Design gallery for choosing icon
+   - File: `docs/favicon-test.html`
+   - 20 different favicon design options (Speech Bubble, Microphone, Book, etc.)
+   - Each shown at both 16×16 and 64×64 sizes
+   - Canvas-based rendering with pixel-perfect designs
+   - Download buttons for each size
+   - Interactive preview gallery with hover effects
+
+9. **Sound Test Page** - Audio feedback testing gallery
+   - File: `docs/sound-test.html`
+   - 10 pulse sound variations for app command feedback
+   - Each with different frequency, duration, wave type, and envelope
+   - Visual waveform previews for each sound
+   - Technical specs displayed (frequency, duration, wave type, envelope)
+   - Adjustable master volume slider
+   - Sounds: Gentle Tap, Muffled Ding, Crisp Click, Soft Blip, Quick Chirp, etc.
+
+10. **Voice Lock Fix** - Status now confirms voice is listening when screen locked
+    - File: `docs/js/voice/recognition.js`
+    - Status shows "🎤 Listening... Say 'unlock'" when screen is locked
+    - Status shows "🎤 Listening... Speak now!" when unlocked
+    - **Before**: Status didn't update when voice recognition restarted while locked
+    - **After**: User always knows voice is active and listening for "unlock" command
+    - Voice recognition continues working in background when locked
+
+11. **Escape Key & Clear Button** - Enhanced input clearing with system mode cancellation
+    - Files: `docs/index.html`, `docs/js/input/keyboard.js`, `docs/styles.css`
+    - **Clear button styling**: Changed from `.btn-clear-input` to `.btn-nav` to match settings button
+    - **Button alignment**: Clear button now has same dimensions as settings button and aligns properly
+    - **Escape key functionality**:
+      - Press Esc to clear command input
+      - Press Esc to cancel system mode (SAVE/RESTORE/DELETE prompts)
+    - **Clear button functionality**:
+      - Click X button to clear command input
+      - Click X button to cancel system mode if active
+    - Consolidated duplicate Escape handlers into single implementation
+    - Both clear methods now handle system entry mode gracefully
+
 ### What Works Now
 - ✅ Game selection and loading
 - ✅ Browser-based ZVM game engine

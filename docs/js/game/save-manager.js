@@ -121,6 +121,7 @@ export async function quickSave() {
 
         const key = `iftalk_quicksave_${gameSignature}`;
         localStorage.setItem(key, JSON.stringify(saveData));
+// Phase 3: Auto-sync to Google Drive (if enabled)        if (state.gdriveSyncEnabled && state.gdriveSignedIn) {            try {                const { scheduleDriveSync, getDeviceInfo } = await import('../utils/gdrive-sync.js');                const enrichedData = { ...saveData, device: getDeviceInfo() };                scheduleDriveSync(key, enrichedData);            } catch (error) {                // Drive sync failed silently            }        }
 
         // Show system message in game area
         addGameText('<div class="system-message">Game saved - quicksave</div>', false);
@@ -129,7 +130,6 @@ export async function quickSave() {
         return true;
 
     } catch (error) {
-        console.error('[SaveManager] Quick save error:', error);
         updateStatus('Quick save failed: ' + error.message, 'error');
         return false;
     }
@@ -142,7 +142,6 @@ export async function quickSave() {
 export async function customSave(saveName) {
     try {
         if (!state.currentGameName) {
-            console.error('[SaveManager] No game loaded');
             return false;
         }
 
@@ -205,6 +204,7 @@ export async function customSave(saveName) {
 
         const key = `iftalk_customsave_${state.currentGameName}_${saveName}`;
         localStorage.setItem(key, JSON.stringify(saveData));
+// Phase 3: Auto-sync to Google Drive (if enabled)        if (state.gdriveSyncEnabled && state.gdriveSignedIn) {            try {                const { scheduleDriveSync, getDeviceInfo } = await import('../utils/gdrive-sync.js');                const enrichedData = { ...saveData, device: getDeviceInfo() };                scheduleDriveSync(key, enrichedData);            } catch (error) {                // Drive sync failed silently            }        }
 
         // Show system message in game area
         addGameText(`<div class="system-message">Game saved - ${saveName}</div>`, false);
@@ -212,7 +212,6 @@ export async function customSave(saveName) {
         return true;
 
     } catch (error) {
-        console.error('[SaveManager] Custom save error:', error);
         return false;
     }
 }
@@ -224,7 +223,6 @@ export async function customSave(saveName) {
 export async function customLoad(saveName) {
     try {
         if (!state.currentGameName) {
-            console.error('[SaveManager] No game loaded');
             return false;
         }
 
@@ -233,7 +231,6 @@ export async function customLoad(saveName) {
         const saved = localStorage.getItem(key);
 
         if (!saved) {
-            console.error('[SaveManager] Custom save not found:', saveName);
             return false;
         }
 
@@ -302,12 +299,10 @@ export async function customLoad(saveName) {
 
             return true;
         } else {
-            console.error('[SaveManager] Custom load failed: Invalid save data');
             return false;
         }
 
     } catch (error) {
-        console.error('[SaveManager] Custom load error:', error);
         return false;
     }
 }
@@ -385,10 +380,20 @@ export async function autoSave() {
         const key = `iftalk_autosave_${state.currentGameName}`;
         localStorage.setItem(key, JSON.stringify(saveData));
 
+        // Phase 3: Auto-sync to Google Drive (if enabled)
+        if (state.gdriveSyncEnabled && state.gdriveSignedIn) {
+            try {
+                const { scheduleDriveSync, getDeviceInfo } = await import('../utils/gdrive-sync.js');
+                const enrichedData = { ...saveData, device: getDeviceInfo() };
+                scheduleDriveSync(key, enrichedData);
+            } catch (error) {
+                // Drive sync failed silently
+            }
+        }
+
         return true;
 
     } catch (error) {
-        console.error('[SaveManager] Auto save error:', error);
         return false;
     }
 }
@@ -414,7 +419,6 @@ export async function autoLoad() {
 
         // Verify game name matches (basic check)
         if (saveData.gameName !== state.currentGameName) {
-            console.warn('[SaveManager] Save file game name mismatch');
             return false;
         }
 
@@ -487,7 +491,6 @@ export async function autoLoad() {
         }
 
     } catch (error) {
-        console.error('[SaveManager] Auto load error:', error);
         return false;
     }
 }
@@ -590,7 +593,6 @@ export async function quickLoad() {
         }
 
     } catch (error) {
-        console.error('[SaveManager] Quick load error:', error);
         updateStatus('Quick load failed: ' + error.message, 'error');
         return false;
     }
@@ -638,7 +640,6 @@ export function exportSaveToFile() {
         updateStatus('Save exported to file!', 'success');
 
     } catch (error) {
-        console.error('[SaveManager] Export error:', error);
         updateStatus('Export failed: ' + error.message, 'error');
     }
 }
@@ -674,7 +675,6 @@ export function importSaveFromFile() {
             updateStatus('Save imported! Use Quick Load button to load', 'success');
 
         } catch (error) {
-            console.error('[SaveManager] Import error:', error);
             updateStatus('Import failed: ' + error.message, 'error');
         }
     };

@@ -151,7 +151,6 @@ async function promptRepairVMState() {
   }
 
   isAutoRepairInProgress = true;
-  console.warn('[VoxGlk] ⚠️ BROKEN STATE DETECTED - VM not responding to input');
 
   const { updateStatus } = await import('../utils/status.js');
   const { addGameText } = await import('../ui/game-output.js');
@@ -209,7 +208,6 @@ export async function performRepair() {
     const saved = await autoSave();
 
     if (!saved) {
-      console.error('[VoxGlk] Repair failed: Could not save current state');
       updateStatus('⚠️ Repair failed - could not save state', 'error');
 
       const { addGameText } = await import('../ui/game-output.js');
@@ -240,7 +238,6 @@ export async function performRepair() {
     return true;
 
   } catch (error) {
-    console.error('[VoxGlk] Repair failed:', error);
     const { updateStatus } = await import('../utils/status.js');
     updateStatus('⚠️ Repair failed: ' + error.message, 'error');
     isAutoRepairInProgress = false;
@@ -296,18 +293,12 @@ async function startWatchdog(currentGeneration) {
   watchdogTimer = setTimeout(async () => {
     // Check if generation has advanced
     if (generation === lastInputGeneration) {
-      console.error('[VoxGlk] ❌ WATCHDOG TIMEOUT - VM did not respond to input');
-      console.error('[VoxGlk] Last input at generation:', lastInputGeneration);
-      console.error('[VoxGlk] Current generation:', generation);
-
       // Check if we recently attempted a repair using stored flag key
       const lastRepairAttempt = currentRepairFlagKey ? sessionStorage.getItem(currentRepairFlagKey) : null;
 
       if (lastRepairAttempt) {
         const timeSinceRepair = Date.now() - parseInt(lastRepairAttempt);
         if (timeSinceRepair < REPAIR_RETRY_WINDOW_MS) {
-          console.error('[VoxGlk] ❌ REPAIR FAILED - Auto-repair was attempted but state is still broken');
-          console.error('[VoxGlk] Time since last repair:', timeSinceRepair, 'ms');
 
           const { updateStatus } = await import('../utils/status.js');
           const { addGameText } = await import('../ui/game-output.js');
@@ -512,7 +503,7 @@ export function createVoxGlk(textOutputCallback) {
                 }
               }
             } catch (error) {
-              console.error('[VoxGlk] Auto-restore failed:', error);
+              // Auto-restore failed silently
             }
           }, 100);
         }
@@ -681,13 +672,15 @@ export function createVoxGlk(textOutputCallback) {
           }
 
           // Auto-save after each turn (only on line input, skip first 3)
-          if (!shouldSkipAutosave && !skipFirstAutosave && shouldAutosaveThisTurn && !shouldSkipFirstN) {
+          // Check global auto-save setting
+          const autosaveEnabled = localStorage.getItem('iftalk_autosaveEnabled') !== 'false';
+          if (autosaveEnabled && !shouldSkipAutosave && !skipFirstAutosave && shouldAutosaveThisTurn && !shouldSkipFirstN) {
             setTimeout(async () => {
               try {
                 const { autoSave } = await import('./save-manager.js');
                 await autoSave();
               } catch (error) {
-                console.error('[VoxGlk] Auto-save failed:', error);
+                // Auto-save failed silently
               }
             }, 100);
           } else if (skipFirstAutosave) {
@@ -698,7 +691,7 @@ export function createVoxGlk(textOutputCallback) {
         }
 
       } catch (error) {
-        console.error('[VoxGlk] Error in update():', error);
+        // Error in update() - silently ignored
       }
     },
 
@@ -706,7 +699,6 @@ export function createVoxGlk(textOutputCallback) {
      * Called by ZVM on fatal errors
      */
     error: function(msg) {
-      console.error('[VoxGlk] Fatal error:', msg);
       alert('Game Error: ' + msg);
     },
 
@@ -761,7 +753,7 @@ export function createVoxGlk(textOutputCallback) {
      * Display a warning message
      */
     warning: function(msg) {
-      console.warn('[VoxGlk] Warning:', msg);
+      // Warning silently ignored
     }
   };
 
@@ -780,7 +772,6 @@ export function createVoxGlk(textOutputCallback) {
  */
 export function sendInput(text, type = 'line') {
   if (!acceptCallback) {
-    console.error('[VoxGlk] No accept callback - game not initialized');
     return;
   }
 
@@ -820,15 +811,23 @@ export function sendInput(text, type = 'line') {
   }
 
 
+  // Store generation before sending (to detect synchronous game response)
+  const beforeGeneration = generation;
+
   // Start watchdog BEFORE sending input (Glk may call update synchronously)
   // Don't await - we want the watchdog to start immediately without blocking
-  startWatchdog(generation).catch(err => console.error('[VoxGlk] Failed to start watchdog:', err));
+  startWatchdog(generation).catch(err => {
+    // Watchdog start failed silently
+  });
 
   // Send the input event to Glk
   acceptCallback(inputEvent);
 
-  // Disable input until next request
-  inputEnabled = false;
+  // Only disable input if the game hasn't already responded synchronously
+  // If generation advanced, the game already re-enabled input in update()
+  if (generation === beforeGeneration) {
+    inputEnabled = false;
+  }
 }
 
 

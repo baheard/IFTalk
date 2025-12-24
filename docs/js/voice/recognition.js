@@ -96,7 +96,6 @@ export function initVoiceRecognition(processVoiceKeywords) {
   } else if ('SpeechRecognition' in window) {
     recognition = new SpeechRecognition();
   } else {
-    console.warn('[Voice] Speech recognition not available');
     return null;
   }
 
@@ -109,10 +108,14 @@ export function initVoiceRecognition(processVoiceKeywords) {
     state.isRecognitionActive = true;
     state.hasProcessedResult = false;
 
-    // Only update status UI if not muted (still listening for "unmute" though)
-    if (!state.isNarrating && !state.isMuted) {
+    // Update status based on lock state
+    if (state.isScreenLocked && !state.isMuted) {
+      updateStatus('🎤 Listening... Say "unlock"');
+    } else if (!state.isNarrating && !state.isMuted) {
       updateStatus('🎤 Listening... Speak now!');
     }
+
+    // Browser handles silence detection automatically - no manual timeout needed
   };
 
   recognition.onresult = (event) => {
@@ -148,7 +151,7 @@ export function initVoiceRecognition(processVoiceKeywords) {
           return;
         }
       } catch (e) {
-        console.error('[Voice] Echo detection error (interim):', e);
+        // Echo detection error (interim) - silently ignored
       }
 
       // Update voice indicator with interim text
@@ -164,6 +167,9 @@ export function initVoiceRecognition(processVoiceKeywords) {
 
     // Process final result
     if (finalTranscript && !state.hasProcessedResult) {
+      // Reset command processed flag
+      state.pendingCommandProcessed = false;
+
       // Check for echo
       try {
         if (isEchoOfSpokenText(finalTranscript)) {
@@ -182,7 +188,7 @@ export function initVoiceRecognition(processVoiceKeywords) {
           return;
         }
       } catch (e) {
-        console.error('[Voice] Echo detection error (final):', e);
+        // Echo detection error (final) - silently ignored
       }
 
       // Check for low confidence
@@ -237,15 +243,13 @@ export function initVoiceRecognition(processVoiceKeywords) {
             if (dom.voiceIndicator) {
               dom.voiceIndicator.classList.remove('active');
             }
-
-            // DISABLED: Testing if we need this scroll
-            // Scroll to bottom after command
-            // scrollToBottom();
           });
-        }, 400); // 400ms delay to show the recognized command
+        }, 150); // Brief delay for visual feedback - reduced for snappier response
       } else {
-        // Navigation command was handled
-        playAppCommand();
+        // Navigation command - only play sound if it was actually processed (not rejected)
+        if (state.pendingCommandProcessed) {
+          playAppCommand();
+        }
         state.hasManualTyping = false;
       }
     }
@@ -258,7 +262,6 @@ export function initVoiceRecognition(processVoiceKeywords) {
     } else if (event.error === 'no-speech') {
       // Ignore no-speech errors
     } else {
-      console.error('[Voice] Error:', event.error);
       updateStatus('Voice error: ' + event.error);
     }
 
@@ -287,10 +290,7 @@ export function initVoiceRecognition(processVoiceKeywords) {
 
             recognition.start();
           } catch (err) {
-            // Ignore if already running
-            if (err.message && !err.message.includes('already')) {
-              console.error('[Voice] Restart error:', err);
-            }
+            // Ignore if already running - silently ignore restart errors
           }
         }
       }, 200); // Reduced from 300ms

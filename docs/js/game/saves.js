@@ -46,8 +46,6 @@ export function saveGame(saveData) {
  * ZVM has its own native save mechanism accessible via game commands.
  */
 export function restoreLatest() {
-  console.warn('[Saves] Server-based save/restore not supported with browser ZVM');
-  console.warn('[Saves] Use in-game SAVE and RESTORE commands instead');
   updateStatus('Use in-game RESTORE command', 'error');
 }
 
@@ -58,8 +56,6 @@ export function restoreLatest() {
  * @param {number} slot - Save slot number (0-based)
  */
 export function restoreFromSlot(slot) {
-  console.warn('[Saves] Server-based save/restore not supported with browser ZVM');
-  console.warn('[Saves] Use in-game SAVE and RESTORE commands instead');
   updateStatus('Use in-game RESTORE command', 'error');
 }
 

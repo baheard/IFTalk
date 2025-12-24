@@ -1,0 +1,624 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>IFTalk - Sound Effects Reference</title>
+  <style>
+    :root {
+      --bg-primary: #1a1a1a;
+      --bg-surface: #2a2a2a;
+      --bg-elevated: #353535;
+      --text-primary: #ffffff;
+      --text-muted: #888888;
+      --accent-primary: #5b8dd6;
+      --accent-warm: #e8b86d;
+      --border-subtle: #444444;
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      padding: 40px 20px;
+      line-height: 1.6;
+    }
+
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    h1 {
+      text-align: center;
+      margin-bottom: 16px;
+      color: var(--accent-primary);
+    }
+
+    .subtitle {
+      text-align: center;
+      color: var(--text-muted);
+      margin-bottom: 40px;
+    }
+
+    .controls {
+      display: flex;
+      justify-content: center;
+      gap: 20px;
+      margin-bottom: 40px;
+      padding: 20px;
+      background: var(--bg-surface);
+      border-radius: 12px;
+    }
+
+    .volume-control {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .volume-control label {
+      color: var(--text-muted);
+    }
+
+    input[type="range"] {
+      width: 200px;
+    }
+
+    .effects-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+      gap: 20px;
+    }
+
+    .effect-card {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      border-radius: 12px;
+      padding: 24px;
+      transition: all 0.2s ease;
+    }
+
+    .effect-card:hover {
+      border-color: var(--accent-primary);
+      transform: translateY(-2px);
+    }
+
+    .effect-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      margin-bottom: 12px;
+    }
+
+    .effect-title {
+      font-size: 1.2em;
+      font-weight: 600;
+      color: var(--accent-warm);
+    }
+
+    .play-btn {
+      background: var(--accent-primary);
+      color: white;
+      border: none;
+      border-radius: 8px;
+      padding: 8px 20px;
+      cursor: pointer;
+      font-size: 0.9em;
+      font-weight: 500;
+      transition: all 0.2s ease;
+    }
+
+    .play-btn:hover {
+      background: #4a74ce;
+      transform: scale(1.05);
+    }
+
+    .play-btn:active {
+      transform: scale(0.95);
+    }
+
+    .effect-event {
+      color: var(--text-muted);
+      font-size: 0.95em;
+      margin-bottom: 12px;
+      font-style: italic;
+    }
+
+    .effect-specs {
+      background: var(--bg-elevated);
+      padding: 12px;
+      border-radius: 6px;
+      font-size: 0.85em;
+      color: var(--text-muted);
+      font-family: 'Courier New', monospace;
+    }
+
+    .spec-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 4px 0;
+    }
+
+    .spec-label {
+      color: var(--text-muted);
+    }
+
+    .spec-value {
+      color: var(--text-primary);
+      font-weight: 500;
+    }
+
+    .play-all-btn {
+      display: block;
+      margin: 40px auto;
+      background: var(--accent-warm);
+      color: var(--bg-primary);
+      border: none;
+      border-radius: 8px;
+      padding: 16px 40px;
+      cursor: pointer;
+      font-size: 1.1em;
+      font-weight: 600;
+      transition: all 0.2s ease;
+    }
+
+    .play-all-btn:hover {
+      background: #f0c47f;
+      transform: scale(1.05);
+    }
+
+    .footer {
+      text-align: center;
+      margin-top: 60px;
+      color: var(--text-muted);
+      font-size: 0.9em;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🔊 IFTalk Sound Effects Reference</h1>
+    <p class="subtitle">All audio feedback sounds used throughout the app</p>
+
+    <div class="controls">
+      <div class="volume-control">
+        <label for="masterVolume">Master Volume:</label>
+        <input type="range" id="masterVolume" min="0" max="100" value="100">
+        <span id="volumeValue">100%</span>
+      </div>
+    </div>
+
+    <div class="effects-grid">
+      <!-- Command Sent -->
+      <div class="effect-card">
+        <div class="effect-header">
+          <div>
+            <div class="effect-title">Command Sent (Subtle Pop)</div>
+            <div class="effect-event">When: Game command is sent (e.g., "look", "take sword")</div>
+          </div>
+          <button class="play-btn" onclick="playCommandSent()">Play</button>
+        </div>
+        <div class="effect-specs">
+          <div class="spec-row">
+            <span class="spec-label">Type:</span>
+            <span class="spec-value">Subtle pop</span>
+          </div>
+          <div class="spec-row">
+            <span class="spec-label">Frequency:</span>
+            <span class="spec-value">600 Hz</span>
+          </div>
+          <div class="spec-row">
+            <span class="spec-label">Wave:</span>
+            <span class="spec-value">Sine</span>
+          </div>
+          <div class="spec-row">
+            <span class="spec-label">Duration:</span>
+            <span class="spec-value">20ms</span>
+          </div>
+          <div class="spec-row">
+            <span class="spec-label">Envelope:</span>
+            <span class="spec-value">Instant (sharp attack/decay)</span>
+          </div>
+          <div class="spec-row">
+            <span class="spec-label">Volume:</span>
+            <span class="spec-value">0.25</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- App Command -->
+      <div class="effect-card">
+        <div class="effect-header">
+          <div>
+            <div class="effect-title">App Command (Soft Pulse)</div>
+            <div class="effect-event">When: Navigation/app command (e.g., "pause", "restart", "skip")</div>
+          </div>
+          <button class="play-btn" onclick="playAppCommand()">Play</button>
+        </div>
+        <div class="effect-specs">
+          <div class="spec-row">
+            <span class="spec-label">Type:</span>
+            <span class="spec-value">Soft pulse</span>
+          </div>
+          <div class="spec-row">
+            <span class="spec-label">Frequency:</span>
+            <span class="spec-value">460 Hz</span>
+          </div>
+          <div class="spec-row">
+            <span class="spec-label">Wave:</span>
+            <span class="spec-value">Sine</span>
+          </div>
+          <div class="spec-row">
+            <span class="spec-label">Duration:</span>
+            <span class="spec-value">100ms</span>
+          </div>
+          <div class="spec-row">
+            <span class="spec-label">Attack:</span>
+            <span class="spec-value">30ms (soft fade in)</span>
+          </div>
+          <div class="spec-row">
+            <span class="spec-label">Envelope:</span>
+            <span class="spec-value">Exponential (gentle decay)</span>
+          </div>
+          <div class="spec-row">
+            <span class="spec-label">Volume:</span>
+            <span class="spec-value">0.10</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Low Confidence -->
+      <div class="effect-card">
+        <div class="effect-header">
+          <div>
+            <div class="effect-title">Low Confidence Warning</div>
+            <div class="effect-event">When: Voice recognition confidence < 50%</div>
+          </div>
+          <button class="play-btn" onclick="playLowConfidence()">Play</button>
+        </div>
+        <div class="effect-specs">
+          <div class="spec-row">
+            <span class="spec-label">Type:</span>
+            <span class="spec-value">Gentle warble</span>
+          </div>
+          <div class="spec-row">
+            <span class="spec-label">Frequency:</span>
+            <span class="spec-value">200 Hz (±20 Hz wobble)</span>
+          </div>
+          <div class="spec-row">
+            <span class="spec-label">Wave:</span>
+            <span class="spec-value">Sine with 8Hz LFO</span>
+          </div>
+          <div class="spec-row">
+            <span class="spec-label">Duration:</span>
+            <span class="spec-value">200ms</span>
+          </div>
+          <div class="spec-row">
+            <span class="spec-label">Volume:</span>
+            <span class="spec-value">0.24</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Blocked Command -->
+      <div class="effect-card">
+        <div class="effect-header">
+          <div>
+            <div class="effect-title">Blocked Command</div>
+            <div class="effect-event">When: Command rejected (invalid, system busy, etc.)</div>
+          </div>
+          <button class="play-btn" onclick="playBlockedCommand()">Play</button>
+        </div>
+        <div class="effect-specs">
+          <div class="spec-row">
+            <span class="spec-label">Type:</span>
+            <span class="spec-value">Soft buzz</span>
+          </div>
+          <div class="spec-row">
+            <span class="spec-label">Frequency:</span>
+            <span class="spec-value">150 Hz</span>
+          </div>
+          <div class="spec-row">
+            <span class="spec-label">Wave:</span>
+            <span class="spec-value">Sawtooth</span>
+          </div>
+          <div class="spec-row">
+            <span class="spec-label">Duration:</span>
+            <span class="spec-value">150ms</span>
+          </div>
+          <div class="spec-row">
+            <span class="spec-label">Volume:</span>
+            <span class="spec-value">0.40</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Mute Tone -->
+      <div class="effect-card">
+        <div class="effect-header">
+          <div>
+            <div class="effect-title">Mute Mic</div>
+            <div class="effect-event">When: Microphone muted</div>
+          </div>
+          <button class="play-btn" onclick="playMuteTone()">Play</button>
+        </div>
+        <div class="effect-specs">
+          <div class="spec-row">
+            <span class="spec-label">Type:</span>
+            <span class="spec-value">Triple tap descending</span>
+          </div>
+          <div class="spec-row">
+            <span class="spec-label">Frequency:</span>
+            <span class="spec-value">300 → 250 → 200 Hz</span>
+          </div>
+          <div class="spec-row">
+            <span class="spec-label">Wave:</span>
+            <span class="spec-value">Sine (3 taps)</span>
+          </div>
+          <div class="spec-row">
+            <span class="spec-label">Duration:</span>
+            <span class="spec-value">40ms per tap</span>
+          </div>
+          <div class="spec-row">
+            <span class="spec-label">Volume:</span>
+            <span class="spec-value">0.12</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Unmute Tone -->
+      <div class="effect-card">
+        <div class="effect-header">
+          <div>
+            <div class="effect-title">Unmute Mic</div>
+            <div class="effect-event">When: Microphone unmuted</div>
+          </div>
+          <button class="play-btn" onclick="playUnmuteTone()">Play</button>
+        </div>
+        <div class="effect-specs">
+          <div class="spec-row">
+            <span class="spec-label">Type:</span>
+            <span class="spec-value">Ascending chime</span>
+          </div>
+          <div class="spec-row">
+            <span class="spec-label">Frequency:</span>
+            <span class="spec-value">660 Hz + 880 Hz</span>
+          </div>
+          <div class="spec-row">
+            <span class="spec-label">Wave:</span>
+            <span class="spec-value">Sine (2 notes)</span>
+          </div>
+          <div class="spec-row">
+            <span class="spec-label">Duration:</span>
+            <span class="spec-value">150ms + 170ms</span>
+          </div>
+          <div class="spec-row">
+            <span class="spec-label">Volume:</span>
+            <span class="spec-value">0.12</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <button class="play-all-btn" onclick="playAllSequence()">▶ Play All Sounds in Sequence</button>
+
+    <div class="footer">
+      <p>IFTalk Audio Feedback System • All sounds generated with Web Audio API</p>
+      <p style="margin-top: 8px; font-size: 0.85em;">Sounds respect master volume and sound effects toggle from settings</p>
+    </div>
+  </div>
+
+  <script>
+    // Audio context
+    let audioCtx = null;
+
+    function getContext() {
+      if (!audioCtx) {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      }
+      if (audioCtx.state === 'suspended') {
+        audioCtx.resume();
+      }
+      return audioCtx;
+    }
+
+    // Master volume control
+    const volumeSlider = document.getElementById('masterVolume');
+    const volumeValue = document.getElementById('volumeValue');
+
+    volumeSlider.addEventListener('input', (e) => {
+      volumeValue.textContent = e.target.value + '%';
+    });
+
+    function getMasterVolume() {
+      return parseInt(volumeSlider.value) / 100;
+    }
+
+    // Sound effect functions (copied from audio-feedback.js)
+    function playCommandSent() {
+      try {
+        const ctx = getContext();
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        const masterVol = getMasterVolume();
+
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+
+        // Subtle Pop (Sound #8): Very short, barely-there click
+        osc.frequency.value = 600;
+        osc.type = 'sine';
+
+        // Instant envelope - sharp attack and decay
+        gain.gain.setValueAtTime(0.25 * masterVol, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.02);
+
+        osc.start(ctx.currentTime);
+        osc.stop(ctx.currentTime + 0.02);
+      } catch (err) {
+        console.error('Command sent tone error:', err);
+      }
+    }
+
+    function playAppCommand() {
+      try {
+        const ctx = getContext();
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        const masterVol = getMasterVolume();
+
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+
+        // Soft Pulse: Gentle, quiet pulse
+        osc.frequency.value = 460;
+        osc.type = 'sine';
+
+        // Soft envelope with slow attack
+        const now = ctx.currentTime;
+        gain.gain.setValueAtTime(0, now);
+        gain.gain.linearRampToValueAtTime(0.10 * masterVol, now + 0.030);
+        gain.gain.exponentialRampToValueAtTime(0.01, now + 0.100);
+
+        osc.start(now);
+        osc.stop(now + 0.100);
+      } catch (err) {
+        console.error('App command tone error:', err);
+      }
+    }
+
+    function playLowConfidence() {
+      try {
+        const ctx = getContext();
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        const lfo = ctx.createOscillator();
+        const lfoGain = ctx.createGain();
+        const masterVol = getMasterVolume();
+
+        lfo.connect(lfoGain);
+        lfoGain.connect(osc.frequency);
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+
+        osc.frequency.value = 200;
+        lfo.frequency.value = 8;
+        lfoGain.gain.value = 20;
+        osc.type = 'sine';
+
+        gain.gain.setValueAtTime(0.24 * masterVol, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.2);
+
+        lfo.start(ctx.currentTime);
+        osc.start(ctx.currentTime);
+        lfo.stop(ctx.currentTime + 0.2);
+        osc.stop(ctx.currentTime + 0.2);
+      } catch (err) {
+        console.error('Low confidence tone error:', err);
+      }
+    }
+
+    function playBlockedCommand() {
+      try {
+        const ctx = getContext();
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        const masterVol = getMasterVolume();
+
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+
+        osc.frequency.value = 150;
+        osc.type = 'sawtooth';
+
+        gain.gain.setValueAtTime(0.40 * masterVol, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.15);
+
+        osc.start(ctx.currentTime);
+        osc.stop(ctx.currentTime + 0.15);
+      } catch (err) {
+        console.error('Blocked command tone error:', err);
+      }
+    }
+
+    function playMuteTone() {
+      try {
+        const ctx = getContext();
+        const masterVol = getMasterVolume();
+        const freqs = [300, 250, 200];
+        freqs.forEach((freq, i) => {
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          osc.frequency.value = freq;
+          osc.type = 'sine';
+          const start = ctx.currentTime + i * 0.05;
+          gain.gain.setValueAtTime(0.12 * masterVol, start);
+          gain.gain.exponentialRampToValueAtTime(0.001, start + 0.04);
+          osc.start(start);
+          osc.stop(start + 0.04);
+        });
+      } catch (err) {
+        console.error('Mute tone error:', err);
+      }
+    }
+
+    function playUnmuteTone() {
+      try {
+        const ctx = getContext();
+        const masterVol = getMasterVolume();
+        // First note
+        const osc1 = ctx.createOscillator();
+        const gain1 = ctx.createGain();
+        osc1.connect(gain1);
+        gain1.connect(ctx.destination);
+        osc1.frequency.value = 660;
+        osc1.type = 'sine';
+        gain1.gain.setValueAtTime(0.12 * masterVol, ctx.currentTime);
+        gain1.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.15);
+        osc1.start(ctx.currentTime);
+        osc1.stop(ctx.currentTime + 0.15);
+        // Second note
+        const osc2 = ctx.createOscillator();
+        const gain2 = ctx.createGain();
+        osc2.connect(gain2);
+        gain2.connect(ctx.destination);
+        osc2.frequency.value = 880;
+        osc2.type = 'sine';
+        gain2.gain.setValueAtTime(0.12 * masterVol, ctx.currentTime + 0.08);
+        gain2.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.25);
+        osc2.start(ctx.currentTime + 0.08);
+        osc2.stop(ctx.currentTime + 0.25);
+      } catch (err) {
+        console.error('Unmute tone error:', err);
+      }
+    }
+
+    // Play all sounds in sequence
+    async function playAllSequence() {
+      const sounds = [
+        { name: 'Command Sent', fn: playCommandSent, delay: 300 },
+        { name: 'App Command', fn: playAppCommand, delay: 300 },
+        { name: 'Low Confidence', fn: playLowConfidence, delay: 400 },
+        { name: 'Blocked Command', fn: playBlockedCommand, delay: 400 },
+        { name: 'Mute', fn: playMuteTone, delay: 300 },
+        { name: 'Unmute', fn: playUnmuteTone, delay: 400 }
+      ];
+
+      for (const sound of sounds) {
+        console.log(`Playing: ${sound.name}`);
+        sound.fn();
+        await new Promise(resolve => setTimeout(resolve, sound.delay));
+      }
+    }
+  </script>
+</body>
+</html>

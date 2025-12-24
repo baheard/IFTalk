@@ -14,7 +14,7 @@ import { enterSystemEntryMode, exitSystemEntryMode, isSystemEntryMode } from '..
 import { getInputType, sendInput, isInputEnabled } from './voxglk.js';
 import { isAppCommand } from '../core/app-commands.js';
 
-import { LOW_CONFIDENCE_THRESHOLD } from '../utils/audio-feedback.js';
+import { LOW_CONFIDENCE_THRESHOLD, playAppCommand } from '../utils/audio-feedback.js';
 
 // Import voice command handlers so typed commands can use them too
 let voiceCommandHandlers = null;
@@ -24,6 +24,19 @@ async function getVoiceCommandHandlers() {
     voiceCommandHandlers = appModule.voiceCommandHandlers;
   }
   return voiceCommandHandlers;
+}
+
+/**
+ * Parse number word to integer (e.g., "three" -> 3)
+ * @param {string} word - Number word or digit string
+ * @returns {number} Parsed number
+ */
+function parseNumberWord(word) {
+  const numberMap = {
+    'one': 1, 'two': 2, 'three': 3, 'four': 4, 'five': 5,
+    'six': 6, 'seven': 7, 'eight': 8, 'nine': 9, 'ten': 10
+  };
+  return numberMap[word] || parseInt(word, 10);
 }
 
 /**
@@ -114,7 +127,6 @@ export async function sendCommandDirect(cmd, isVoiceCommand = null, confidence =
 let awaitingMetaInput = null; // 'save', 'restore', 'delete', 'game-save', 'game-restore', or null
 let gameDialogCallback = null; // Callback for in-game save/restore dialogs
 let gameDialogRef = null; // File reference for in-game dialogs
-const MAX_SAVES = 5;
 
 /**
  * Get list of custom save games
@@ -250,6 +262,28 @@ async function interceptMetaCommand(cmd, displayCmd = null) {
     return await handleDeleteResponse(saveName, allSaves);
   }
 
+  // Match "skip N" or "skip forward N"
+  const skipNMatch = cmd.match(/^skip(?:\s+forward)?\s+(\d+|one|two|three|four|five|six|seven|eight|nine|ten)$/i);
+  if (skipNMatch) {
+    const countStr = skipNMatch[1].toLowerCase();
+    const count = parseNumberWord(countStr);
+    playAppCommand();
+    const handlers = await getVoiceCommandHandlers();
+    handlers.skipN(count);
+    return true;
+  }
+
+  // Match "back N" or "go back N"
+  const backNMatch = cmd.match(/^(?:back|go\s+back)\s+(\d+|one|two|three|four|five|six|seven|eight|nine|ten)$/i);
+  if (backNMatch) {
+    const countStr = backNMatch[1].toLowerCase();
+    const count = parseNumberWord(countStr);
+    playAppCommand();
+    const handlers = await getVoiceCommandHandlers();
+    handlers.backN(count);
+    return true;
+  }
+
   // Check for meta-commands
   // Note: Commands are already displayed by sendCommandDirect(), so we don't display them again here
   switch (cmd) {
@@ -275,39 +309,47 @@ See Settings panel for more help.
       return true;
 
     case 'save':
+      playAppCommand();
       return await handleSaveCommand();
 
     case 'restore':
     case 'load':
+      playAppCommand();
       return await handleRestoreCommand();
 
     case 'delete save':
     case 'delete':
+      playAppCommand();
       return await handleDeleteCommand();
 
     // Navigation commands - work whether typed or spoken
     case 'restart':
     case 'reset':
     case 'repeat':
+      playAppCommand();
       const handlers = await getVoiceCommandHandlers();
       handlers.restart();
       return true;
 
     case 'back':
+      playAppCommand();
       (await getVoiceCommandHandlers()).back();
       return true;
 
     case 'pause':
     case 'stop':
+      playAppCommand();
       (await getVoiceCommandHandlers()).pause();
       return true;
 
     case 'play':
     case 'resume':
+      playAppCommand();
       (await getVoiceCommandHandlers()).play();
       return true;
 
     case 'skip':
+      playAppCommand();
       (await getVoiceCommandHandlers()).skip();
       return true;
 
@@ -315,25 +357,30 @@ See Settings panel for more help.
     case 'skip to end':
     case 'skip to the end':
     case 'end':
+      playAppCommand();
       (await getVoiceCommandHandlers()).skipToEnd();
       return true;
 
     case 'mute':
+      playAppCommand();
       (await getVoiceCommandHandlers()).mute();
       return true;
 
     case 'unmute':
     case 'on mute':
     case 'un mute':
+      playAppCommand();
       (await getVoiceCommandHandlers()).unmute();
       return true;
 
     case 'status':
+      playAppCommand();
       (await getVoiceCommandHandlers()).status();
       return true;
 
     case 'quick save':
     case 'quicksave':
+      playAppCommand();
       (await getVoiceCommandHandlers()).quickSave();
       return true;
 
@@ -341,17 +388,18 @@ See Settings panel for more help.
     case 'quickload':
     case 'quick restore':
     case 'quickrestore':
+      playAppCommand();
       (await getVoiceCommandHandlers()).quickLoad();
       return true;
 
     case 'load game':
     case 'restore game':
+      playAppCommand();
       const h = await getVoiceCommandHandlers();
       if (h.restoreLatest) h.restoreLatest();
       return true;
 
     case 'quit':
-    case 'exit':
       return await handleQuitCommand();
 
     case 'repair':
@@ -428,7 +476,7 @@ async function handleSaveCommand() {
   awaitingMetaInput = 'save';
 
   // Enter system entry mode with prompt
-  enterSystemEntryMode('Enter save name (send nothing to cancel)');
+  enterSystemEntryMode('Enter save name');
 
   return true;
 }
@@ -452,7 +500,7 @@ async function handleRestoreCommand() {
   awaitingMetaInput = 'restore';
 
   // Enter system entry mode with prompt
-  enterSystemEntryMode('Enter save name to restore (send nothing to cancel)');
+  enterSystemEntryMode('Enter save name to restore');
 
   return true;
 }
@@ -476,7 +524,7 @@ async function handleDeleteCommand() {
   awaitingMetaInput = 'delete';
 
   // Enter system entry mode with prompt
-  enterSystemEntryMode('Enter save name to delete (send nothing to cancel)');
+  enterSystemEntryMode('Enter save name to delete');
 
   return true;
 }
@@ -562,13 +610,6 @@ async function handleSaveResponse(saveName, saves) {
   const reservedNames = ['quicksave', 'autosave'];
   if (reservedNames.includes(saveName.toLowerCase())) {
     respondAsGame('<div class="system-message">That name is reserved. Please choose a different name.</div>');
-    return true;
-  }
-
-  // Check if this would exceed max saves (and it's a new name)
-  const existingSave = saves.find(s => s.name.toLowerCase() === saveName.toLowerCase());
-  if (!existingSave && saves.length >= MAX_SAVES) {
-    respondAsGame(`<div class="system-message">You can't have more than ${MAX_SAVES} saves. Override an existing save or use the "Delete Save" command.</div>`);
     return true;
   }
 
@@ -701,7 +742,7 @@ async function handleGameSaveResponse(input, saves) {
     // IMPORTANT: Restore awaitingMetaInput flag so ESC/Enter cancellation works
     awaitingMetaInput = 'game-save';
     setTimeout(() => {
-      enterSystemEntryMode('Enter save name (send nothing to cancel)');
+      enterSystemEntryMode('Enter save name');
     }, 100);
     return true;
   }
@@ -715,21 +756,7 @@ async function handleGameSaveResponse(input, saves) {
     // IMPORTANT: Restore awaitingMetaInput flag so ESC/Enter cancellation works
     awaitingMetaInput = 'game-save';
     setTimeout(() => {
-      enterSystemEntryMode('Enter save name (send nothing to cancel)');
-    }, 100);
-    return true;
-  }
-
-  // Check if this would exceed max saves (and it's a new name)
-  const existingSave = saves.find(s => s.name.toLowerCase() === input.toLowerCase());
-  if (!existingSave && saves.length >= MAX_SAVES) {
-    respondAsGame(`<div class="system-message">Maximum ${MAX_SAVES} saves reached. Please overwrite an existing save or delete one first.</div>`);
-
-    // Re-prompt
-    // IMPORTANT: Restore awaitingMetaInput flag so ESC/Enter cancellation works
-    awaitingMetaInput = 'game-save';
-    setTimeout(() => {
-      enterSystemEntryMode('Enter save name (send nothing to cancel)');
+      enterSystemEntryMode('Enter save name');
     }, 100);
     return true;
   }
@@ -772,7 +799,7 @@ async function handleGameRestoreResponse(input, saves) {
     // IMPORTANT: Restore awaitingMetaInput flag so ESC/Enter cancellation works
     awaitingMetaInput = 'game-restore';
     setTimeout(() => {
-      enterSystemEntryMode('Enter save name to restore (send nothing to cancel)');
+      enterSystemEntryMode('Enter save name to restore');
     }, 100);
     return true;
   }
@@ -785,7 +812,7 @@ async function handleGameRestoreResponse(input, saves) {
     // IMPORTANT: Restore awaitingMetaInput flag so ESC/Enter cancellation works
     awaitingMetaInput = 'game-restore';
     setTimeout(() => {
-      enterSystemEntryMode('Enter save name to restore (send nothing to cancel)');
+      enterSystemEntryMode('Enter save name to restore');
     }, 100);
     return true;
   }
@@ -923,7 +950,7 @@ Type CONFIRM to proceed, or press Enter to cancel.
   awaitingMetaInput = 'repair';
 
   // Enter system entry mode with prompt
-  enterSystemEntryMode('Type CONFIRM to repair or Enter to cancel');
+  enterSystemEntryMode('Type CONFIRM to repair');
 
   return true;
 }
@@ -967,7 +994,7 @@ export function initDialogInterceptor() {
         awaitingMetaInput = 'game-restore';
 
         // Enter system entry mode with prompt
-        enterSystemEntryMode('Enter save name to restore (send nothing to cancel)');
+        enterSystemEntryMode('Enter save name to restore');
 
       } else {
         // SAVE request from game
@@ -990,7 +1017,7 @@ export function initDialogInterceptor() {
         awaitingMetaInput = 'game-save';
 
         // Enter system entry mode with prompt
-        enterSystemEntryMode('Enter save name (send nothing to cancel)');
+        enterSystemEntryMode('Enter save name');
       }
     } else {
       // Unsupported dialog type - return null

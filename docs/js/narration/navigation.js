@@ -31,7 +31,6 @@ export function skipToChunk(offset, speakTextChunked) {
 
   // If still no chunks, can't navigate
   if (state.narrationChunks.length === 0) {
-    console.warn('[Navigation] No chunks available for navigation');
     return;
   }
 

@@ -34,7 +34,7 @@ export const APP_COMMANDS = {
   SAVE: ['save'],
   RESTORE_META: ['restore', 'load'],
   DELETE: ['delete save', 'delete'],
-  QUIT: ['quit', 'exit']
+  QUIT: ['quit']
 };
 
 // Flatten all commands into a single array for easy checking
@@ -60,6 +60,16 @@ export function isAppCommand(cmd) {
 
   // Check pattern-based commands (e.g., "load slot 3", "restore slot 2")
   if (/^(?:load|restore)\s+slot\s+\d+$/.test(lower)) {
+    return true;
+  }
+
+  // Check for "skip N" or "skip forward N"
+  if (/^skip(?:\s+forward)?\s+(?:\d+|one|two|three|four|five|six|seven|eight|nine|ten)$/.test(lower)) {
+    return true;
+  }
+
+  // Check for "back N" or "go back N"
+  if (/^(?:back|go\s+back)\s+(?:\d+|one|two|three|four|five|six|seven|eight|nine|ten)$/.test(lower)) {
     return true;
   }
 

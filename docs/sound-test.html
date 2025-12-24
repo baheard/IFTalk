@@ -3,89 +3,227 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>IFTalk Sound Effects</title>
+  <title>IFTalk - Sound Test Gallery</title>
   <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      max-width: 600px;
-      margin: 40px auto;
-      padding: 20px;
-      background: #1a1a2e;
-      color: #eee;
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
     }
-    h1 { color: #00d9ff; margin-bottom: 30px; }
-    .sound-row {
+
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      padding: 40px 20px;
+      min-height: 100vh;
+    }
+
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    h1 {
+      text-align: center;
+      color: white;
+      margin-bottom: 10px;
+      font-size: 2.5em;
+      text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+    }
+
+    .subtitle {
+      text-align: center;
+      color: rgba(255,255,255,0.9);
+      margin-bottom: 40px;
+      font-size: 1.1em;
+    }
+
+    .controls {
+      background: white;
+      border-radius: 12px;
+      padding: 20px;
+      margin-bottom: 30px;
+      box-shadow: 0 8px 16px rgba(0,0,0,0.2);
+      text-align: center;
+    }
+
+    .volume-control {
+      display: inline-flex;
+      align-items: center;
+      gap: 15px;
+      margin: 10px 0;
+    }
+
+    .volume-control label {
+      font-weight: 600;
+      color: #333;
+    }
+
+    .volume-slider {
+      width: 200px;
+      height: 6px;
+      -webkit-appearance: none;
+      appearance: none;
+      background: #ddd;
+      border-radius: 3px;
+      outline: none;
+    }
+
+    .volume-slider::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 20px;
+      height: 20px;
+      background: #667eea;
+      border-radius: 50%;
+      cursor: pointer;
+    }
+
+    .volume-slider::-moz-range-thumb {
+      width: 20px;
+      height: 20px;
+      background: #667eea;
+      border-radius: 50%;
+      cursor: pointer;
+      border: none;
+    }
+
+    .volume-value {
+      font-weight: 600;
+      color: #667eea;
+      min-width: 40px;
+    }
+
+    .gallery {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 20px;
+    }
+
+    .sound-card {
+      background: white;
+      border-radius: 12px;
+      padding: 25px;
+      box-shadow: 0 8px 16px rgba(0,0,0,0.2);
+      transition: transform 0.2s, box-shadow 0.2s;
+      text-align: center;
+    }
+
+    .sound-card:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 12px 24px rgba(0,0,0,0.3);
+    }
+
+    .card-number {
+      display: inline-block;
+      background: #667eea;
+      color: white;
+      padding: 6px 12px;
+      border-radius: 20px;
+      font-size: 0.85em;
+      font-weight: 600;
+      margin-bottom: 12px;
+    }
+
+    .card-title {
+      font-size: 1.3em;
+      font-weight: 600;
+      margin-bottom: 8px;
+      color: #333;
+    }
+
+    .card-description {
+      color: #666;
+      font-size: 0.9em;
+      margin-bottom: 20px;
+      min-height: 40px;
+    }
+
+    .waveform {
+      background: #f5f5f5;
+      border-radius: 8px;
+      height: 80px;
+      margin: 20px 0;
       display: flex;
       align-items: center;
-      justify-content: space-between;
-      padding: 15px 20px;
-      margin-bottom: 10px;
-      background: #252540;
-      border-radius: 8px;
-      transition: background 0.2s;
+      justify-content: center;
+      overflow: hidden;
+      position: relative;
     }
-    .sound-row:hover { background: #2a2a4a; }
-    .sound-name {
-      font-size: 1em;
-      color: #eee;
-      flex: 1;
+
+    .waveform canvas {
+      width: 100%;
+      height: 100%;
     }
-    button {
-      background: #00d9ff;
-      color: #1a1a2e;
+
+    .play-btn {
+      background: #667eea;
+      color: white;
       border: none;
-      padding: 8px 20px;
-      border-radius: 6px;
-      font-size: 0.9em;
+      padding: 12px 30px;
+      border-radius: 8px;
+      font-size: 1em;
       font-weight: 600;
       cursor: pointer;
       transition: all 0.2s;
+      box-shadow: 0 4px 8px rgba(102, 126, 234, 0.3);
     }
-    button:hover {
-      background: #00f5ff;
-      transform: scale(1.05);
+
+    .play-btn:hover {
+      background: #5568d3;
+      transform: translateY(-2px);
+      box-shadow: 0 6px 12px rgba(102, 126, 234, 0.4);
     }
-    button:active {
-      transform: scale(0.98);
+
+    .play-btn:active {
+      transform: translateY(0);
+      box-shadow: 0 2px 4px rgba(102, 126, 234, 0.3);
+    }
+
+    .play-btn.playing {
+      background: #48bb78;
+    }
+
+    .specs {
+      background: #f8f9fa;
+      border-radius: 6px;
+      padding: 12px;
+      margin: 15px 0;
+      font-size: 0.85em;
+      color: #666;
+      text-align: left;
+    }
+
+    .specs-row {
+      display: flex;
+      justify-content: space-between;
+      margin: 4px 0;
+    }
+
+    .specs-label {
+      font-weight: 600;
     }
   </style>
 </head>
 <body>
-  <h1>IFTalk Sound Effects</h1>
+  <div class="container">
+    <h1>🔊 IFTalk Sound Gallery</h1>
+    <p class="subtitle">Test different pulse sounds for app command feedback • Click to preview</p>
 
-  <div class="sound-row">
-    <div class="sound-name">Game Command Sent</div>
-    <button onclick="playCommandSent()">Play</button>
-  </div>
+    <div class="controls">
+      <div class="volume-control">
+        <label for="volumeSlider">🔊 Master Volume:</label>
+        <input type="range" id="volumeSlider" class="volume-slider" min="0" max="100" value="50">
+        <span class="volume-value" id="volumeValue">50%</span>
+      </div>
+    </div>
 
-  <div class="sound-row">
-    <div class="sound-name">App Command Sent</div>
-    <button onclick="playAppCommand()">Play</button>
-  </div>
-
-  <div class="sound-row">
-    <div class="sound-name">Low Confidence Voice</div>
-    <button onclick="playLowConfidence()">Play</button>
-  </div>
-
-  <div class="sound-row">
-    <div class="sound-name">Microphone Muted</div>
-    <button onclick="playMuteTone()">Play</button>
-  </div>
-
-  <div class="sound-row">
-    <div class="sound-name">Microphone Unmuted</div>
-    <button onclick="playUnmuteTone()">Play</button>
-  </div>
-
-  <div class="sound-row">
-    <div class="sound-name">Command Blocked</div>
-    <button onclick="playBlockedCommand()">Play</button>
+    <div class="gallery" id="gallery"></div>
   </div>
 
   <script>
     let audioCtx = null;
+    let masterVolume = 0.5;
 
     function getContext() {
       if (!audioCtx) {
@@ -97,126 +235,281 @@
       return audioCtx;
     }
 
-    function getMasterVolume() {
-      const saved = localStorage.getItem('iftalk_masterVolume');
-      return saved ? parseInt(saved) / 100 : 1.0;
+    const soundDesigns = [
+      {
+        name: 'Gentle Tap',
+        description: 'Short, soft click sound',
+        freq: 800,
+        duration: 0.04,
+        type: 'sine',
+        envelope: 'sharp'
+      },
+      {
+        name: 'Muffled Ding',
+        description: 'Soft bell-like tone',
+        freq: 600,
+        duration: 0.08,
+        type: 'sine',
+        envelope: 'medium'
+      },
+      {
+        name: 'Crisp Click',
+        description: 'Clean, precise click',
+        freq: 1200,
+        duration: 0.03,
+        type: 'square',
+        envelope: 'sharp'
+      },
+      {
+        name: 'Soft Blip',
+        description: 'Rounded, gentle pulse',
+        freq: 440,
+        duration: 0.06,
+        type: 'sine',
+        envelope: 'smooth'
+      },
+      {
+        name: 'Quick Chirp',
+        description: 'Rising pitch pulse',
+        freq: 500,
+        freqEnd: 800,
+        duration: 0.05,
+        type: 'sine',
+        envelope: 'sharp'
+      },
+      {
+        name: 'Warm Tap',
+        description: 'Lower frequency click',
+        freq: 300,
+        duration: 0.05,
+        type: 'triangle',
+        envelope: 'medium'
+      },
+      {
+        name: 'Digital Beep',
+        description: 'Classic electronic beep',
+        freq: 1000,
+        duration: 0.06,
+        type: 'square',
+        envelope: 'medium'
+      },
+      {
+        name: 'Subtle Pop',
+        description: 'Very short, barely-there click',
+        freq: 600,
+        duration: 0.02,
+        type: 'sine',
+        envelope: 'instant'
+      },
+      {
+        name: 'Double Tap',
+        description: 'Two quick pulses',
+        freq: 700,
+        duration: 0.04,
+        type: 'sine',
+        envelope: 'sharp',
+        double: true
+      },
+      {
+        name: 'Descending Pulse',
+        description: 'Falling pitch click',
+        freq: 900,
+        freqEnd: 600,
+        duration: 0.07,
+        type: 'sine',
+        envelope: 'medium'
+      }
+    ];
+
+    function drawWaveform(canvas, design) {
+      const ctx = canvas.getContext('2d');
+      const width = canvas.width;
+      const height = canvas.height;
+
+      ctx.clearRect(0, 0, width, height);
+      ctx.strokeStyle = '#667eea';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+
+      const samples = 200;
+      for (let i = 0; i < samples; i++) {
+        const x = (i / samples) * width;
+        const t = i / samples;
+
+        // Simulate waveform based on design
+        let amplitude = 0;
+
+        if (design.envelope === 'sharp') {
+          amplitude = Math.max(0, 1 - t * 10);
+        } else if (design.envelope === 'medium') {
+          amplitude = Math.max(0, 1 - t * 5);
+        } else if (design.envelope === 'smooth') {
+          amplitude = Math.sin(t * Math.PI);
+        } else if (design.envelope === 'instant') {
+          amplitude = t < 0.3 ? 1 : 0;
+        }
+
+        const freq = design.freqEnd ?
+          design.freq + (design.freqEnd - design.freq) * t :
+          design.freq;
+
+        const wave = Math.sin(t * freq * Math.PI / 50) * amplitude;
+        const y = height / 2 + wave * (height / 2) * 0.8;
+
+        if (i === 0) {
+          ctx.moveTo(x, y);
+        } else {
+          ctx.lineTo(x, y);
+        }
+      }
+
+      ctx.stroke();
     }
 
-    function playCommandSent() {
-      const ctx = getContext();
-      const masterVol = getMasterVolume();
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-      osc.frequency.value = 800;
-      osc.type = 'sine';
-      gain.gain.setValueAtTime(0.25 * masterVol, ctx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.06);
-      osc.start(ctx.currentTime);
-      osc.stop(ctx.currentTime + 0.06);
-    }
+    function playSound(design, button) {
+      button.classList.add('playing');
+      button.textContent = 'Playing...';
 
-    function playAppCommand() {
-      const ctx = getContext();
-      const masterVol = getMasterVolume();
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      const filter = ctx.createBiquadFilter();
-      osc.connect(filter);
-      filter.connect(gain);
-      gain.connect(ctx.destination);
-      osc.frequency.value = 600;
-      osc.type = 'sine';
-      filter.type = 'lowpass';
-      filter.frequency.value = 400;
-      gain.gain.setValueAtTime(0.15 * masterVol, ctx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.12);
-      osc.start(ctx.currentTime);
-      osc.stop(ctx.currentTime + 0.12);
-    }
-
-    function playLowConfidence() {
-      const ctx = getContext();
-      const masterVol = getMasterVolume();
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      const lfo = ctx.createOscillator();
-      const lfoGain = ctx.createGain();
-      lfo.connect(lfoGain);
-      lfoGain.connect(osc.frequency);
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-      osc.frequency.value = 200;
-      lfo.frequency.value = 8;
-      lfoGain.gain.value = 20;
-      osc.type = 'sine';
-      gain.gain.setValueAtTime(0.12 * masterVol, ctx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.2);
-      lfo.start(ctx.currentTime);
-      osc.start(ctx.currentTime);
-      lfo.stop(ctx.currentTime + 0.2);
-      osc.stop(ctx.currentTime + 0.2);
-    }
-
-    function playMuteTone() {
-      const ctx = getContext();
-      const masterVol = getMasterVolume();
-      const freqs = [300, 250, 200];
-      freqs.forEach((freq, i) => {
+      try {
+        const ctx = getContext();
         const osc = ctx.createOscillator();
         const gain = ctx.createGain();
+
+        osc.type = design.type || 'sine';
+        osc.frequency.setValueAtTime(design.freq, ctx.currentTime);
+
+        if (design.freqEnd) {
+          osc.frequency.linearRampToValueAtTime(design.freqEnd, ctx.currentTime + design.duration);
+        }
+
+        // Envelope
+        const now = ctx.currentTime;
+        gain.gain.setValueAtTime(0, now);
+
+        if (design.envelope === 'sharp') {
+          gain.gain.linearRampToValueAtTime(masterVolume * 0.3, now + 0.005);
+          gain.gain.exponentialRampToValueAtTime(0.01, now + design.duration);
+        } else if (design.envelope === 'medium') {
+          gain.gain.linearRampToValueAtTime(masterVolume * 0.3, now + 0.01);
+          gain.gain.exponentialRampToValueAtTime(0.01, now + design.duration);
+        } else if (design.envelope === 'smooth') {
+          gain.gain.linearRampToValueAtTime(masterVolume * 0.3, now + design.duration / 2);
+          gain.gain.linearRampToValueAtTime(0.01, now + design.duration);
+        } else if (design.envelope === 'instant') {
+          gain.gain.setValueAtTime(masterVolume * 0.3, now);
+          gain.gain.exponentialRampToValueAtTime(0.01, now + design.duration);
+        }
+
         osc.connect(gain);
         gain.connect(ctx.destination);
-        osc.frequency.value = freq;
-        osc.type = 'sine';
-        const start = ctx.currentTime + i * 0.05;
-        gain.gain.setValueAtTime(0.12 * masterVol, start);
-        gain.gain.exponentialRampToValueAtTime(0.001, start + 0.04);
-        osc.start(start);
-        osc.stop(start + 0.04);
+
+        osc.start(now);
+        osc.stop(now + design.duration);
+
+        if (design.double) {
+          // Second pulse
+          setTimeout(() => {
+            const osc2 = ctx.createOscillator();
+            const gain2 = ctx.createGain();
+            osc2.type = design.type;
+            osc2.frequency.setValueAtTime(design.freq, ctx.currentTime);
+
+            const now2 = ctx.currentTime;
+            gain2.gain.setValueAtTime(0, now2);
+            gain2.gain.linearRampToValueAtTime(masterVolume * 0.3, now2 + 0.005);
+            gain2.gain.exponentialRampToValueAtTime(0.01, now2 + design.duration);
+
+            osc2.connect(gain2);
+            gain2.connect(ctx.destination);
+            osc2.start(now2);
+            osc2.stop(now2 + design.duration);
+          }, 60);
+        }
+
+        setTimeout(() => {
+          button.classList.remove('playing');
+          button.textContent = '▶ Play Sound';
+        }, design.duration * 1000 + 100);
+
+      } catch (err) {
+        console.error('Error playing sound:', err);
+        button.classList.remove('playing');
+        button.textContent = '▶ Play Sound';
+      }
+    }
+
+    function init() {
+      const gallery = document.getElementById('gallery');
+      const volumeSlider = document.getElementById('volumeSlider');
+      const volumeValue = document.getElementById('volumeValue');
+
+      volumeSlider.addEventListener('input', (e) => {
+        masterVolume = e.target.value / 100;
+        volumeValue.textContent = e.target.value + '%';
+      });
+
+      soundDesigns.forEach((design, index) => {
+        const card = document.createElement('div');
+        card.className = 'sound-card';
+
+        const number = document.createElement('div');
+        number.className = 'card-number';
+        number.textContent = `Sound #${index + 1}`;
+
+        const title = document.createElement('div');
+        title.className = 'card-title';
+        title.textContent = design.name;
+
+        const description = document.createElement('div');
+        description.className = 'card-description';
+        description.textContent = design.description;
+
+        const waveformDiv = document.createElement('div');
+        waveformDiv.className = 'waveform';
+        const canvas = document.createElement('canvas');
+        canvas.width = 260;
+        canvas.height = 80;
+        waveformDiv.appendChild(canvas);
+        drawWaveform(canvas, design);
+
+        const specs = document.createElement('div');
+        specs.className = 'specs';
+        specs.innerHTML = `
+          <div class="specs-row">
+            <span class="specs-label">Frequency:</span>
+            <span>${design.freq}${design.freqEnd ? ` → ${design.freqEnd}` : ''} Hz</span>
+          </div>
+          <div class="specs-row">
+            <span class="specs-label">Duration:</span>
+            <span>${(design.duration * 1000).toFixed(0)} ms</span>
+          </div>
+          <div class="specs-row">
+            <span class="specs-label">Wave Type:</span>
+            <span>${design.type}</span>
+          </div>
+          <div class="specs-row">
+            <span class="specs-label">Envelope:</span>
+            <span>${design.envelope}</span>
+          </div>
+        `;
+
+        const playBtn = document.createElement('button');
+        playBtn.className = 'play-btn';
+        playBtn.textContent = '▶ Play Sound';
+        playBtn.onclick = () => playSound(design, playBtn);
+
+        card.appendChild(number);
+        card.appendChild(title);
+        card.appendChild(description);
+        card.appendChild(waveformDiv);
+        card.appendChild(specs);
+        card.appendChild(playBtn);
+
+        gallery.appendChild(card);
       });
     }
 
-    function playUnmuteTone() {
-      const ctx = getContext();
-      const masterVol = getMasterVolume();
-      const osc1 = ctx.createOscillator();
-      const gain1 = ctx.createGain();
-      osc1.connect(gain1);
-      gain1.connect(ctx.destination);
-      osc1.frequency.value = 660;
-      osc1.type = 'sine';
-      gain1.gain.setValueAtTime(0.12 * masterVol, ctx.currentTime);
-      gain1.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.15);
-      osc1.start(ctx.currentTime);
-      osc1.stop(ctx.currentTime + 0.15);
-      const osc2 = ctx.createOscillator();
-      const gain2 = ctx.createGain();
-      osc2.connect(gain2);
-      gain2.connect(ctx.destination);
-      osc2.frequency.value = 880;
-      osc2.type = 'sine';
-      gain2.gain.setValueAtTime(0.12 * masterVol, ctx.currentTime + 0.08);
-      gain2.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.25);
-      osc2.start(ctx.currentTime + 0.08);
-      osc2.stop(ctx.currentTime + 0.25);
-    }
-
-    function playBlockedCommand() {
-      const ctx = getContext();
-      const masterVol = getMasterVolume();
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-      osc.frequency.value = 150;
-      osc.type = 'sawtooth';
-      gain.gain.setValueAtTime(0.25 * masterVol, ctx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.15);
-      osc.start(ctx.currentTime);
-      osc.stop(ctx.currentTime + 0.15);
-    }
+    init();
   </script>
 </body>
 </html>

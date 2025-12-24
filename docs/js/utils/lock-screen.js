@@ -36,7 +36,6 @@ export function initLockScreen() {
   unlockProgress = document.getElementById('unlockProgress');
 
   if (!lockScreenOverlay || !unlockButton || !unlockProgress) {
-    console.warn('[LockScreen] DOM elements not found - lock screen disabled');
     return;
   }
 }
@@ -59,6 +58,9 @@ export function lockScreen() {
       module.enableKeepAwake();
     }
   });
+
+  // Request fullscreen to hide browser controls (mobile)
+  requestFullscreen();
 
   // Show overlay
   if (lockScreenOverlay) {
@@ -83,7 +85,7 @@ export function lockScreen() {
     unlockButton.addEventListener('mouseleave', handleUnlockHoldEnd);
   }
 
-  updateStatus('Screen locked - say "unlock" or hold button');
+  updateStatus('Screen locked (touch disabled) - voice active');
 }
 
 /**
@@ -102,6 +104,9 @@ export function unlockScreen() {
       module.disableKeepAwake();
     }
   });
+
+  // Exit fullscreen
+  exitFullscreen();
 
   // Hide overlay
   if (lockScreenOverlay) {
@@ -258,4 +263,56 @@ function resumeAnimations() {
     }
     delete el.dataset.wasPaused;
   });
+}
+
+/**
+ * Request fullscreen mode to hide browser controls
+ */
+function requestFullscreen() {
+  try {
+    const elem = document.documentElement;
+
+    if (elem.requestFullscreen) {
+      elem.requestFullscreen()
+        .then(() => {
+          // Fullscreen activated
+        })
+        .catch(err => {
+          // Fullscreen request failed
+        });
+    } else if (elem.webkitRequestFullscreen) {
+      elem.webkitRequestFullscreen();
+    } else if (elem.mozRequestFullScreen) {
+      elem.mozRequestFullScreen();
+    } else if (elem.msRequestFullscreen) {
+      elem.msRequestFullscreen();
+    }
+  } catch (err) {
+    // Fullscreen not supported
+  }
+}
+
+/**
+ * Exit fullscreen mode
+ */
+function exitFullscreen() {
+  try {
+    if (document.exitFullscreen) {
+      document.exitFullscreen()
+        .then(() => {
+          // Fullscreen exited
+        })
+        .catch(err => {
+          // Exit fullscreen failed
+        });
+    } else if (document.webkitExitFullscreen) {
+      document.webkitExitFullscreen();
+    } else if (document.mozCancelFullScreen) {
+      document.mozCancelFullScreen();
+    } else if (document.msExitFullscreen) {
+      document.msExitFullscreen();
+    }
+  } catch (err) {
+    // Exit fullscreen not supported
+  }
 }

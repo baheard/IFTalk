@@ -10,11 +10,10 @@ import { dom } from '../core/dom.js';
 import { updateStatus } from '../utils/status.js';
 import { getPronunciationMap, savePronunciationMap, addPronunciation, removePronunciation } from '../utils/pronunciation.js';
 import {
-  getGameSetting, setGameSetting, loadGameSettings,
-  getAppDefault, setAppDefault, clearAllGameData, clearAllAppData,
-  clearVoiceSettingsFromAllGames
+  clearAllGameData, clearAllAppData
 } from '../utils/game-settings.js';
 import { isLocalhost, syncFromRemote } from '../utils/storage-sync.js';
+import { confirmDialog } from './confirm-dialog.js';
 
 /**
  * Check if we're on the welcome screen (no game loaded)
@@ -29,81 +28,33 @@ export function isOnWelcomeScreen() {
  * Called when settings panel opens and when game loads/unloads
  */
 export function updateSettingsContext() {
-  const onWelcome = isOnWelcomeScreen();
-  const gameName = state.currentGameName;
-  const displayName = getGameDisplayName(gameName);
+  const isWelcome = isOnWelcomeScreen();
 
-  // Game section header (always "Game" with storage icon)
-  const gameHeader = document.getElementById('gameSettingsHeader');
-  if (gameHeader) {
-    gameHeader.innerHTML = '<span class="material-icons">storage</span> Game';
-  }
-
-  // Audio settings header
-  const voiceHeader = document.getElementById('voiceSettingsHeader');
-  if (voiceHeader) {
-    voiceHeader.innerHTML = onWelcome
-      ? '<span class="material-icons">volume_up</span> Default Audio'
-      : '<span class="material-icons">volume_up</span> Audio';
-  }
-
-  // Audio settings description
-  const voiceDesc = document.getElementById('voiceSettingsDescription');
-  if (voiceDesc) {
-    voiceDesc.textContent = onWelcome
-      ? 'Set default audio settings for all games'
-      : `Audio settings for ${displayName}`;
-  }
-
-  // Clear data button text
-  const clearBtnText = document.getElementById('clearDataBtnText');
-  if (clearBtnText) {
-    clearBtnText.textContent = onWelcome
-      ? 'Delete All App Data'
-      : 'Delete Game Data';
-  }
-
-  // Hide "Currently playing" section on welcome screen
+  // Quick Actions - show current game name when in-game
   const currentGameDisplay = document.getElementById('currentGameDisplay');
   if (currentGameDisplay) {
-    currentGameDisplay.classList.toggle('hidden', onWelcome);
+    currentGameDisplay.style.display = isWelcome ? 'none' : 'flex';
+    if (!isWelcome) {
+      const gameNameSpan = document.getElementById('currentGameName');
+      if (gameNameSpan) {
+        gameNameSpan.textContent = getGameDisplayName(state.currentGameName);
+      }
+    }
   }
 
-  // Hide entire Game section on welcome screen
-  const gameSettingsSection = document.getElementById('gameSettingsSection');
-  if (gameSettingsSection) {
-    gameSettingsSection.classList.toggle('hidden', onWelcome);
-  }
+  // Show/hide game-specific items (exclude currentGameDisplay, it's handled separately)
+  const gameItems = document.querySelectorAll('.game-section-item:not(#currentGameDisplay)');
+  gameItems.forEach(item => {
+    item.style.display = isWelcome ? 'none' : 'block';
+  });
 
-  // Show About section on welcome screen only
-  const aboutSection = document.getElementById('aboutSection');
-  if (aboutSection) {
-    aboutSection.classList.toggle('hidden', !onWelcome);
-  }
+  // Show/hide welcome-specific items
+  const welcomeItems = document.querySelectorAll('.welcome-section-item');
+  welcomeItems.forEach(item => {
+    item.style.display = isWelcome ? 'block' : 'none';
+  });
 
-  // Show standalone delete button on welcome screen only
-  const welcomeDangerZone = document.getElementById('welcomeDangerZone');
-  if (welcomeDangerZone) {
-    welcomeDangerZone.classList.toggle('hidden', !onWelcome);
-  }
-
-  // Show "Apply to all games" button on welcome screen only
-  const applyVoiceToAllContainer = document.getElementById('applyVoiceToAllContainer');
-  if (applyVoiceToAllContainer) {
-    applyVoiceToAllContainer.style.display = onWelcome ? 'block' : 'none';
-  }
-
-  // Show "Voice Commands" section in-game only (hide on welcome screen)
-  const voiceCommandsSection = document.getElementById('voiceCommandsSection');
-  if (voiceCommandsSection) {
-    voiceCommandsSection.classList.toggle('hidden', onWelcome);
-  }
-
-  // Show "Pronunciation" section in-game only (hide on welcome screen)
-  const pronunciationSection = document.getElementById('pronunciationSection');
-  if (pronunciationSection) {
-    pronunciationSection.classList.toggle('hidden', onWelcome);
-  }
+  // No need to reload settings - they're global now!
 }
 
 /**
@@ -165,6 +116,32 @@ export function initSettings() {
     });
   }
 
+  // Get Hint Section
+  const hintSection = document.getElementById('hintSection');
+  if (hintSection) {
+    // Load hint type preference from global localStorage
+    const hintTypeSelect = document.getElementById('hintTypeSelect');
+    if (hintTypeSelect) {
+      const savedHintType = localStorage.getItem('iftalk_hintType') || 'general';
+      hintTypeSelect.value = savedHintType;
+
+      // Save preference when changed
+      hintTypeSelect.addEventListener('change', (e) => {
+        localStorage.setItem('iftalk_hintType', e.target.value);
+      });
+    }
+
+    // Get Hint button
+    const getHintBtn = document.getElementById('getHintBtn');
+    if (getHintBtn) {
+      getHintBtn.addEventListener('click', async () => {
+        const { getHint } = await import('../features/hints.js');
+        const hintType = hintTypeSelect?.value || 'general';
+        getHint(hintType);
+      });
+    }
+  }
+
   // Collapsible sections
   const collapsibleSections = document.querySelectorAll('.settings-section.collapsible');
   collapsibleSections.forEach(section => {
@@ -182,7 +159,7 @@ export function initSettings() {
   // Clear Data button - behavior depends on context
   const clearAllDataBtn = document.getElementById('clearAllDataBtn');
   if (clearAllDataBtn) {
-    clearAllDataBtn.addEventListener('click', () => {
+    clearAllDataBtn.addEventListener('click', async () => {
       const onWelcome = isOnWelcomeScreen();
       const gameName = state.currentGameName;
 
@@ -190,41 +167,68 @@ export function initSettings() {
       let confirmed;
       if (onWelcome) {
         // Welcome screen: clear ALL app data
-        confirmed = confirm(
-          '⚠️ WARNING: This will permanently delete ALL data for ALL games.\n\n' +
+        confirmed = await confirmDialog(
+          'This will permanently delete ALL data for ALL games.\n\n' +
           'This includes:\n' +
           '• All saves and autosaves\n' +
           '• All game progress\n' +
           '• All settings (voices, speed)\n' +
           '• App defaults\n\n' +
-          'This action cannot be undone!\n\n' +
-          'Are you sure you want to continue?'
+          'This action cannot be undone!',
+          { title: 'Delete All Data?' }
         );
       } else {
         // In-game: clear only this game's data
         const displayName = getGameDisplayName(gameName);
-        confirmed = confirm(
-          `⚠️ Delete all data for "${displayName}"?\n\n` +
+        confirmed = await confirmDialog(
           'This includes:\n' +
           '• Saves and autosave\n' +
           '• Game progress\n' +
           '• Voice/speed settings for this game\n\n' +
-          'App defaults and other games will NOT be affected.\n\n' +
-          'Are you sure?'
+          'App defaults and other games will NOT be affected.',
+          { title: `Delete "${displayName}"?` }
         );
       }
 
       if (confirmed) {
         try {
           if (onWelcome) {
-            // Clear everything
+            // Clear everything (localStorage + Google Drive)
             const count = clearAllAppData();
-            updateStatus(`✓ Cleared all app data`);
+
+            // Also delete from Drive if signed in
+            if (state.gdriveSignedIn) {
+              try {
+                const { deleteAllDataFromDrive } = await import('../utils/gdrive-sync.js');
+                await deleteAllDataFromDrive();
+                updateStatus(`✓ Cleared all app data (local + Drive)`);
+              } catch (driveError) {
+                console.error('[Settings] Failed to delete from Drive:', driveError);
+                updateStatus(`✓ Cleared local data (Drive deletion failed)`);
+              }
+            } else {
+              updateStatus(`✓ Cleared all app data`);
+            }
+
             alert('Successfully deleted all app data.\n\nAll saves, progress, and settings have been cleared.');
           } else {
-            // Clear only current game
+            // Clear only current game (localStorage + Google Drive)
             clearAllGameData(gameName);
-            updateStatus(`✓ Cleared data for ${gameName}`);
+
+            // Also delete from Drive if signed in
+            if (state.gdriveSignedIn) {
+              try {
+                const { deleteGameDataFromDrive } = await import('../utils/gdrive-sync.js');
+                const deleteCount = await deleteGameDataFromDrive(gameName);
+                updateStatus(`✓ Cleared data for ${gameName} (${deleteCount} files from Drive)`);
+              } catch (driveError) {
+                console.error('[Settings] Failed to delete from Drive:', driveError);
+                updateStatus(`✓ Cleared local data for ${gameName} (Drive deletion failed)`);
+              }
+            } else {
+              updateStatus(`✓ Cleared data for ${gameName}`);
+            }
+
             alert(`Successfully deleted data for "${gameName}".\n\nThis game will use app defaults on next load.`);
           }
 
@@ -247,22 +251,36 @@ export function initSettings() {
   // Standalone "Delete All App Data" button (welcome screen only)
   const deleteAllAppDataBtn = document.getElementById('deleteAllAppDataBtn');
   if (deleteAllAppDataBtn) {
-    deleteAllAppDataBtn.addEventListener('click', () => {
-      const confirmed = confirm(
-        '⚠️ WARNING: This will permanently delete ALL data for ALL games.\n\n' +
+    deleteAllAppDataBtn.addEventListener('click', async () => {
+      const confirmed = await confirmDialog(
+        'This will permanently delete ALL data for ALL games.\n\n' +
         'This includes:\n' +
         '• All saves and autosaves\n' +
         '• All game progress\n' +
         '• All settings (voices, speed)\n' +
         '• App defaults\n\n' +
-        'This action cannot be undone!\n\n' +
-        'Are you sure you want to continue?'
+        'This action cannot be undone!',
+        { title: 'Delete All Data?' }
       );
 
       if (confirmed) {
         try {
           clearAllAppData();
-          updateStatus('✓ Cleared all app data');
+
+          // Also delete from Drive if signed in
+          if (state.gdriveSignedIn) {
+            try {
+              const { deleteAllDataFromDrive } = await import('../utils/gdrive-sync.js');
+              await deleteAllDataFromDrive();
+              updateStatus('✓ Cleared all app data (local + Drive)');
+            } catch (driveError) {
+              console.error('[Settings] Failed to delete from Drive:', driveError);
+              updateStatus('✓ Cleared local data (Drive deletion failed)');
+            }
+          } else {
+            updateStatus('✓ Cleared all app data');
+          }
+
           alert('Successfully deleted all app data.\n\nAll saves, progress, and settings have been cleared.');
 
           // Close settings panel
@@ -312,12 +330,13 @@ export function initSettings() {
   const speechRateSlider = document.getElementById('speechRate');
   const speechRateValue = document.getElementById('speechRateValue');
   if (speechRateSlider && speechRateValue) {
-    // Load saved speech rate (uses hierarchy: game -> app defaults -> 1.0)
-    const savedRate = getGameSetting('speechRate', 1.0);
-    speechRateSlider.value = savedRate;
-    speechRateValue.textContent = savedRate.toFixed(1) + 'x';
+    // Load saved speech rate from global localStorage
+    const savedRate = localStorage.getItem('iftalk_speechRate');
+    const rate = savedRate ? parseFloat(savedRate) : 1.0;
+    speechRateSlider.value = rate;
+    speechRateValue.textContent = rate.toFixed(1) + 'x';
     if (state.browserVoiceConfig) {
-      state.browserVoiceConfig.rate = savedRate;
+      state.browserVoiceConfig.rate = rate;
     }
 
     speechRateSlider.addEventListener('input', (e) => {
@@ -329,37 +348,214 @@ export function initSettings() {
         state.browserVoiceConfig.rate = rate;
       }
 
-      // Save to appropriate location based on context
-      if (isOnWelcomeScreen()) {
-        setAppDefault('speechRate', rate);
-        updateStatus(`Default speed: ${rate.toFixed(1)}x`);
-      } else {
-        setGameSetting('speechRate', rate);
+      // Save to global localStorage
+      localStorage.setItem('iftalk_speechRate', rate.toString());
+      updateStatus(`✓ Speech speed: ${rate.toFixed(1)}x`);
+    });
+  }
+
+  // === NEW TOGGLE HANDLERS ===
+
+  // Voice Controls toggle
+  const voiceControlsToggle = document.getElementById('voiceControlsToggle');
+  if (voiceControlsToggle) {
+    const voiceControlsEnabled = localStorage.getItem('iftalk_voiceControlsEnabled') !== 'false';
+    voiceControlsToggle.checked = voiceControlsEnabled;
+    updateVoiceControlsVisibility(voiceControlsEnabled);
+
+    voiceControlsToggle.addEventListener('change', (e) => {
+      const enabled = e.target.checked;
+      localStorage.setItem('iftalk_voiceControlsEnabled', enabled);
+      updateVoiceControlsVisibility(enabled);
+      updateStatus(enabled ? '✓ Voice controls shown' : '✗ Voice controls hidden');
+    });
+  }
+
+  // Sound Effects toggle
+  const soundEffectsToggle = document.getElementById('soundEffectsToggle');
+  if (soundEffectsToggle) {
+    const soundEffectsEnabled = localStorage.getItem('iftalk_soundEffectsEnabled') !== 'false';
+    soundEffectsToggle.checked = soundEffectsEnabled;
+
+    soundEffectsToggle.addEventListener('change', (e) => {
+      const enabled = e.target.checked;
+      localStorage.setItem('iftalk_soundEffectsEnabled', enabled);
+      updateStatus(enabled ? '✓ Sound effects enabled' : '✗ Sound effects disabled');
+    });
+  }
+
+  // Auto-save toggle
+  const autosaveToggle = document.getElementById('autosaveToggle');
+  if (autosaveToggle) {
+    const autosaveEnabled = localStorage.getItem('iftalk_autosaveEnabled') !== 'false';
+    autosaveToggle.checked = autosaveEnabled;
+
+    autosaveToggle.addEventListener('change', (e) => {
+      const enabled = e.target.checked;
+      localStorage.setItem('iftalk_autosaveEnabled', enabled);
+      updateStatus(enabled ? '✓ Auto-save enabled' : '✗ Auto-save disabled');
+    });
+  }
+
+  // Keep Screen Awake toggle (already uses global state)
+  const keepAwakeToggle = document.getElementById('keepAwakeToggle');
+  if (keepAwakeToggle) {
+    const keepAwake = localStorage.getItem('iftalk_keepScreenAwake') === 'true';
+    keepAwakeToggle.checked = keepAwake;
+
+    keepAwakeToggle.addEventListener('change', (e) => {
+      const enabled = e.target.checked;
+      localStorage.setItem('iftalk_keepScreenAwake', enabled);
+      // Update screen wake lock if available
+      if (window.screenLock) {
+        if (enabled) {
+          window.screenLock.enable();
+        } else {
+          window.screenLock.disable();
+        }
+      }
+      updateStatus(enabled ? '✓ Screen will stay awake' : '✗ Screen lock disabled');
+    });
+  }
+
+  // Lock Screen Now button
+  const lockScreenBtn = document.getElementById('lockScreenBtn');
+  if (lockScreenBtn) {
+    lockScreenBtn.addEventListener('click', () => {
+      if (window.screenLock) {
+        window.screenLock.lock();
+        updateStatus('✓ Screen locked');
       }
     });
   }
 
-  // "Apply to all games" button (only shown on home screen)
-  const applyVoiceToAllContainer = document.getElementById('applyVoiceToAllContainer');
-  const applyVoiceToAllBtn = document.getElementById('applyVoiceToAllBtn');
+  // Google Drive sync handlers
+  const gdriveSignInBtn = document.getElementById('gdriveSignInBtn');
+  if (gdriveSignInBtn) {
+    gdriveSignInBtn.addEventListener('click', async () => {
+      try {
+        const { signIn } = await import('../utils/gdrive-sync.js');
+        await signIn();
+        updateGDriveUI();
+        updateStatus('Signed in to Google Drive', 'success');
+      } catch (error) {
+        console.error('[Settings] Sign-in failed:', error);
+        updateStatus('Sign-in failed: ' + error.message, 'error');
+      }
+    });
+  }
 
-  if (applyVoiceToAllContainer && applyVoiceToAllBtn) {
-    // Show button only on welcome screen
-    if (isOnWelcomeScreen()) {
-      applyVoiceToAllContainer.style.display = 'block';
-    }
+  const gdriveSignOutBtn = document.getElementById('gdriveSignOutBtn');
+  if (gdriveSignOutBtn) {
+    gdriveSignOutBtn.addEventListener('click', async () => {
+      try {
+        const { signOut } = await import('../utils/gdrive-sync.js');
+        await signOut();
+        updateGDriveUI();
+        updateStatus('Signed out of Google Drive');
+      } catch (error) {
+        console.error('[Settings] Sign-out failed:', error);
+        updateStatus('Sign-out failed: ' + error.message, 'error');
+      }
+    });
+  }
 
-    applyVoiceToAllBtn.addEventListener('click', () => {
-      const confirmed = confirm(
-        'Apply voice settings to all games?\n\n' +
-        'This will remove any per-game voice overrides, so all games use the current default settings.\n\n' +
-        'Individual games can still have custom settings applied later.'
-      );
+  const gdriveSyncNowBtn = document.getElementById('gdriveSyncNowBtn');
+  if (gdriveSyncNowBtn) {
+    const btnIcon = gdriveSyncNowBtn.querySelector('.material-icons');
+    const btnText = gdriveSyncNowBtn.childNodes[2]; // Text node after icon
 
-      if (confirmed) {
-        const count = clearVoiceSettingsFromAllGames();
-        updateStatus(`Voice settings cleared from ${count} game(s)`);
-        alert(`Done! Cleared voice overrides from ${count} game(s).\n\nAll games will now use the default voice settings.`);
+    gdriveSyncNowBtn.addEventListener('click', async () => {
+      // Disable button and show syncing state
+      gdriveSyncNowBtn.disabled = true;
+      btnIcon.textContent = 'autorenew';
+      btnIcon.classList.add('spinning');
+      btnText.textContent = ' Syncing...';
+
+      try {
+        const { syncAllNow } = await import('../utils/gdrive-sync.js');
+        updateStatus('Syncing saves to Google Drive...', 'processing');
+
+        // Sync only the current game's saves
+        const count = await syncAllNow(state.currentGameName);
+
+        if (count > 0) {
+          // Success state
+          btnIcon.classList.remove('spinning');
+          btnIcon.textContent = 'check';
+          btnText.textContent = ` Synced ${count} file(s)`;
+          updateGDriveUI();
+          updateStatus(`Synced ${count} file(s) to Google Drive`, 'success');
+
+          // Reset to ready state after 2 seconds
+          setTimeout(() => {
+            btnIcon.textContent = 'sync';
+            btnText.textContent = ' Sync Now';
+            gdriveSyncNowBtn.disabled = false;
+          }, 2000);
+        } else {
+          // No files synced (user cancelled auth)
+          btnIcon.classList.remove('spinning');
+          btnIcon.textContent = 'sync';
+          btnText.textContent = ' Sync Now';
+          gdriveSyncNowBtn.disabled = false;
+        }
+      } catch (error) {
+        // Error state
+        console.error('[Settings] Sync failed:', error);
+        btnIcon.classList.remove('spinning');
+        btnIcon.textContent = 'error';
+        btnText.textContent = ' Sync Failed';
+        updateStatus('Sync failed: ' + error.message, 'error');
+
+        // Reset to ready state after 3 seconds
+        setTimeout(() => {
+          btnIcon.textContent = 'sync';
+          btnText.textContent = ' Sync Now';
+          gdriveSyncNowBtn.disabled = false;
+        }, 3000);
+      }
+    });
+  }
+
+  // Listen for sign-in/sign-out events to update UI
+  window.addEventListener('gdriveSignInChanged', () => {
+    updateGDriveUI();
+  });
+
+  // Listen for auto-sync completion to update last sync time
+  window.addEventListener('gdriveSyncComplete', () => {
+    updateGDriveUI();
+  });
+
+  // Initialize Google Drive UI on load
+  updateGDriveUI();
+  // Auto-Sync toggle (Phase 3)
+  const autoSyncToggle = document.getElementById('autoSyncToggle');
+  if (autoSyncToggle) {
+    // Load saved preference
+    const enabled = localStorage.getItem('iftalk_autoSyncEnabled') === 'true';
+    autoSyncToggle.checked = enabled;
+    state.gdriveSyncEnabled = enabled;
+
+    autoSyncToggle.addEventListener('change', (e) => {
+      const enabled = e.target.checked;
+      state.gdriveSyncEnabled = enabled;
+      localStorage.setItem('iftalk_autoSyncEnabled', enabled);
+      updateStatus(enabled ? 'Auto-sync enabled' : 'Auto-sync disabled');
+    });
+  }
+
+  // Home button (return to game selection)
+  const selectGameBtn = document.getElementById('selectGameBtn');
+  if (selectGameBtn) {
+    selectGameBtn.addEventListener('click', async () => {
+      // Import and call unload function
+      const { unloadGame } = await import('../game/game-loader.js');
+      unloadGame();
+      // Close settings panel
+      if (dom.settingsPanel) {
+        dom.settingsPanel.classList.remove('open');
       }
     });
   }
@@ -707,27 +903,27 @@ export async function loadBrowserVoiceConfig() {
   } catch (error) {
   }
 
-  // Load per-game voice settings
-  const savedNarratorVoice = getGameSetting('narratorVoice');
+  // Load global voice settings from localStorage
+  const savedNarratorVoice = localStorage.getItem('iftalk_narratorVoice');
   if (savedNarratorVoice) {
     if (!state.browserVoiceConfig) state.browserVoiceConfig = {};
     state.browserVoiceConfig.voice = savedNarratorVoice;
   }
 
-  const savedAppVoice = getGameSetting('appVoice');
+  const savedAppVoice = localStorage.getItem('iftalk_appVoice');
   if (savedAppVoice) {
     if (!state.browserVoiceConfig) state.browserVoiceConfig = {};
     state.browserVoiceConfig.appVoice = savedAppVoice;
   }
 
-  // Load per-game speech rate
-  const savedSpeechRate = getGameSetting('speechRate');
+  // Load global speech rate
+  const savedSpeechRate = localStorage.getItem('iftalk_speechRate');
   if (savedSpeechRate) {
     if (!state.browserVoiceConfig) state.browserVoiceConfig = {};
-    state.browserVoiceConfig.rate = savedSpeechRate;
+    state.browserVoiceConfig.rate = parseFloat(savedSpeechRate);
   }
 
-  // Load global volume (not per-game)
+  // Load global volume
   const savedVolume = localStorage.getItem('iftalk_masterVolume');
   const volume = savedVolume ? parseInt(savedVolume) / 100 : 1.0;
   if (!state.browserVoiceConfig) state.browserVoiceConfig = {};
@@ -742,30 +938,12 @@ export async function loadBrowserVoiceConfig() {
 
 /**
  * Reload settings for current game (called when game changes)
+ * NOTE: Settings are now global, so this mainly handles UI updates
  */
 export function reloadSettingsForGame() {
+  // Settings are global now, no need to reload per-game settings
 
-  // Load per-game settings
-  const savedNarratorVoice = getGameSetting('narratorVoice');
-  const savedAppVoice = getGameSetting('appVoice');
-  const savedSpeechRate = getGameSetting('speechRate', 1.0);
-
-  if (!state.browserVoiceConfig) state.browserVoiceConfig = {};
-
-  // Update config with saved settings (or clear if none saved)
-  state.browserVoiceConfig.voice = savedNarratorVoice || null;
-  state.browserVoiceConfig.appVoice = savedAppVoice || null;
-  state.browserVoiceConfig.rate = savedSpeechRate;
-
-  // Update UI elements
-  const speechRateSlider = document.getElementById('speechRate');
-  const speechRateValue = document.getElementById('speechRateValue');
-  if (speechRateSlider && speechRateValue) {
-    speechRateSlider.value = savedSpeechRate;
-    speechRateValue.textContent = savedSpeechRate.toFixed(1) + 'x';
-  }
-
-  // Refresh voice dropdowns to show correct selection
+  // Refresh voice dropdowns to show current selection
   populateVoiceDropdown();
 
   // Inject sync button if on localhost and game is loaded
@@ -827,14 +1005,9 @@ export function initVoiceSelection() {
       if (!state.browserVoiceConfig) state.browserVoiceConfig = {};
       state.browserVoiceConfig.voice = e.target.value;
 
-      // Save to appropriate location based on context
-      if (isOnWelcomeScreen()) {
-        setAppDefault('narratorVoice', e.target.value);
-        updateStatus(`Default narrator: ${e.target.value}`);
-      } else {
-        setGameSetting('narratorVoice', e.target.value);
-        updateStatus(`Narrator voice: ${e.target.value} (${getGameDisplayName(state.currentGameName)})`);
-      }
+      // Save to global localStorage
+      localStorage.setItem('iftalk_narratorVoice', e.target.value);
+      updateStatus(`✓ Narrator voice: ${e.target.value}`);
     });
   }
 
@@ -844,14 +1017,9 @@ export function initVoiceSelection() {
       if (!state.browserVoiceConfig) state.browserVoiceConfig = {};
       state.browserVoiceConfig.appVoice = e.target.value;
 
-      // Save to appropriate location based on context
-      if (isOnWelcomeScreen()) {
-        setAppDefault('appVoice', e.target.value);
-        updateStatus(`Default app voice: ${e.target.value}`);
-      } else {
-        setGameSetting('appVoice', e.target.value);
-        updateStatus(`App voice: ${e.target.value} (${getGameDisplayName(state.currentGameName)})`);
-      }
+      // Save to global localStorage
+      localStorage.setItem('iftalk_appVoice', e.target.value);
+      updateStatus(`✓ App voice: ${e.target.value}`);
     });
   }
 
@@ -904,3 +1072,48 @@ export function initVoiceSelection() {
     });
   }
 }
+
+/**
+ * Update voice controls visibility
+ * @param {boolean} enabled - Whether voice controls should be shown
+ */
+function updateVoiceControlsVisibility(enabled) {
+  const controls = document.getElementById('controls');
+  const body = document.body;
+
+  if (controls) {
+    if (enabled) {
+      controls.classList.remove('hidden');
+      body.classList.remove('voice-controls-hidden');
+    } else {
+      controls.classList.add('hidden');
+      body.classList.add('voice-controls-hidden');
+    }
+  }
+}
+
+/**
+ * Update Google Drive UI based on sign-in state
+ */
+function updateGDriveUI() {
+  const signInArea = document.getElementById('gdriveSignInArea');
+  const accountArea = document.getElementById('gdriveAccountArea');
+  const emailSpan = document.getElementById('gdriveEmail');
+  const statusSpan = document.getElementById('gdriveSyncStatus');
+
+  if (state.gdriveSignedIn) {
+    signInArea?.classList.add('hidden');
+    accountArea?.classList.remove('hidden');
+    if (emailSpan) emailSpan.textContent = state.gdriveEmail || '';
+    if (statusSpan) {
+      const lastSync = state.gdriveLastSyncTime
+        ? new Date(state.gdriveLastSyncTime).toLocaleString()
+        : 'Never';
+      statusSpan.textContent = `Last synced: ${lastSync}`;
+    }
+  } else {
+    signInArea?.classList.remove('hidden');
+    accountArea?.classList.add('hidden');
+  }
+}
+

@@ -12,6 +12,8 @@
  * - Unmute pressed (ascending chime)
  */
 
+import { state } from '../core/state.js';
+
 let audioCtx = null;
 
 function getContext() {
@@ -35,9 +37,21 @@ function getMasterVolume() {
 }
 
 /**
- * Play tone for game command sent (short click)
+ * Check if sound effects are enabled
+ * @returns {boolean} True if sound effects should play
+ */
+function areSoundEffectsEnabled() {
+  const setting = localStorage.getItem('iftalk_soundEffectsEnabled');
+  return setting !== 'false';
+}
+
+/**
+ * Play tone for game command sent (Subtle Pop)
  */
 export function playCommandSent() {
+  // Don't play audio feedback when muted or sound effects are disabled
+  if (state.isMuted || !areSoundEffectsEnabled()) return;
+
   try {
     const ctx = getContext();
     const osc = ctx.createOscillator();
@@ -47,47 +61,49 @@ export function playCommandSent() {
     osc.connect(gain);
     gain.connect(ctx.destination);
 
-    // Short click sound - more audible
-    osc.frequency.value = 800;
+    // Subtle Pop (Sound #8): Very short, barely-there click
+    osc.frequency.value = 600;
     osc.type = 'sine';
 
+    // Instant envelope - sharp attack and decay
     gain.gain.setValueAtTime(0.25 * masterVol, ctx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.06);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.02);
 
     osc.start(ctx.currentTime);
-    osc.stop(ctx.currentTime + 0.06);
+    osc.stop(ctx.currentTime + 0.02);
   } catch (err) {
     console.error('[Audio] Command sent tone error:', err);
   }
 }
 
 /**
- * Play tone for app/navigation command (Muted 6: Muffled ding)
+ * Play tone for app/navigation command (Soft Pulse)
  */
 export function playAppCommand() {
+  // Don't play audio feedback when muted or sound effects are disabled
+  if (state.isMuted || !areSoundEffectsEnabled()) return;
+
   try {
     const ctx = getContext();
     const osc = ctx.createOscillator();
     const gain = ctx.createGain();
-    const filter = ctx.createBiquadFilter();
     const masterVol = getMasterVolume();
 
-    osc.connect(filter);
-    filter.connect(gain);
+    osc.connect(gain);
     gain.connect(ctx.destination);
 
-    osc.frequency.value = 600;
+    // Soft Pulse: Gentle, quiet pulse
+    osc.frequency.value = 460;
     osc.type = 'sine';
 
-    // Low-pass filter to muffle it
-    filter.type = 'lowpass';
-    filter.frequency.value = 400;
+    // Soft envelope with slow attack
+    const now = ctx.currentTime;
+    gain.gain.setValueAtTime(0, now);
+    gain.gain.linearRampToValueAtTime(0.10 * masterVol, now + 0.030);
+    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.100);
 
-    gain.gain.setValueAtTime(0.15 * masterVol, ctx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.12);
-
-    osc.start(ctx.currentTime);
-    osc.stop(ctx.currentTime + 0.12);
+    osc.start(now);
+    osc.stop(now + 0.100);
   } catch (err) {
     // Ignore audio errors
   }
@@ -97,7 +113,10 @@ export function playAppCommand() {
  * Play tone for low confidence warning (gentle warble)
  */
 export function playLowConfidence() {
-  try {
+  // Don't play audio feedback when muted or sound effects are disabled
+  if (state.isMuted || !areSoundEffectsEnabled()) return;
+
+  try{
     const ctx = getContext();
     const osc = ctx.createOscillator();
     const gain = ctx.createGain();
@@ -115,7 +134,7 @@ export function playLowConfidence() {
     lfoGain.gain.value = 20;
     osc.type = 'sine';
 
-    gain.gain.setValueAtTime(0.12 * masterVol, ctx.currentTime);
+    gain.gain.setValueAtTime(0.24 * masterVol, ctx.currentTime); // Doubled from 0.12
     gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.2);
 
     lfo.start(ctx.currentTime);
@@ -134,6 +153,9 @@ export const LOW_CONFIDENCE_THRESHOLD = 0.50;
  * Play tone for blocked/failed command (loud buzz - audible during narration)
  */
 export function playBlockedCommand() {
+  // Don't play audio feedback when muted or sound effects are disabled
+  if (state.isMuted || !areSoundEffectsEnabled()) return;
+
   try {
     const ctx = getContext();
     const osc = ctx.createOscillator();
@@ -146,7 +168,7 @@ export function playBlockedCommand() {
     osc.frequency.value = 150;  // Higher frequency (more noticeable)
     osc.type = 'sawtooth';
 
-    gain.gain.setValueAtTime(0.25 * masterVol, ctx.currentTime);  // Much louder (4x)
+    gain.gain.setValueAtTime(0.40 * masterVol, ctx.currentTime);  // Increased from 0.25 to 0.40
     gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.15);  // Longer duration
 
     osc.start(ctx.currentTime);
@@ -156,61 +178,6 @@ export function playBlockedCommand() {
   }
 }
 
-/**
- * Play tone for play button (rising chirp)
- */
-export function playPlayTone() {
-  try {
-    const ctx = getContext();
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    const masterVol = getMasterVolume();
-
-    osc.connect(gain);
-    gain.connect(ctx.destination);
-
-    // Rising pitch
-    osc.frequency.setValueAtTime(400, ctx.currentTime);
-    osc.frequency.exponentialRampToValueAtTime(800, ctx.currentTime + 0.1);
-    osc.type = 'sine';
-
-    gain.gain.setValueAtTime(0.12 * masterVol, ctx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.12);
-
-    osc.start(ctx.currentTime);
-    osc.stop(ctx.currentTime + 0.12);
-  } catch (err) {
-    // Ignore audio errors
-  }
-}
-
-/**
- * Play tone for pause button (falling chirp)
- */
-export function playPauseTone() {
-  try {
-    const ctx = getContext();
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    const masterVol = getMasterVolume();
-
-    osc.connect(gain);
-    gain.connect(ctx.destination);
-
-    // Falling pitch
-    osc.frequency.setValueAtTime(600, ctx.currentTime);
-    osc.frequency.exponentialRampToValueAtTime(300, ctx.currentTime + 0.1);
-    osc.type = 'sine';
-
-    gain.gain.setValueAtTime(0.12 * masterVol, ctx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.12);
-
-    osc.start(ctx.currentTime);
-    osc.stop(ctx.currentTime + 0.12);
-  } catch (err) {
-    // Ignore audio errors
-  }
-}
 
 /**
  * Play tone for mute button (triple tap descending)

@@ -13,6 +13,7 @@ import { extractWordAtPoint } from './word-extractor.js';
 
 let messageInputEl = null;
 let messageInputRowEl = null;
+let clearInputBtnEl = null;
 let voiceListeningIndicatorEl = null;
 let voiceTranscriptEl = null;
 let voiceMeterDotEl = null;
@@ -43,6 +44,7 @@ export function initKeyboardInput() {
   // Query DOM elements for messaging interface
   messageInputEl = document.getElementById('messageInput');
   messageInputRowEl = document.getElementById('messageInputRow');
+  clearInputBtnEl = document.getElementById('clearInputBtn');
   voiceListeningIndicatorEl = document.getElementById('voiceListeningIndicator');
   voiceTranscriptEl = document.getElementById('voiceTranscript');
   voiceMeterDotEl = document.getElementById('voiceMeterDot');
@@ -82,7 +84,28 @@ export function initKeyboardInput() {
         sendCommand();
       }
     });
+  }
 
+  // Clear button - clears the input and cancels system mode if active
+  if (clearInputBtnEl) {
+    clearInputBtnEl.addEventListener('click', async () => {
+      // Cancel system mode if active
+      if (systemEntryMode) {
+        const { cancelMetaInput } = await import('../game/commands.js');
+        cancelMetaInput();
+        // Keep focus in input after canceling (prevents keyboard from closing on mobile)
+        if (messageInputEl) {
+          messageInputEl.focus();
+        }
+        return;
+      }
+
+      // Otherwise just clear the input
+      if (messageInputEl) {
+        messageInputEl.value = '';
+        messageInputEl.focus();
+      }
+    });
   }
 
   // Add click handlers for char input buttons
@@ -219,6 +242,11 @@ export function initKeyboardInput() {
   };
 
   const handleGameClick = (e) => {
+    // Only process left-click (button 0) for mouse events - allow right-click default behavior
+    if (e.type === 'click' && e.button !== 0) {
+      return; // Not left click - allow default behavior (context menu, etc.)
+    }
+
     // Get coordinates (different for touch vs mouse)
     // For touchend, use changedTouches since touches array is empty
     const clientX = e.changedTouches ? e.changedTouches[0].clientX : e.clientX;
@@ -457,16 +485,6 @@ function handleKeyPress(e) {
     return;
   }
 
-  // Handle Escape in system entry mode (SAVE/RESTORE/DELETE prompts)
-  if (systemEntryMode && e.key === 'Escape') {
-    e.preventDefault();
-    // Import dynamically to avoid circular dependency
-    import('../game/commands.js').then(module => {
-      module.cancelMetaInput();
-    });
-    return;
-  }
-
   const inputType = getInputType();
 
   // In char mode (press any key), send any key immediately
@@ -516,6 +534,24 @@ function handleKeyPress(e) {
   }
 
   // Line input mode - normal command typing
+  // Handle Escape key to clear input or cancel system mode
+  if (e.key === 'Escape' && messageInputEl) {
+    e.preventDefault();
+
+    // Cancel system mode if active
+    if (systemEntryMode) {
+      import('../game/commands.js').then(module => {
+        module.cancelMetaInput();
+      });
+      return;
+    }
+
+    // Otherwise just clear the input
+    messageInputEl.value = '';
+    messageInputEl.focus();
+    return;
+  }
+
   // Don't capture if user is in other input elements
   if (e.target.isContentEditable || e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') {
     return;
@@ -577,15 +613,17 @@ function updateInputVisibility() {
 
       // Toggle between text input and voice indicator based on mute state
       if (isMuted || systemEntryMode) {
-        // Muted or system entry - show text input, hide voice indicator
+        // Muted or system entry - show text input and clear button, hide voice indicator
         if (messageInputEl) messageInputEl.classList.remove('hidden');
+        if (clearInputBtnEl) clearInputBtnEl.classList.remove('hidden');
         if (voiceListeningIndicatorEl) voiceListeningIndicatorEl.classList.add('hidden');
 
         // Don't auto-focus - let user click or type to focus
         // This prevents unexpected scroll-to-bottom
       } else {
-        // Unmuted - hide text input, show voice indicator
+        // Unmuted - hide text input and clear button, show voice indicator
         if (messageInputEl) messageInputEl.classList.add('hidden');
+        if (clearInputBtnEl) clearInputBtnEl.classList.add('hidden');
         if (voiceListeningIndicatorEl) voiceListeningIndicatorEl.classList.remove('hidden');
       }
     } else {
@@ -710,7 +748,7 @@ export function enterSystemEntryMode(promptText) {
 export function exitSystemEntryMode() {
   systemEntryMode = false;
   if (messageInputEl) {
-    messageInputEl.placeholder = 'Enter command...';
+    messageInputEl.placeholder = 'Type a command...';
     messageInputEl.classList.remove('system-entry');
   }
 }

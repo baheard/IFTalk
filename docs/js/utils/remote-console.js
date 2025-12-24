@@ -17,7 +17,7 @@ const LOCAL_SERVER = false; // Only enable if running local Node server
 
 // Set to true to intercept ALL console.log/warn/error (noisy)
 // Set to false to only use console.remote() (recommended)
-const INTERCEPT_ALL = false;
+const INTERCEPT_ALL = true;
 
 // Mobile detection (768px breakpoint or touch device)
 const isMobile = () => window.innerWidth <= 768 || 'ontouchstart' in window;

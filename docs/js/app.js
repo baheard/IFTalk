@@ -29,6 +29,7 @@ import { updateNavButtons } from './ui/nav-buttons.js';
 import { addGameText } from './ui/game-output.js';
 import { initSettings, loadBrowserVoiceConfig, initVoiceSelection, updateSettingsContext } from './ui/settings.js';
 import { initHistoryButtons } from './ui/history.js';
+import { initConfirmDialog } from './ui/confirm-dialog.js';
 
 // Game modules
 import { sendCommand, sendCommandDirect, initDialogInterceptor } from './game/commands.js';
@@ -42,8 +43,21 @@ import { playMuteTone, playUnmuteTone } from './utils/audio-feedback.js';
 
 // Voice command handlers (exported so typed commands can use them too)
 export const voiceCommandHandlers = {
-  restart: () => skipToStart(() => speakTextChunked(null, state.currentChunkIndex)),
-  back: () => skipToChunk(-1, () => speakTextChunked(null, state.currentChunkIndex)),
+  restart: () => {
+    // Voice navigation commands enable autoplay
+    state.autoplayEnabled = true;
+    skipToStart(() => speakTextChunked(null, state.currentChunkIndex));
+  },
+  back: () => {
+    // Voice navigation commands enable autoplay
+    state.autoplayEnabled = true;
+    skipToChunk(-1, () => speakTextChunked(null, state.currentChunkIndex));
+  },
+  backN: (count) => {
+    // Voice navigation commands enable autoplay
+    state.autoplayEnabled = true;
+    skipToChunk(-count, () => speakTextChunked(null, state.currentChunkIndex));
+  },
   pause: () => {
     // Switch to MANUAL mode (same as clicking pause button)
     if (state.autoplayEnabled || state.isNarrating) {
@@ -88,8 +102,21 @@ export const voiceCommandHandlers = {
       updateNavButtons();
     }
   },
-  skip: () => skipToChunk(1, () => speakTextChunked(null, state.currentChunkIndex)),
-  skipToEnd: () => skipToEnd(),
+  skip: () => {
+    // Voice navigation commands enable autoplay
+    state.autoplayEnabled = true;
+    skipToChunk(1, () => speakTextChunked(null, state.currentChunkIndex));
+  },
+  skipN: (count) => {
+    // Voice navigation commands enable autoplay
+    state.autoplayEnabled = true;
+    skipToChunk(count, () => speakTextChunked(null, state.currentChunkIndex));
+  },
+  skipToEnd: () => {
+    // Voice navigation commands enable autoplay
+    state.autoplayEnabled = true;
+    skipToEnd();
+  },
   status: () => {
     // Read status bar content
     const statusText = dom.statusBar?.textContent?.trim();
@@ -158,7 +185,13 @@ export const voiceCommandHandlers = {
 
     // DON'T stop voice recognition - keep it running to listen for "unmute"
   },
-  sendCommandDirect: (cmd) => sendCommandDirect(cmd)
+  sendCommandDirect: (cmd) => sendCommandDirect(cmd),
+  getHint: async function() {
+    const { getHint } = await import('./features/hints.js');
+    // Respect user's hint type selection from dropdown
+    const hintType = localStorage.getItem('iftalk_hintType') || 'general';
+    getHint(hintType);
+  }
 };
 
 // Handle game output from GlkOte
@@ -201,41 +234,15 @@ async function initApp() {
   // Initialize DOM
   initDOM();
 
-  // Make game-meta (info icons) tappable on touch devices
-  // Desktop uses hover (no click needed), touch uses tap toggle
-  const hasHover = window.matchMedia('(hover: hover)').matches;
-
+  // Setup game card info icons - set data-title from parent game-title text
+  // Click handling is done by initHelpTooltips() for all tooltips
   document.querySelectorAll('.game-meta').forEach(el => {
-    // Set data-title from parent game-title text
     const titleEl = el.closest('.game-title');
     if (titleEl) {
       const titleText = titleEl.childNodes[0]?.textContent?.trim() || '';
       el.dataset.title = titleText;
     }
-
-    // Only add click toggle for touch devices
-    if (!hasHover) {
-      el.addEventListener('click', e => {
-        e.stopPropagation();
-        e.preventDefault();
-        // Close any other open tooltips
-        document.querySelectorAll('.game-meta.active').forEach(other => {
-          if (other !== el) other.classList.remove('active');
-        });
-        // Toggle this one
-        el.classList.toggle('active');
-      });
-    }
   });
-
-  // Close tooltip when tapping elsewhere (touch only)
-  if (!hasHover) {
-    document.addEventListener('click', () => {
-      document.querySelectorAll('.game-meta.active').forEach(el => {
-        el.classList.remove('active');
-      });
-    });
-  }
 
   // Browser back button is handled in game-loader.js
 
@@ -269,8 +276,6 @@ async function initApp() {
     if (CSS.highlights) {
       const highlight = CSS.highlights.get('speaking');
       if (highlight) {
-      } else {
-        console.warn(`[CHUNK EVENT] No CSS highlight found!`);
       }
     }
   });
@@ -291,13 +296,40 @@ async function initApp() {
     }
   };
 
+  // Initialize voice controls visibility from global settings
+  const voiceControlsEnabled = localStorage.getItem('iftalk_voiceControlsEnabled') !== 'false';
+  const controls = document.getElementById('controls');
+  if (controls && !voiceControlsEnabled) {
+    controls.classList.add('hidden');
+    document.body.classList.add('voice-controls-hidden');
+  }
+
+  // Load global audio settings into state
+  if (!state.browserVoiceConfig) state.browserVoiceConfig = {};
+  state.browserVoiceConfig.voice = localStorage.getItem('iftalk_narratorVoice') || state.browserVoiceConfig.voice;
+  state.browserVoiceConfig.appVoice = localStorage.getItem('iftalk_appVoice') || state.browserVoiceConfig.appVoice;
+  state.browserVoiceConfig.rate = parseFloat(localStorage.getItem('iftalk_speechRate') || state.browserVoiceConfig.rate || '1.0');
+  state.browserVoiceConfig.volume = parseFloat(localStorage.getItem('iftalk_masterVolume') || '100') / 100;
+
   // Initialize UI components
   initSettings();
   initVoiceSelection();
   initHistoryButtons();
+  initConfirmDialog();
   initSaveHandlers();
   initDialogInterceptor();
   initScrollDetection();
+
+  // Initialize Google Drive sync (optional, graceful degradation)
+  try {
+    const { initGDriveSync } = await import('./utils/gdrive-sync.js');
+    await initGDriveSync();
+  } catch (error) {
+    console.warn('[App] Google Drive sync unavailable:', error.message);
+    // Hide Cloud Sync section if init fails
+    const cloudSyncSection = document.getElementById('cloudSyncSection');
+    if (cloudSyncSection) cloudSyncSection.style.display = 'none';
+  }
 
   // Initialize keep awake (screen wake lock)
   initKeepAwake();
@@ -314,6 +346,35 @@ async function initApp() {
       }
     });
   }
+
+  // Initialize tap-to-examine toggle
+  const tapToExamineToggle = document.getElementById('tapToExamineToggle');
+  if (tapToExamineToggle) {
+    const saved = localStorage.getItem('iftalk_tap_to_examine');
+    tapToExamineToggle.checked = saved === 'true'; // default disabled
+
+    // Set initial body class based on saved setting
+    if (saved === 'true') {
+      document.body.classList.add('tap-to-examine-enabled');
+    } else {
+      document.body.classList.remove('tap-to-examine-enabled');
+    }
+
+    tapToExamineToggle.addEventListener('change', (e) => {
+      localStorage.setItem('iftalk_tap_to_examine', e.target.checked.toString());
+      updateStatus(`Tap to examine ${e.target.checked ? 'enabled' : 'disabled'}`);
+
+      // Update cursor immediately via body class
+      if (e.target.checked) {
+        document.body.classList.add('tap-to-examine-enabled');
+      } else {
+        document.body.classList.remove('tap-to-examine-enabled');
+      }
+    });
+  }
+
+  // Initialize help icon tooltips (shared utility for all help icons)
+  initHelpTooltips();
 
   // Initialize lock screen (mobile only)
   initLockScreen();
@@ -444,15 +505,15 @@ async function initApp() {
       return;
     }
 
-    // Escape - exit autoplay mode
-    if (e.key === 'Escape' && state.autoplayEnabled) {
-      state.autoplayEnabled = false;
-      state.narrationEnabled = false;
-      state.isPaused = true;
-      stopNarration(true);
-      updateStatus('Autoplay off');
-      updateNavButtons();
+    // Ctrl+Shift+H - Get hint from ChatGPT
+    if (e.key === 'H' && e.ctrlKey && e.shiftKey) {
+      e.preventDefault();
+      voiceCommandHandlers.getHint();
+      return;
     }
+
+    // Escape key is reserved for closing dialogs and clearing input only
+    // (No longer stops autoplay/narration)
   });
 
 
@@ -504,6 +565,55 @@ async function initApp() {
     }
   });
 
+}
+
+/**
+ * Initialize all tooltips (help icons and info icons)
+ * Shared utility for all tooltips across the app (settings panel, home screen, etc.)
+ * Supports both hover (desktop) and click (mobile/desktop) interactions
+ */
+function initHelpTooltips() {
+  // Get all tooltip elements
+  const tooltipSelectors = [
+    '.setting-help-icon',   // Settings panel help icons
+    '.voice-help-icon',     // Voice command help icons
+    '.info-help-icon',      // General info icons
+    '.game-meta'            // Game card info icons (welcome screen)
+  ];
+
+  const allTooltips = [];
+  tooltipSelectors.forEach(selector => {
+    const tooltips = document.querySelectorAll(selector);
+    tooltips.forEach(tooltip => allTooltips.push(tooltip));
+  });
+
+  if (allTooltips.length === 0) return;
+
+  // Handle click/tap events for all tooltips
+  allTooltips.forEach(tooltip => {
+    tooltip.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+
+      // Toggle active class (close if already open, open if was closed)
+      const wasActive = tooltip.classList.contains('active');
+
+      // Close all other tooltips first
+      allTooltips.forEach(t => t.classList.remove('active'));
+
+      // Toggle this one (close if was open, open if was closed)
+      if (!wasActive) {
+        tooltip.classList.add('active');
+      }
+    });
+  });
+
+  // Close all tooltips when clicking outside
+  document.addEventListener('click', (e) => {
+    if (!e.target.closest(tooltipSelectors.join(', '))) {
+      allTooltips.forEach(tooltip => tooltip.classList.remove('active'));
+    }
+  });
 }
 
 // Initialize when DOM is ready
