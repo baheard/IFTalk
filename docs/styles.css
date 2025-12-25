@@ -1335,7 +1335,7 @@ n/* Hint Button */
 
 .quick-action-btn {
   width: auto;
-  min-width: 160px;
+  min-width: 180px;
   align-self: flex-start;
 }
 
@@ -2098,11 +2098,79 @@ body.tap-to-examine-enabled .game-text {
   font-size: 80px;
 }
 
+.lock-screen-listening-indicator {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--font-sans);
+  font-size: 16px;
+  color: var(--accent-primary);
+  margin-bottom: 8px;
+}
+
+.lock-screen-listening-indicator.hidden {
+  display: none;
+}
+
+.lock-screen-listening-indicator .mic-pulse {
+  font-size: 24px;
+  animation: pulse-mic 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse-mic {
+  0%, 100% {
+    opacity: 0.6;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.1);
+  }
+}
+
+.lock-screen-muted-indicator {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--font-sans);
+  font-size: 16px;
+  color: #ff6b6b;
+  margin-bottom: 8px;
+}
+
+.lock-screen-muted-indicator.hidden {
+  display: none;
+}
+
+.lock-screen-muted-indicator .material-icons {
+  font-size: 24px;
+}
+
 .lock-screen-instructions {
   font-family: var(--font-sans);
   font-size: 18px;
   color: rgba(255, 255, 255, 0.8);
   margin-bottom: 8px;
+}
+
+.lock-screen-transcript {
+  font-family: var(--font-mono);
+  font-size: 20px;
+  color: rgba(255, 255, 255, 0.95);
+  padding: 12px 24px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  min-height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  max-width: 300px;
+  word-break: break-word;
+  margin: 8px 0;
+}
+
+.lock-screen-transcript.hidden {
+  display: none;
 }
 
 /* Unlock Button */
@@ -2385,10 +2453,19 @@ body.tap-to-examine-enabled .game-text {
   color: var(--color-app-system);
 }
 
+/* Input container (wraps input + inline clear button) */
+.input-container {
+  position: relative;
+  flex: 1;
+  display: flex;
+  align-items: center;
+}
+
 .message-input {
   height: 45px;
   flex: 1;
   padding: 10px 16px;
+  padding-right: 45px; /* Space for inline clear button */
   border: 1px solid var(--border-subtle);
   border-radius: 8px;
   background: var(--bg-elevated);
@@ -2397,6 +2474,37 @@ body.tap-to-examine-enabled .game-text {
   font-family: var(--font-mono);
   transition: all 0.3s ease;
   cursor: text;
+}
+
+/* Inline clear button (positioned inside input on right side) */
+.btn-clear-inline {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  z-index: 10;
+}
+
+.btn-clear-inline:hover {
+  background: transparent;
+  color: var(--text-primary);
+  transform: translateY(-50%) scale(1.05);
+}
+
+.btn-clear-inline .material-icons {
+  font-size: 22px;
 }
 
 .message-input:focus {

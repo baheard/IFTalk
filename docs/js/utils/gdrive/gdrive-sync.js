@@ -289,7 +289,7 @@ export function scheduleDriveSync(saveKey, saveData) {
 /**
  * Create conflict backup when local save is about to be overwritten
  * Stores backup in localStorage with timestamped key
- * Keeps max 2 backups per save type per game, deletes oldest when creating 3rd
+ * Shares the same 5 backup limit with interval-based autosave backups
  * @param {string} localStorageKey - The localStorage key (e.g., "iftalk_autosave_lostpig")
  * @param {object} localData - The save data to backup
  */
@@ -315,12 +315,18 @@ function createConflictBackup(localStorageKey, localData) {
     }
   }
 
-  // Sort by timestamp (oldest first)
-  allBackups.sort((a, b) => a.timestamp - b.timestamp);
+  // Sort by timestamp (newest first)
+  allBackups.sort((a, b) => b.timestamp - a.timestamp);
 
-  // Keep only the 2 most recent backups (delete oldest if we have more than 2)
-  while (allBackups.length > 2) {
-    const oldest = allBackups.shift();
-    localStorage.removeItem(oldest.key);
+  // Keep only the 5 most recent backups (shared limit with interval backups)
+  if (allBackups.length > 5) {
+    const toRemove = allBackups.slice(5);
+    toRemove.forEach(({ key }) => {
+      localStorage.removeItem(key);
+      console.log(`[Backup] Removed old conflict backup: ${key}`);
+    });
   }
+
+  console.log(`[Backup] Created conflict backup: ${backupKey}`);
+  console.log(`[Backup] Total backups for this save: ${Math.min(allBackups.length, 5)}/5`);
 }

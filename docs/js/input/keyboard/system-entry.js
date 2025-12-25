@@ -44,7 +44,7 @@ export function enterSystemEntryMode(promptText, showMessageInputFn, hasPhysical
 export function exitSystemEntryMode() {
   systemEntryMode = false;
   if (messageInputEl) {
-    messageInputEl.placeholder = 'Type a command...';
+    messageInputEl.placeholder = 'Type command...';
     messageInputEl.classList.remove('system-entry');
   }
 }

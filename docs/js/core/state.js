@@ -88,14 +88,23 @@ const _state = {
   lastDeviceId: null
 };
 
-// Add getter/setter for autoplayEnabled with logging
+// Add getter/setter for autoplayEnabled with logging and persistence
 Object.defineProperty(_state, 'autoplayEnabled', {
   get() {
     return this._autoplayEnabled;
   },
   set(value) {
     if (this._autoplayEnabled !== value) {
-      console.trace('[State] Stack trace:');
+      console.log(`[State] autoplayEnabled changed: ${this._autoplayEnabled} → ${value}`);
+
+      // Save to global settings (skip during initial load to prevent double-save)
+      if (!this._loadingAutoplay) {
+        try {
+          localStorage.setItem('iftalk_autoplayEnabled', value.toString());
+        } catch (err) {
+          console.warn('[State] Failed to save autoplayEnabled (private browsing?):', err);
+        }
+      }
     }
     this._autoplayEnabled = value;
   },

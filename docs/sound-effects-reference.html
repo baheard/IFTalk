@@ -180,6 +180,149 @@
       color: var(--text-muted);
       font-size: 0.9em;
     }
+
+    /* Sound Editor Styles */
+    .editor-section {
+      background: var(--bg-surface);
+      border: 2px solid var(--accent-primary);
+      border-radius: 12px;
+      padding: 24px;
+      margin-bottom: 40px;
+    }
+
+    .editor-title {
+      font-size: 1.4em;
+      font-weight: 600;
+      color: var(--accent-primary);
+      margin-bottom: 8px;
+    }
+
+    .editor-subtitle {
+      color: var(--text-muted);
+      margin-bottom: 20px;
+      font-size: 0.95em;
+    }
+
+    .editor-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 16px;
+      margin-bottom: 20px;
+    }
+
+    .editor-control {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .editor-control label {
+      color: var(--text-muted);
+      font-size: 0.9em;
+      font-weight: 500;
+    }
+
+    .editor-control input[type="number"],
+    .editor-control select {
+      background: var(--bg-elevated);
+      color: var(--text-primary);
+      border: 1px solid var(--border-subtle);
+      border-radius: 6px;
+      padding: 8px 12px;
+      font-size: 0.95em;
+    }
+
+    .editor-control input[type="number"]:focus,
+    .editor-control select:focus {
+      outline: none;
+      border-color: var(--accent-primary);
+    }
+
+    .editor-actions {
+      display: flex;
+      gap: 12px;
+      margin-top: 20px;
+      flex-wrap: wrap;
+    }
+
+    .editor-btn {
+      background: var(--accent-primary);
+      color: white;
+      border: none;
+      border-radius: 8px;
+      padding: 12px 24px;
+      cursor: pointer;
+      font-size: 1em;
+      font-weight: 500;
+      transition: all 0.2s ease;
+      flex: 1;
+      min-width: 150px;
+    }
+
+    .editor-btn:hover {
+      background: #4a74ce;
+      transform: translateY(-1px);
+    }
+
+    .editor-btn.secondary {
+      background: var(--bg-elevated);
+      color: var(--text-primary);
+      border: 1px solid var(--border-subtle);
+    }
+
+    .editor-btn.secondary:hover {
+      background: var(--border-subtle);
+    }
+
+    .paste-command {
+      background: var(--bg-primary);
+      border: 1px solid var(--border-subtle);
+      border-radius: 6px;
+      padding: 16px;
+      margin-top: 16px;
+      font-family: 'Courier New', monospace;
+      font-size: 0.9em;
+      color: var(--accent-warm);
+      white-space: pre;
+      overflow-x: auto;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .paste-command:hover {
+      border-color: var(--accent-primary);
+      background: var(--bg-elevated);
+    }
+
+    .paste-command.copied {
+      border-color: #4ade80;
+      background: rgba(74, 222, 128, 0.1);
+    }
+
+    .load-btn {
+      background: var(--bg-elevated);
+      color: var(--text-primary);
+      border: 1px solid var(--border-subtle);
+      border-radius: 6px;
+      padding: 6px 16px;
+      cursor: pointer;
+      font-size: 0.85em;
+      font-weight: 500;
+      transition: all 0.2s ease;
+      margin-left: 8px;
+    }
+
+    .load-btn:hover {
+      background: var(--border-subtle);
+      border-color: var(--accent-primary);
+    }
+
+    .editor-current-sound {
+      color: var(--accent-warm);
+      font-size: 0.9em;
+      margin-bottom: 12px;
+      font-style: italic;
+    }
   </style>
 </head>
 <body>
@@ -195,6 +338,86 @@
       </div>
     </div>
 
+    <!-- Sound Editor -->
+    <div class="editor-section">
+      <div class="editor-title">🎵 Sound Editor</div>
+      <div class="editor-subtitle">Create and test custom sound effects. Click "Load" on any sound below to edit it.</div>
+
+      <div class="editor-current-sound" id="currentSound">No sound loaded - click Load on any sound below</div>
+
+      <div class="editor-grid">
+        <div class="editor-control">
+          <label for="editFreq">Frequency (Hz)</label>
+          <input type="number" id="editFreq" value="600" min="50" max="2000" step="10">
+        </div>
+
+        <div class="editor-control">
+          <label for="editWave">Wave Type</label>
+          <select id="editWave">
+            <option value="sine">Sine</option>
+            <option value="square">Square</option>
+            <option value="sawtooth">Sawtooth</option>
+            <option value="triangle">Triangle</option>
+          </select>
+        </div>
+
+        <div class="editor-control">
+          <label for="editDuration">Duration (ms)</label>
+          <input type="number" id="editDuration" value="20" min="10" max="500" step="10">
+        </div>
+
+        <div class="editor-control">
+          <label for="editVolume">Volume (0-1)</label>
+          <input type="number" id="editVolume" value="0.25" min="0.01" max="1" step="0.01">
+        </div>
+
+        <div class="editor-control">
+          <label for="editAttack">Attack (ms)</label>
+          <input type="number" id="editAttack" value="0" min="0" max="100" step="5">
+        </div>
+
+        <div class="editor-control">
+          <label for="editDecay">Decay (ms)</label>
+          <input type="number" id="editDecay" value="0" min="0" max="100" step="5">
+        </div>
+      </div>
+
+      <div class="editor-subtitle" style="margin-top: 16px; margin-bottom: 12px; font-size: 0.9em;">
+        Multi-Tone Pattern (optional - leave blank for single tone)
+      </div>
+
+      <div class="editor-grid">
+        <div class="editor-control">
+          <label for="editFreq2">Tone 2 Frequency (Hz)</label>
+          <input type="number" id="editFreq2" value="" min="50" max="2000" step="10" placeholder="Optional">
+        </div>
+
+        <div class="editor-control">
+          <label for="editDelay2">Tone 2 Delay (ms)</label>
+          <input type="number" id="editDelay2" value="50" min="0" max="300" step="10" placeholder="After tone 1">
+        </div>
+
+        <div class="editor-control">
+          <label for="editFreq3">Tone 3 Frequency (Hz)</label>
+          <input type="number" id="editFreq3" value="" min="50" max="2000" step="10" placeholder="Optional">
+        </div>
+
+        <div class="editor-control">
+          <label for="editDelay3">Tone 3 Delay (ms)</label>
+          <input type="number" id="editDelay3" value="100" min="0" max="300" step="10" placeholder="After tone 1">
+        </div>
+      </div>
+
+      <div class="editor-actions">
+        <button class="editor-btn" onclick="playCustomSound()">▶ Play Custom Sound</button>
+        <button class="editor-btn secondary" onclick="generatePasteCommand()">📋 Copy Paste Command</button>
+      </div>
+
+      <div class="paste-command" id="pasteCommand" onclick="copyPasteCommand()" style="display: none;">
+        Click to copy...
+      </div>
+    </div>
+
     <div class="effects-grid">
       <!-- Command Sent -->
       <div class="effect-card">
@@ -203,7 +426,10 @@
             <div class="effect-title">Command Sent (Subtle Pop)</div>
             <div class="effect-event">When: Game command is sent (e.g., "look", "take sword")</div>
           </div>
-          <button class="play-btn" onclick="playCommandSent()">Play</button>
+          <div>
+            <button class="play-btn" onclick="playCommandSent()">Play</button>
+            <button class="load-btn" onclick="loadSound('commandSent', {freq: 600, wave: 'sine', duration: 20, volume: 0.25, attack: 0, decay: 0})">Load</button>
+          </div>
         </div>
         <div class="effect-specs">
           <div class="spec-row">
@@ -240,7 +466,10 @@
             <div class="effect-title">App Command (Soft Pulse)</div>
             <div class="effect-event">When: Navigation/app command (e.g., "pause", "restart", "skip")</div>
           </div>
-          <button class="play-btn" onclick="playAppCommand()">Play</button>
+          <div>
+            <button class="play-btn" onclick="playAppCommand()">Play</button>
+            <button class="load-btn" onclick="loadSound('appCommand', {freq: 460, wave: 'sine', duration: 100, volume: 0.10, attack: 30, decay: 0})">Load</button>
+          </div>
         </div>
         <div class="effect-specs">
           <div class="spec-row">
@@ -281,7 +510,10 @@
             <div class="effect-title">Low Confidence Warning</div>
             <div class="effect-event">When: Voice recognition confidence < 50%</div>
           </div>
-          <button class="play-btn" onclick="playLowConfidence()">Play</button>
+          <div>
+            <button class="play-btn" onclick="playLowConfidence()">Play</button>
+            <button class="load-btn" onclick="loadSound('lowConfidence', {freq: 200, wave: 'sine', duration: 200, volume: 0.3, attack: 0, decay: 0})">Load</button>
+          </div>
         </div>
         <div class="effect-specs">
           <div class="spec-row">
@@ -302,7 +534,7 @@
           </div>
           <div class="spec-row">
             <span class="spec-label">Volume:</span>
-            <span class="spec-value">0.24</span>
+            <span class="spec-value">0.3</span>
           </div>
         </div>
       </div>
@@ -314,7 +546,10 @@
             <div class="effect-title">Blocked Command</div>
             <div class="effect-event">When: Command rejected (invalid, system busy, etc.)</div>
           </div>
-          <button class="play-btn" onclick="playBlockedCommand()">Play</button>
+          <div>
+            <button class="play-btn" onclick="playBlockedCommand()">Play</button>
+            <button class="load-btn" onclick="loadSound('blockedCommand', {freq: 150, wave: 'sawtooth', duration: 150, volume: 0.40, attack: 0, decay: 0})">Load</button>
+          </div>
         </div>
         <div class="effect-specs">
           <div class="spec-row">
@@ -347,7 +582,10 @@
             <div class="effect-title">Mute Mic</div>
             <div class="effect-event">When: Microphone muted</div>
           </div>
-          <button class="play-btn" onclick="playMuteTone()">Play</button>
+          <div>
+            <button class="play-btn" onclick="playMuteTone()">Play</button>
+            <button class="load-btn" onclick="loadSound('muteTone', {freq: 300, wave: 'sine', duration: 40, volume: 0.3, attack: 0, decay: 0, freq2: 250, delay2: 50, freq3: 200, delay3: 100})">Load</button>
+          </div>
         </div>
         <div class="effect-specs">
           <div class="spec-row">
@@ -368,7 +606,7 @@
           </div>
           <div class="spec-row">
             <span class="spec-label">Volume:</span>
-            <span class="spec-value">0.12</span>
+            <span class="spec-value">0.3</span>
           </div>
         </div>
       </div>
@@ -380,7 +618,10 @@
             <div class="effect-title">Unmute Mic</div>
             <div class="effect-event">When: Microphone unmuted</div>
           </div>
-          <button class="play-btn" onclick="playUnmuteTone()">Play</button>
+          <div>
+            <button class="play-btn" onclick="playUnmuteTone()">Play</button>
+            <button class="load-btn" onclick="loadSound('unmuteTone', {freq: 660, wave: 'sine', duration: 150, volume: 0.12, attack: 0, decay: 0, freq2: 880, delay2: 80})">Load</button>
+          </div>
         </div>
         <div class="effect-specs">
           <div class="spec-row">
@@ -402,6 +643,46 @@
           <div class="spec-row">
             <span class="spec-label">Volume:</span>
             <span class="spec-value">0.12</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- System Beep -->
+      <div class="effect-card">
+        <div class="effect-header">
+          <div>
+            <div class="effect-title">System Message Beep</div>
+            <div class="effect-event">When: Before system message narration (e.g., save/restore prompts)</div>
+          </div>
+          <div>
+            <button class="play-btn" onclick="playSystemBeep()">Play</button>
+            <button class="load-btn" onclick="loadSound('systemBeep', {freq: 800, wave: 'sine', duration: 80, volume: 0.15, attack: 0, decay: 0})">Load</button>
+          </div>
+        </div>
+        <div class="effect-specs">
+          <div class="spec-row">
+            <span class="spec-label">Type:</span>
+            <span class="spec-value">Clean neutral beep</span>
+          </div>
+          <div class="spec-row">
+            <span class="spec-label">Frequency:</span>
+            <span class="spec-value">800 Hz</span>
+          </div>
+          <div class="spec-row">
+            <span class="spec-label">Wave:</span>
+            <span class="spec-value">Sine</span>
+          </div>
+          <div class="spec-row">
+            <span class="spec-label">Duration:</span>
+            <span class="spec-value">80ms</span>
+          </div>
+          <div class="spec-row">
+            <span class="spec-label">Envelope:</span>
+            <span class="spec-value">Exponential (gentle decay)</span>
+          </div>
+          <div class="spec-row">
+            <span class="spec-label">Volume:</span>
+            <span class="spec-value">0.15</span>
           </div>
         </div>
       </div>
@@ -513,7 +794,7 @@
         lfoGain.gain.value = 20;
         osc.type = 'sine';
 
-        gain.gain.setValueAtTime(0.24 * masterVol, ctx.currentTime);
+        gain.gain.setValueAtTime(0.3 * masterVol, ctx.currentTime);
         gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.2);
 
         lfo.start(ctx.currentTime);
@@ -561,7 +842,7 @@
           osc.frequency.value = freq;
           osc.type = 'sine';
           const start = ctx.currentTime + i * 0.05;
-          gain.gain.setValueAtTime(0.12 * masterVol, start);
+          gain.gain.setValueAtTime(0.3 * masterVol, start);
           gain.gain.exponentialRampToValueAtTime(0.001, start + 0.04);
           osc.start(start);
           osc.stop(start + 0.04);
@@ -602,6 +883,201 @@
       }
     }
 
+    function playSystemBeep() {
+      try {
+        const ctx = getContext();
+        const masterVol = getMasterVolume();
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+
+        // Clean, neutral beep
+        osc.frequency.value = 800;
+        osc.type = 'sine';
+
+        const now = ctx.currentTime;
+        gain.gain.setValueAtTime(0.15 * masterVol, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.08);
+
+        osc.start(now);
+        osc.stop(now + 0.08);
+      } catch (err) {
+        console.error('System beep error:', err);
+      }
+    }
+
+    // Editor state
+    let currentSoundName = null;
+    let currentSoundId = null;
+
+    // Load sound into editor
+    function loadSound(soundId, params) {
+      currentSoundId = soundId;
+
+      // Update primary tone values
+      document.getElementById('editFreq').value = params.freq;
+      document.getElementById('editWave').value = params.wave;
+      document.getElementById('editDuration').value = params.duration;
+      document.getElementById('editVolume').value = params.volume;
+      document.getElementById('editAttack').value = params.attack || 0;
+      document.getElementById('editDecay').value = params.decay || 0;
+
+      // Clear multi-tone fields first
+      document.getElementById('editFreq2').value = '';
+      document.getElementById('editFreq3').value = '';
+      document.getElementById('editDelay2').value = 50;
+      document.getElementById('editDelay3').value = 100;
+
+      // Load multi-tone values if present
+      if (params.freq2) {
+        document.getElementById('editFreq2').value = params.freq2;
+        document.getElementById('editDelay2').value = params.delay2 || 50;
+      }
+      if (params.freq3) {
+        document.getElementById('editFreq3').value = params.freq3;
+        document.getElementById('editDelay3').value = params.delay3 || 100;
+      }
+
+      // Update current sound label
+      const soundNames = {
+        commandSent: 'Command Sent',
+        appCommand: 'App Command',
+        lowConfidence: 'Low Confidence',
+        blockedCommand: 'Blocked Command',
+        muteTone: 'Mute Mic',
+        unmuteTone: 'Unmute Mic',
+        systemBeep: 'System Message Beep'
+      };
+      currentSoundName = soundNames[soundId];
+      document.getElementById('currentSound').textContent = `Editing: ${currentSoundName}`;
+
+      // Scroll to editor
+      document.querySelector('.editor-section').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+
+    // Play custom sound with current editor values
+    function playCustomSound() {
+      try {
+        const ctx = getContext();
+        const masterVol = getMasterVolume();
+
+        // Get primary tone values
+        const freq = parseFloat(document.getElementById('editFreq').value);
+        const wave = document.getElementById('editWave').value;
+        const duration = parseFloat(document.getElementById('editDuration').value) / 1000;
+        const volume = parseFloat(document.getElementById('editVolume').value);
+        const attack = parseFloat(document.getElementById('editAttack').value) / 1000;
+        const decay = parseFloat(document.getElementById('editDecay').value) / 1000;
+
+        // Check for multi-tone pattern
+        const freq2 = document.getElementById('editFreq2').value;
+        const freq3 = document.getElementById('editFreq3').value;
+        const delay2 = parseFloat(document.getElementById('editDelay2').value) / 1000;
+        const delay3 = parseFloat(document.getElementById('editDelay3').value) / 1000;
+
+        // Collect all tones to play
+        const tones = [{ freq, delay: 0 }];
+        if (freq2) tones.push({ freq: parseFloat(freq2), delay: delay2 });
+        if (freq3) tones.push({ freq: parseFloat(freq3), delay: delay3 });
+
+        // Play each tone
+        tones.forEach(tone => {
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+
+          osc.frequency.value = tone.freq;
+          osc.type = wave;
+
+          const now = ctx.currentTime + tone.delay;
+
+          // Apply ADSR envelope
+          if (attack > 0) {
+            // Attack phase
+            gain.gain.setValueAtTime(0, now);
+            gain.gain.linearRampToValueAtTime(volume * masterVol, now + attack);
+          } else {
+            // Instant attack
+            gain.gain.setValueAtTime(volume * masterVol, now);
+          }
+
+          // Decay phase (if specified)
+          if (decay > 0 && attack > 0) {
+            const sustainLevel = volume * masterVol * 0.7; // Sustain at 70% of peak
+            gain.gain.linearRampToValueAtTime(sustainLevel, now + attack + decay);
+            gain.gain.exponentialRampToValueAtTime(0.001, now + duration);
+          } else {
+            // Just exponential release
+            const releaseStart = attack > 0 ? now + attack : now;
+            gain.gain.exponentialRampToValueAtTime(0.001, now + duration);
+          }
+
+          osc.start(now);
+          osc.stop(now + duration);
+        });
+      } catch (err) {
+        console.error('Custom sound error:', err);
+      }
+    }
+
+    // Generate paste command
+    function generatePasteCommand() {
+      if (!currentSoundId) {
+        alert('Please load a sound first by clicking "Load" on any sound below');
+        return;
+      }
+
+      const freq = document.getElementById('editFreq').value;
+      const wave = document.getElementById('editWave').value;
+      const duration = document.getElementById('editDuration').value;
+      const volume = document.getElementById('editVolume').value;
+      const attack = document.getElementById('editAttack').value;
+      const decay = document.getElementById('editDecay').value;
+
+      const freq2 = document.getElementById('editFreq2').value;
+      const freq3 = document.getElementById('editFreq3').value;
+      const delay2 = document.getElementById('editDelay2').value;
+      const delay3 = document.getElementById('editDelay3').value;
+
+      let params = `freq: ${freq}, wave: '${wave}', duration: ${duration}, volume: ${volume}, attack: ${attack}, decay: ${decay}`;
+
+      // Add multi-tone params if present
+      if (freq2) {
+        params += `, freq2: ${freq2}, delay2: ${delay2}`;
+      }
+      if (freq3) {
+        params += `, freq3: ${freq3}, delay3: ${delay3}`;
+      }
+
+      const command = `UPDATE: ${currentSoundName}
+PARAMS: {${params}}`;
+
+      const pasteEl = document.getElementById('pasteCommand');
+      pasteEl.textContent = command;
+      pasteEl.style.display = 'block';
+      pasteEl.classList.remove('copied');
+    }
+
+    // Copy paste command to clipboard
+    function copyPasteCommand() {
+      const pasteEl = document.getElementById('pasteCommand');
+      const command = pasteEl.textContent;
+
+      navigator.clipboard.writeText(command).then(() => {
+        pasteEl.classList.add('copied');
+        setTimeout(() => {
+          pasteEl.classList.remove('copied');
+        }, 2000);
+      }).catch(err => {
+        console.error('Failed to copy:', err);
+        alert('Failed to copy to clipboard');
+      });
+    }
+
     // Play all sounds in sequence
     async function playAllSequence() {
       const sounds = [
@@ -610,7 +1086,8 @@
         { name: 'Low Confidence', fn: playLowConfidence, delay: 400 },
         { name: 'Blocked Command', fn: playBlockedCommand, delay: 400 },
         { name: 'Mute', fn: playMuteTone, delay: 300 },
-        { name: 'Unmute', fn: playUnmuteTone, delay: 400 }
+        { name: 'Unmute', fn: playUnmuteTone, delay: 400 },
+        { name: 'System Beep', fn: playSystemBeep, delay: 300 }
       ];
 
       for (const sound of sounds) {

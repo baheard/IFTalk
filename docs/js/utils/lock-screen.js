@@ -18,6 +18,9 @@ import { enableKeepAwake, disableKeepAwake } from './wake-lock.js';
 let lockScreenOverlay = null;
 let unlockButton = null;
 let unlockProgress = null;
+let lockListeningIndicator = null;
+let lockMutedIndicator = null;
+let lockTranscript = null;
 
 // Hold-to-unlock state
 let holdTimer = null;
@@ -34,6 +37,9 @@ export function initLockScreen() {
   lockScreenOverlay = document.getElementById('lockScreenOverlay');
   unlockButton = document.getElementById('unlockButton');
   unlockProgress = document.getElementById('unlockProgress');
+  lockListeningIndicator = document.getElementById('lockListeningIndicator');
+  lockMutedIndicator = document.getElementById('lockMutedIndicator');
+  lockTranscript = document.getElementById('lockTranscript');
 
   if (!lockScreenOverlay || !unlockButton || !unlockProgress) {
     return;
@@ -72,6 +78,9 @@ export function lockScreen() {
 
   // Prevent body scroll
   document.body.style.overflow = 'hidden';
+
+  // Show current mic status immediately
+  updateLockScreenMicStatus();
 
   // Add touch event listeners to unlock button
   if (unlockButton) {
@@ -112,6 +121,11 @@ export function unlockScreen() {
   if (lockScreenOverlay) {
     lockScreenOverlay.classList.add('hidden');
   }
+
+  // Clear lock screen display elements
+  hideLockListeningIndicator();
+  hideLockMutedIndicator();
+  clearLockTranscript();
 
   // Resume animations
   resumeAnimations();
@@ -314,5 +328,82 @@ function exitFullscreen() {
     }
   } catch (err) {
     // Exit fullscreen not supported
+  }
+}
+
+/**
+ * Show listening indicator on lock screen
+ */
+export function showLockListeningIndicator() {
+  if (lockListeningIndicator && state.isScreenLocked) {
+    lockListeningIndicator.classList.remove('hidden');
+  }
+}
+
+/**
+ * Hide listening indicator on lock screen
+ */
+export function hideLockListeningIndicator() {
+  if (lockListeningIndicator) {
+    lockListeningIndicator.classList.add('hidden');
+  }
+}
+
+/**
+ * Update transcript text on lock screen
+ * @param {string} text - Transcript text to display
+ */
+export function updateLockTranscript(text) {
+  if (!lockTranscript || !state.isScreenLocked) return;
+
+  if (text && text.trim()) {
+    lockTranscript.textContent = text;
+    lockTranscript.classList.remove('hidden');
+  } else {
+    lockTranscript.textContent = '';
+    lockTranscript.classList.add('hidden');
+  }
+}
+
+/**
+ * Clear transcript on lock screen
+ */
+export function clearLockTranscript() {
+  updateLockTranscript('');
+}
+
+/**
+ * Show muted indicator on lock screen
+ */
+export function showLockMutedIndicator() {
+  if (lockMutedIndicator && state.isScreenLocked) {
+    lockMutedIndicator.classList.remove('hidden');
+    // Hide listening indicator when showing muted
+    hideLockListeningIndicator();
+  }
+}
+
+/**
+ * Hide muted indicator on lock screen
+ */
+export function hideLockMutedIndicator() {
+  if (lockMutedIndicator) {
+    lockMutedIndicator.classList.add('hidden');
+  }
+}
+
+/**
+ * Update lock screen status to show current mic state
+ * Call this when lock screen is shown or when mic state changes
+ */
+export function updateLockScreenMicStatus() {
+  if (!state.isScreenLocked) return;
+
+  if (state.isMuted) {
+    showLockMutedIndicator();
+  } else {
+    hideLockMutedIndicator();
+    // Show listening indicator immediately when not muted
+    showLockListeningIndicator();
   }
 }

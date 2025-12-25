@@ -32,6 +32,13 @@ export async function startGame(gamePath, onOutput) {
     // Update UI for game context (refresh voice dropdowns, inject sync button)
     reloadSettingsForGame();
 
+    // Load saved autoplay state from global settings (default to false if not saved)
+    state._loadingAutoplay = true;
+    const savedAutoplay = localStorage.getItem('iftalk_autoplayEnabled') === 'true';
+    state.autoplayEnabled = savedAutoplay;
+    state._loadingAutoplay = false;
+    console.log(`[Game Loader] Loaded autoplayEnabled: ${savedAutoplay}`);
+
     // Activate keep awake if enabled (requires user gesture - game click qualifies)
     activateIfEnabled();
 
@@ -167,6 +174,11 @@ export async function startGame(gamePath, onOutput) {
     // Autosave restore is now done BEFORE Glk.init() above (no delayed restore needed)
 
     updateStatus('Ready - Game loaded');
+
+    // Start autosave backup timer (every 2 minutes, max 5 backups)
+    import('./save-manager.js').then(({ startAutosaveBackupTimer }) => {
+      startAutosaveBackupTimer();
+    });
 
     // Fade out loading overlay (100ms delay + 100ms fade)
     const loadingOverlay = document.getElementById('loadingOverlay');

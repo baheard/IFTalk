@@ -50,8 +50,8 @@ function areSoundEffectsEnabled() {
  * Play tone for game command sent (Subtle Pop)
  */
 export function playCommandSent() {
-  // Don't play audio feedback when muted or sound effects are disabled
-  if (state.isMuted || !areSoundEffectsEnabled()) return;
+  // Don't play audio feedback when sound effects are disabled
+  if (!areSoundEffectsEnabled()) return;
 
   try {
     const ctx = getContext();
@@ -81,8 +81,8 @@ export function playCommandSent() {
  * Play tone for app/navigation command (Soft Pulse)
  */
 export function playAppCommand() {
-  // Don't play audio feedback when muted or sound effects are disabled
-  if (state.isMuted || !areSoundEffectsEnabled()) return;
+  // Don't play audio feedback when sound effects are disabled
+  if (!areSoundEffectsEnabled()) return;
 
   try {
     const ctx = getContext();
@@ -114,8 +114,8 @@ export function playAppCommand() {
  * Play tone for low confidence warning (gentle warble)
  */
 export function playLowConfidence() {
-  // Don't play audio feedback when muted or sound effects are disabled
-  if (state.isMuted || !areSoundEffectsEnabled()) return;
+  // Don't play audio feedback when sound effects are disabled
+  if (!areSoundEffectsEnabled()) return;
 
   try{
     const ctx = getContext();
@@ -135,7 +135,7 @@ export function playLowConfidence() {
     lfoGain.gain.value = 20;
     osc.type = 'sine';
 
-    gain.gain.setValueAtTime(0.24 * masterVol, ctx.currentTime); // Doubled from 0.12
+    gain.gain.setValueAtTime(0.30 * masterVol, ctx.currentTime);
     gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.2);
 
     lfo.start(ctx.currentTime);
@@ -154,8 +154,8 @@ export const LOW_CONFIDENCE_THRESHOLD = 0.50;
  * Play tone for blocked/failed command (loud buzz - audible during narration)
  */
 export function playBlockedCommand() {
-  // Don't play audio feedback when muted or sound effects are disabled
-  if (state.isMuted || !areSoundEffectsEnabled()) return;
+  // Don't play audio feedback when sound effects are disabled
+  if (!areSoundEffectsEnabled()) return;
 
   try {
     const ctx = getContext();
@@ -196,7 +196,7 @@ export function playMuteTone() {
       osc.frequency.value = freq;
       osc.type = 'sine';
       const start = ctx.currentTime + i * 0.05;
-      gain.gain.setValueAtTime(0.12 * masterVol, start);
+      gain.gain.setValueAtTime(0.3 * masterVol, start);
       gain.gain.exponentialRampToValueAtTime(0.001, start + 0.04);
       osc.start(start);
       osc.stop(start + 0.04);
@@ -238,4 +238,40 @@ export function playUnmuteTone() {
   } catch (err) {
     // Ignore audio errors
   }
+}
+
+/**
+ * Play tone before system messages (single clean beep)
+ * @returns {Promise<void>} Resolves when beep finishes
+ */
+export function playSystemBeep() {
+  return new Promise((resolve) => {
+    try {
+      const ctx = getContext();
+      const masterVol = getMasterVolume();
+
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+
+      // Clean, neutral beep
+      osc.frequency.value = 800;
+      osc.type = 'sine';
+
+      const now = ctx.currentTime;
+      gain.gain.setValueAtTime(0.15 * masterVol, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.08);
+
+      osc.start(now);
+      osc.stop(now + 0.08);
+
+      // Resolve after beep finishes
+      setTimeout(() => resolve(), 80);
+    } catch (err) {
+      // Ignore audio errors
+      resolve();
+    }
+  });
 }

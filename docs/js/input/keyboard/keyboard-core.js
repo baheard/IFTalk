@@ -17,6 +17,7 @@ import { isSystemEntryMode } from './system-entry.js';
 let messageInputEl = null;
 let messageInputRowEl = null;
 let clearInputBtnEl = null;
+let sendBtnEl = null;
 
 // Char input panel elements
 let charInputPanelEl = null;
@@ -41,6 +42,7 @@ export function initKeyboardInput() {
   messageInputEl = document.getElementById('messageInput');
   messageInputRowEl = document.getElementById('messageInputRow');
   clearInputBtnEl = document.getElementById('clearInputBtn');
+  sendBtnEl = document.getElementById('sendBtn');
 
   // Query DOM elements for char input panel
   charInputPanelEl = document.getElementById('charInputPanel');
@@ -77,18 +79,57 @@ export function initKeyboardInput() {
         sendCommand();
       }
     });
+
+    // Enable horizontal scrolling with touch gestures on mobile
+    let touchStartX = 0;
+    let scrollStartLeft = 0;
+
+    messageInputEl.addEventListener('touchstart', (e) => {
+      touchStartX = e.touches[0].clientX;
+      scrollStartLeft = messageInputEl.scrollLeft;
+    }, { passive: true });
+
+    messageInputEl.addEventListener('touchmove', (e) => {
+      const touchX = e.touches[0].clientX;
+      const deltaX = touchStartX - touchX;
+      messageInputEl.scrollLeft = scrollStartLeft + deltaX;
+    }, { passive: true });
+
+    // Show/hide inline clear button based on input content
+    messageInputEl.addEventListener('input', () => {
+      updateClearButtonVisibility();
+    });
+
+    // Also update on focus/blur
+    messageInputEl.addEventListener('focus', () => {
+      updateClearButtonVisibility();
+    });
+  }
+
+  // Send button - sends the command without opening keyboard
+  if (sendBtnEl) {
+    sendBtnEl.addEventListener('click', () => {
+      sendCommand();
+    });
   }
 
   // Clear button - clears the input and cancels system mode if active
   if (clearInputBtnEl) {
     clearInputBtnEl.addEventListener('click', async () => {
-      // Cancel system mode if active
+      // In system mode: clear text first, then cancel if already empty
       if (isSystemEntryMode()) {
-        const { cancelMetaInput } = await import('../game/commands.js');
-        cancelMetaInput();
-        // Keep focus in input after canceling (prevents keyboard from closing on mobile)
-        if (messageInputEl) {
+        if (messageInputEl && messageInputEl.value.trim().length > 0) {
+          // Has text - clear it first
+          messageInputEl.value = '';
           messageInputEl.focus();
+        } else {
+          // No text - cancel system mode
+          const { cancelMetaInput } = await import('../../game/commands/index.js');
+          cancelMetaInput();
+          // Keep focus in input after canceling (prevents keyboard from closing on mobile)
+          if (messageInputEl) {
+            messageInputEl.focus();
+          }
         }
         return;
       }
@@ -234,7 +275,7 @@ export function initKeyboardInput() {
 
   const handleGameClick = (e) => {
     // Only process left-click (button 0) for mouse events - allow right-click default behavior
-    if (e.type === 'click' && e.button !== 0) {
+    if (e.type === 'mouseup' && e.button !== 0) {
       return; // Not left click - allow default behavior (context menu, etc.)
     }
 
@@ -528,7 +569,7 @@ function handleKeyPress(e) {
 
     // Cancel system mode if active
     if (isSystemEntryMode()) {
-      import('../game/commands.js').then(module => {
+      import('../../game/commands/index.js').then(module => {
         module.cancelMetaInput();
       });
       return;
@@ -583,6 +624,15 @@ export function hasPhysicalKeyboard() {
 }
 
 /**
+ * Update inline clear button visibility based on input content
+ * NOTE: Clear button is now always visible (for cancel system mode + clear input)
+ */
+function updateClearButtonVisibility() {
+  // Button is always visible now - no action needed
+  // Kept as no-op to avoid breaking existing calls
+}
+
+/**
  * Update input visibility based on input type and mute state
  */
 function updateInputVisibility() {
@@ -601,16 +651,18 @@ function updateInputVisibility() {
 
       // Toggle between text input and voice indicator based on mute state
       if (isMuted || isSystemEntryMode()) {
-        // Muted or system entry - show text input and clear button, hide voice indicator
+        // Muted or system entry - show text input, send button, and clear button
         if (messageInputEl) messageInputEl.classList.remove('hidden');
+        if (sendBtnEl) sendBtnEl.classList.remove('hidden');
         if (clearInputBtnEl) clearInputBtnEl.classList.remove('hidden');
         hideVoiceIndicator();
 
         // Don't auto-focus - let user click or type to focus
         // This prevents unexpected scroll-to-bottom
       } else {
-        // Unmuted - hide text input and clear button, show voice indicator
+        // Unmuted (voice mode) - hide text input, send button, and clear button, show voice indicator
         if (messageInputEl) messageInputEl.classList.add('hidden');
+        if (sendBtnEl) sendBtnEl.classList.add('hidden');
         if (clearInputBtnEl) clearInputBtnEl.classList.add('hidden');
         showVoiceIndicator();
       }
@@ -640,6 +692,7 @@ function sendCommand() {
 
   if (messageInputEl) {
     messageInputEl.value = '';
+    updateClearButtonVisibility(); // Hide inline clear button after clearing
   }
 
   if (cmd || cmd === '') {

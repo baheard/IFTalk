@@ -399,7 +399,7 @@ export function speakAppMessage(text) {
       utterance.voice = appVoice;
     }
 
-    utterance.rate = 1.3;  // Faster for quick confirmations
+    utterance.rate = state.browserVoiceConfig?.rate || 1.1;  // App voice slightly faster
     utterance.pitch = 1.0;
     utterance.volume = (state.browserVoiceConfig?.volume ?? 1.0) * 0.8;  // Slightly quieter than narration
 

@@ -170,8 +170,12 @@ See Settings panel for more help.
       (await getVoiceCommandHandlers()).back();
       return true;
 
-    case 'pause':
     case 'stop':
+      playAppCommand();
+      (await getVoiceCommandHandlers()).skipToEnd();
+      return true;
+
+    case 'pause':
       playAppCommand();
       (await getVoiceCommandHandlers()).pause();
       return true;

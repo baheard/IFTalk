@@ -111,6 +111,10 @@ export function initVoiceRecognition(processVoiceKeywords) {
     // Update status based on lock state
     if (state.isScreenLocked && !state.isMuted) {
       updateStatus('🎤 Listening... Say "unlock"');
+      // Show listening indicator on lock screen
+      import('../utils/lock-screen.js').then(({ showLockListeningIndicator }) => {
+        showLockListeningIndicator();
+      });
     } else if (!state.isNarrating && !state.isMuted) {
       updateStatus('🎤 Listening... Speak now!');
     }
@@ -156,6 +160,13 @@ export function initVoiceRecognition(processVoiceKeywords) {
 
       // Update voice indicator with interim text
       updateVoiceTranscript(interimTranscript, 'interim');
+
+      // Update lock screen transcript if locked
+      if (state.isScreenLocked) {
+        import('../utils/lock-screen.js').then(({ updateLockTranscript }) => {
+          updateLockTranscript(interimTranscript);
+        });
+      }
 
       // Also update old DOM element if it exists
       if (dom.voiceTranscript) {
@@ -244,7 +255,7 @@ export function initVoiceRecognition(processVoiceKeywords) {
               dom.voiceIndicator.classList.remove('active');
             }
           });
-        }, 150); // Brief delay for visual feedback - reduced for snappier response
+        }, 0); // Instant submission for immediate response
       } else {
         // Navigation command - only play sound if it was actually processed (not rejected)
         if (state.pendingCommandProcessed) {

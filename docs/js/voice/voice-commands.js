@@ -122,7 +122,14 @@ export function processVoiceKeywords(transcript, handlers, confidence = null) {
     return false;
   }
 
-  if (lower === 'stop' || lower === 'pause') {
+  if (lower === 'stop') {
+    markCommandProcessed();
+    displayAppCommand('end', confidence);
+    handlers.skipToEnd();
+    return false;
+  }
+
+  if (lower === 'pause') {
     markCommandProcessed();
     displayAppCommand('pause', confidence);
     handlers.pause();

@@ -38,7 +38,7 @@ import { initGameSelection } from './game/game-loader.js';
 
 // Utility modules
 import { initKeepAwake, enableKeepAwake, disableKeepAwake, isKeepAwakeEnabled, activateIfEnabled } from './utils/wake-lock.js';
-import { initLockScreen, lockScreen, unlockScreen, isScreenLocked, toggleLockScreen } from './utils/lock-screen.js';
+import { initLockScreen, lockScreen, unlockScreen, isScreenLocked, toggleLockScreen, updateLockScreenMicStatus } from './utils/lock-screen.js';
 import { playMuteTone, playUnmuteTone } from './utils/audio-feedback.js';
 
 // Voice command handlers (exported so typed commands can use them too)
@@ -72,6 +72,13 @@ export const voiceCommandHandlers = {
   play: async () => {
     // Only act if not already in autoplay mode
     if (!state.autoplayEnabled) {
+      // If at end (not paused), restart from beginning
+      if (state.narrationChunks.length > 0 && state.currentChunkIndex >= state.narrationChunks.length) {
+        state.autoplayEnabled = true;
+        skipToStart(() => speakTextChunked(null, state.currentChunkIndex));
+        return;
+      }
+
       // Switch to AUTOPLAY mode (same as clicking play button)
       state.autoplayEnabled = true;
       state.narrationEnabled = true;
@@ -81,7 +88,7 @@ export const voiceCommandHandlers = {
       if (state.narrationChunks.length > 0 && state.currentChunkIndex < state.narrationChunks.length) {
         speakTextChunked(null, state.currentChunkIndex);
       } else {
-        // At end or no chunks - try to read the last game response
+        // No chunks - try to read the last game response
         const { ensureChunksReady } = await import('./ui/game-output.js');
 
         const lowerWindow = document.getElementById('lowerWindow');
@@ -144,11 +151,12 @@ export const voiceCommandHandlers = {
     startVoiceMeter();
     updateStatus('Microphone unmuted - Listening...');
     updateNavButtons();
+    updateLockScreenMicStatus();
 
     // Update message input placeholder
     const messageInput = document.getElementById('messageInput');
     if (messageInput) {
-      messageInput.placeholder = 'Speak a command...';
+      messageInput.placeholder = 'Say command...';
     }
 
     // Voice recognition should already be running (listening for "unmute")
@@ -176,11 +184,12 @@ export const voiceCommandHandlers = {
     stopVoiceMeter();
     updateStatus('Microphone muted (say "unmute" to re-enable)');
     updateNavButtons();
+    updateLockScreenMicStatus();
 
     // Update message input placeholder
     const messageInput = document.getElementById('messageInput');
     if (messageInput) {
-      messageInput.placeholder = 'Type a command or say "unmute"...';
+      messageInput.placeholder = 'Type or say "unmute"...';
     }
 
     // DON'T stop voice recognition - keep it running to listen for "unmute"

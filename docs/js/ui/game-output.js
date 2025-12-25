@@ -157,7 +157,7 @@ export function ensureChunksReady() {
     const { chunks: mainChunks, markerIDs: mainMarkerIDs } =
       extractChunksAndMarkers(mainChunksWithMarkers);
 
-    // Check if this is a system message - use app voice and prefix with "System: "
+    // Check if this is a system message - use app voice (beep will play before speaking)
     const tempDiv = document.createElement('div');
     tempDiv.innerHTML = mainHTML;
     const hasSystemMessage = tempDiv.querySelector('.system-message') !== null;
@@ -167,10 +167,7 @@ export function ensureChunksReady() {
       for (const chunk of mainChunks) {
         chunk.voice = 'app';
       }
-      // Prefix first chunk with "System: " for clarity
-      if (mainChunks[0].text.trim()) {
-        mainChunks[0].text = 'System: ' + mainChunks[0].text;
-      }
+      // No text prefix needed - beep will indicate system message
     }
 
     // Apply markers to main element (NO renumbering - keep original marker IDs!)
@@ -288,12 +285,21 @@ export function addGameText(text, isCommand = false, isVoiceCommand = false, isA
 
     // Auto-narrate system messages using app voice (only if narration is active)
     if (isSystemMessage && (state.isNarrating || state.autoplayEnabled)) {
-      // Import and call speakAppMessage asynchronously
-      import('../narration/tts-player.js').then(({ speakAppMessage }) => {
-        // Extract text from system message
-        const systemText = tempCheck.querySelector('.system-message').textContent.trim();
+      // Speak system message
+      (async () => {
+        const { speakAppMessage } = await import('../narration/tts-player.js');
+
+        // Extract text from system message, respecting newlines as sentence boundaries
+        const systemMsgEl = tempCheck.querySelector('.system-message');
+        // Replace <br> tags with ". " to create natural pauses between lines
+        const htmlWithPauses = systemMsgEl.innerHTML.replace(/<br\s*\/?>/gi, '. ');
+        const tempDiv = document.createElement('div');
+        tempDiv.innerHTML = htmlWithPauses;
+        const systemText = tempDiv.textContent.trim();
+
+        // Speak system message (no beep)
         speakAppMessage(systemText);
-      }).catch(err => {
+      })().catch(err => {
         console.error('[Game Output] Failed to auto-narrate system message:', err);
       });
     }

@@ -455,6 +455,104 @@ export function importSaveFromFile() {
     input.click();
 }
 
+// Autosave backup interval (2 minutes)
+const BACKUP_INTERVAL_MS = 2 * 60 * 1000;
+const MAX_BACKUPS_PER_GAME = 5;
+let backupIntervalId = null;
+
+/**
+ * Create a timestamped backup of the current autosave
+ * @returns {boolean} Success/failure
+ */
+function createAutosaveBackup() {
+    if (!state.currentGameName) {
+        return false;
+    }
+
+    // Get current autosave
+    const autosaveKey = `iftalk_autosave_${state.currentGameName}`;
+    const autosaveData = getJSON(autosaveKey);
+
+    if (!autosaveData) {
+        console.log('[Backup] No autosave found to backup');
+        return false;
+    }
+
+    // Create timestamped backup
+    const timestamp = Date.now();
+    const backupKey = `iftalk_backup_autosave_${state.currentGameName}_${timestamp}`;
+
+    setJSON(backupKey, autosaveData);
+    console.log(`[Backup] Created autosave backup: ${backupKey}`);
+
+    // Clean up old backups (keep max 5)
+    cleanupOldBackups(state.currentGameName);
+
+    return true;
+}
+
+/**
+ * Clean up old backups, keeping only the most recent MAX_BACKUPS_PER_GAME
+ * @param {string} gameName - Game name to clean up backups for
+ */
+function cleanupOldBackups(gameName) {
+    const prefix = `iftalk_backup_autosave_${gameName}_`;
+
+    // Find all backup keys for this game
+    const backupKeys = [];
+    for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key && key.startsWith(prefix)) {
+            // Extract timestamp from key
+            const timestamp = parseInt(key.substring(prefix.length));
+            backupKeys.push({ key, timestamp });
+        }
+    }
+
+    // Sort by timestamp (newest first)
+    backupKeys.sort((a, b) => b.timestamp - a.timestamp);
+
+    // Remove old backups beyond max count
+    if (backupKeys.length > MAX_BACKUPS_PER_GAME) {
+        const toRemove = backupKeys.slice(MAX_BACKUPS_PER_GAME);
+        toRemove.forEach(({ key }) => {
+            removeItem(key);
+            console.log(`[Backup] Removed old backup: ${key}`);
+        });
+    }
+
+    console.log(`[Backup] Keeping ${Math.min(backupKeys.length, MAX_BACKUPS_PER_GAME)} backups for ${gameName}`);
+}
+
+/**
+ * Start automatic backup timer
+ */
+export function startAutosaveBackupTimer() {
+    // Stop existing timer if any
+    stopAutosaveBackupTimer();
+
+    // Create first backup immediately
+    createAutosaveBackup();
+
+    // Set up interval for future backups
+    backupIntervalId = setInterval(() => {
+        createAutosaveBackup();
+    }, BACKUP_INTERVAL_MS);
+
+    console.log(`[Backup] Started autosave backup timer (${BACKUP_INTERVAL_MS / 1000}s intervals, max ${MAX_BACKUPS_PER_GAME} backups)`);
+}
+
+/**
+ * Stop automatic backup timer
+ */
+export function stopAutosaveBackupTimer() {
+    if (backupIntervalId) {
+        clearInterval(backupIntervalId);
+        backupIntervalId = null;
+        console.log('[Backup] Stopped autosave backup timer');
+    }
+}
+
 /**
  * Initialize save handlers and keyboard shortcuts
  */
