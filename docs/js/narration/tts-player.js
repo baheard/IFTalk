@@ -11,7 +11,7 @@ import { updateStatus } from '../utils/status.js';
 import { fixPronunciation } from '../utils/pronunciation.js';
 import { recordSpokenChunk } from '../voice/echo-detection.js';
 import { updateTextHighlight, removeHighlight } from './highlighting.js';
-import { getDefaultVoice, getDefaultAppVoice } from '../ui/settings.js';
+import { getDefaultVoice, getDefaultAppVoice } from '../ui/settings/index.js';
 import { scrollToBottom } from '../utils/scroll.js';
 
 // Keep-alive audio context for mobile background playback

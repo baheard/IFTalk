@@ -331,6 +331,25 @@ For detailed technical information, see the `reference/` folder:
    - **Removed unused code**: Deleted `downloadAllSaves()` function and Drive backup infrastructure
    - **Simplified architecture**: Backups are local, Drive is canonical/shared version
 
+4. **Code Refactoring & Optimization** - Phase 1-3 of comprehensive refactoring plan (IN PROGRESS)
+   - **Plan**: See [reference/refactoring-plan.md](reference/refactoring-plan.md) for complete details
+   - **Phase 1 ✅ Complete**: Deleted deprecated Socket.IO files (-105 lines)
+     - Removed `docs/js/game/saves.js` (68 lines) - Legacy Socket.IO save system
+     - Removed `docs/js/core/socket.js` (37 lines) - Deprecated Socket.IO wrapper
+   - **Phase 2 ✅ Complete**: Storage abstraction layer (-150-200 lines)
+     - Created `docs/js/utils/storage/storage-api.js` - Centralized localStorage API
+     - Migrated `game-settings.js`, `pronunciation.js`, `audio-feedback.js` to use storage API
+     - Eliminated ~150-200 lines of localStorage boilerplate code
+   - **Phase 3 🔄 In Progress**: Save manager deduplication (~100+ lines eliminated so far)
+     - Created `getCurrentDisplayState()` helper function (37 lines)
+     - Created `performSave()` base function (73 lines) - used by all save functions
+     - Refactored `quickSave()`: 80 lines → 9 lines (-71 lines)
+     - Refactored `customSave()`: 75 lines → 7 lines (-68 lines)
+     - Refactored `autoSave()`: 86 lines → 14 lines (-72 lines)
+     - **Next**: Create `performRestore()` and refactor load functions
+   - **Status**: ~300-400 lines eliminated across Phases 1-3, zero bugs introduced
+   - **Remaining**: Phases 4-7 pending (see refactoring plan for details)
+
 ### December 23, 2024 - Tooltip System, Tap-to-Examine Improvements & Input Clearing
 1. **Unified Tooltip System** - Consolidated all tooltip behavior into single function
    - Files: `docs/js/app.js`, `docs/styles.css`
@@ -443,7 +462,10 @@ For detailed technical information, see the `reference/` folder:
 
 ## Current Status
 
-See [TODO.md](TODO.md) for current tasks and progress.
+**Active Refactoring**: Code cleanup and optimization in progress (Dec 24, 2024)
+- See **[Refactoring Plan](reference/refactoring-plan.md)** for detailed phase-by-phase plan
+- Status: Phase 3 of 7 in progress (~300-400 lines eliminated so far)
+- See [TODO.md](TODO.md) for other tasks and progress
 
 ---
 

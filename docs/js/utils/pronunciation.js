@@ -5,20 +5,17 @@
  * Stored in localStorage for persistence.
  */
 
+import { getJSON, setJSON } from './storage/storage-api.js';
+
 /**
  * Get the pronunciation map from localStorage
  * @returns {Object} Pronunciation map {word: pronunciation}
  */
 export function getPronunciationMap() {
-  const stored = localStorage.getItem('pronunciationMap');
-  if (stored) {
-    return JSON.parse(stored);
-  }
-  // Default entries
-  return {
+  return getJSON('pronunciationMap', {
     'Anchorhead': 'Anchor-head',
     'ANCHORHEAD': 'ANCHOR-HEAD',
-  };
+  });
 }
 
 /**
@@ -26,7 +23,7 @@ export function getPronunciationMap() {
  * @param {Object} map - Pronunciation map to save
  */
 export function savePronunciationMap(map) {
-  localStorage.setItem('pronunciationMap', JSON.stringify(map));
+  setJSON('pronunciationMap', map);
 }
 
 /**

@@ -1,22 +1,22 @@
 /**
- * Keyboard Input Module
+ * Keyboard Input Core Module
  *
- * Handles keyboard input via messaging interface in controls panel
+ * Handles keyboard input via messaging interface in controls panel.
+ * Voice UI and system entry mode are in separate modules.
  */
 
-import { state } from '../core/state.js';
-import { sendCommandDirect } from '../game/commands.js';
-import { getInputType, sendInput } from '../game/voxglk.js';
-import { scrollToBottom } from '../utils/scroll.js';
-import { playCommandSent } from '../utils/audio-feedback.js';
-import { extractWordAtPoint } from './word-extractor.js';
+import { state } from '../../core/state.js';
+import { sendCommandDirect } from '../../game/commands/index.js';
+import { getInputType, sendInput } from '../../game/voxglk.js';
+import { scrollToBottom } from '../../utils/scroll.js';
+import { playCommandSent } from '../../utils/audio-feedback.js';
+import { extractWordAtPoint } from '../word-extractor.js';
+import { setVoiceSpeaking, updateVoiceTranscript, showVoiceIndicator, hideVoiceIndicator } from './voice-ui.js';
+import { isSystemEntryMode } from './system-entry.js';
 
 let messageInputEl = null;
 let messageInputRowEl = null;
 let clearInputBtnEl = null;
-let voiceListeningIndicatorEl = null;
-let voiceTranscriptEl = null;
-let voiceMeterDotEl = null;
 
 // Char input panel elements
 let charInputPanelEl = null;
@@ -28,10 +28,6 @@ let charEnterBtnEl = null;
 let charEscBtnEl = null;
 let charKeyboardBtnEl = null;
 let hiddenKeyInputEl = null;
-
-// System entry mode state (for SAVE/RESTORE/DELETE prompts)
-let systemEntryMode = false;
-let systemEntryCallback = null;
 
 // Cached media queries for keyboard detection (performance optimization)
 const mqCoarse = window.matchMedia('(pointer: coarse)');
@@ -45,9 +41,6 @@ export function initKeyboardInput() {
   messageInputEl = document.getElementById('messageInput');
   messageInputRowEl = document.getElementById('messageInputRow');
   clearInputBtnEl = document.getElementById('clearInputBtn');
-  voiceListeningIndicatorEl = document.getElementById('voiceListeningIndicator');
-  voiceTranscriptEl = document.getElementById('voiceTranscript');
-  voiceMeterDotEl = document.getElementById('voiceMeterDot');
 
   // Query DOM elements for char input panel
   charInputPanelEl = document.getElementById('charInputPanel');
@@ -90,7 +83,7 @@ export function initKeyboardInput() {
   if (clearInputBtnEl) {
     clearInputBtnEl.addEventListener('click', async () => {
       // Cancel system mode if active
-      if (systemEntryMode) {
+      if (isSystemEntryMode()) {
         const { cancelMetaInput } = await import('../game/commands.js');
         cancelMetaInput();
         // Keep focus in input after canceling (prevents keyboard from closing on mobile)
@@ -199,7 +192,6 @@ export function initKeyboardInput() {
       const lastWord = words[words.length - 1];
 
       if (lastWord.toLowerCase() === wordLower) {
-        console.remote('[TAP-TO-EXAMINE] Word already last in input, ignoring:', word);
         // Focus on desktop only (mobile keyboard stays closed)
         if (hasPhysicalKeyboard()) {
           messageInputEl.focus();
@@ -238,7 +230,6 @@ export function initKeyboardInput() {
     const clientY = e.changedTouches ? e.changedTouches[0].clientY : e.clientY;
     touchStartX = clientX;
     touchStartY = clientY;
-    console.remote('[TAP-TO-EXAMINE] Touch start at', clientX, clientY);
   };
 
   const handleGameClick = (e) => {
@@ -278,11 +269,8 @@ export function initKeyboardInput() {
       const deltaX = Math.abs(clientX - touchStartX);
       const deltaY = Math.abs(clientY - touchStartY);
 
-      console.remote('[TAP-TO-EXAMINE] Movement detected - deltaX:', deltaX, 'deltaY:', deltaY);
-
       if (deltaX > 50 || deltaY > 50) {
         // User was scrolling, not tapping
-        console.remote('[TAP-TO-EXAMINE] Scroll detected, ignoring tap');
         e.preventDefault();
         e.stopPropagation(); // Prevent bubbling to parent gameOutput listener
         touchStartX = null;
@@ -489,7 +477,7 @@ function handleKeyPress(e) {
 
   // In char mode (press any key), send any key immediately
   // BUT NOT during system entry mode (save/restore prompts)
-  if (inputType === 'char' && !systemEntryMode) {
+  if (inputType === 'char' && !isSystemEntryMode()) {
     // Don't capture modifier keys alone
     if (e.key === 'Shift' || e.key === 'Control' || e.key === 'Alt' || e.key === 'Meta') {
       return;
@@ -539,7 +527,7 @@ function handleKeyPress(e) {
     e.preventDefault();
 
     // Cancel system mode if active
-    if (systemEntryMode) {
+    if (isSystemEntryMode()) {
       import('../game/commands.js').then(module => {
         module.cancelMetaInput();
       });
@@ -560,7 +548,7 @@ function handleKeyPress(e) {
   // If typing and not focused on message input, focus it and capture the keystroke
   if (e.target !== messageInputEl && e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) {
     // For line input mode OR system entry mode (save/restore prompts)
-    if ((getInputType() === 'line' || systemEntryMode) && messageInputEl && !messageInputEl.classList.contains('hidden')) {
+    if ((getInputType() === 'line' || isSystemEntryMode()) && messageInputEl && !messageInputEl.classList.contains('hidden')) {
       //messageInputEl.focus({ preventScroll: true });
       messageInputEl.focus();
       messageInputEl.value += e.key;
@@ -584,7 +572,7 @@ function handleKeyPress(e) {
  * Check if device has a physical keyboard
  * Uses pointer and hover media queries to detect touch-only devices
  */
-function hasPhysicalKeyboard() {
+export function hasPhysicalKeyboard() {
   // Devices with coarse pointer (touch) and no hover capability = touch-only
   const hasCoarsePointer = mqCoarse.matches;
   const canHover = mqHover.matches;
@@ -607,16 +595,16 @@ function updateInputVisibility() {
     const wasHidden = messageInputRowEl.classList.contains('hidden');
 
     // ALWAYS show input during system entry mode (save/restore prompts)
-    if (systemEntryMode || inputType === 'line') {
+    if (isSystemEntryMode() || inputType === 'line') {
       // Line mode or system entry - show message input row
       messageInputRowEl.classList.remove('hidden');
 
       // Toggle between text input and voice indicator based on mute state
-      if (isMuted || systemEntryMode) {
+      if (isMuted || isSystemEntryMode()) {
         // Muted or system entry - show text input and clear button, hide voice indicator
         if (messageInputEl) messageInputEl.classList.remove('hidden');
         if (clearInputBtnEl) clearInputBtnEl.classList.remove('hidden');
-        if (voiceListeningIndicatorEl) voiceListeningIndicatorEl.classList.add('hidden');
+        hideVoiceIndicator();
 
         // Don't auto-focus - let user click or type to focus
         // This prevents unexpected scroll-to-bottom
@@ -624,7 +612,7 @@ function updateInputVisibility() {
         // Unmuted - hide text input and clear button, show voice indicator
         if (messageInputEl) messageInputEl.classList.add('hidden');
         if (clearInputBtnEl) clearInputBtnEl.classList.add('hidden');
-        if (voiceListeningIndicatorEl) voiceListeningIndicatorEl.classList.remove('hidden');
+        showVoiceIndicator();
       }
     } else {
       // Char mode or no input - hide message input row
@@ -640,40 +628,6 @@ function updateInputVisibility() {
     } else {
       // Line mode, or has physical keyboard - hide char input panel
       charInputPanelEl.classList.add('hidden');
-    }
-  }
-}
-
-/**
- * Update voice indicator state (for speaking animation)
- * @param {boolean} isSpeaking - Whether user is currently speaking
- */
-export function setVoiceSpeaking(isSpeaking) {
-  if (voiceListeningIndicatorEl) {
-    if (isSpeaking) {
-      voiceListeningIndicatorEl.classList.add('speaking');
-    } else {
-      voiceListeningIndicatorEl.classList.remove('speaking');
-    }
-  }
-}
-
-/**
- * Update voice transcript text
- * @param {string} text - Text to display
- * @param {string} mode - 'listening', 'interim', 'confirmed', or 'nav'
- */
-export function updateVoiceTranscript(text, mode = 'listening') {
-  if (voiceTranscriptEl) {
-    voiceTranscriptEl.textContent = text;
-    voiceTranscriptEl.classList.remove('interim', 'confirmed', 'nav-command');
-
-    if (mode === 'interim') {
-      voiceTranscriptEl.classList.add('interim');
-    } else if (mode === 'confirmed') {
-      voiceTranscriptEl.classList.add('confirmed');
-    } else if (mode === 'nav') {
-      voiceTranscriptEl.classList.add('nav-command');
     }
   }
 }
@@ -722,40 +676,4 @@ export function hideMessageInput() {
   if (messageInputEl) {
     messageInputEl.value = '';
   }
-}
-
-/**
- * Enter system entry mode for meta-commands (SAVE/RESTORE/DELETE)
- * Shows a custom prompt and handles Escape to cancel
- */
-export function enterSystemEntryMode(promptText) {
-  systemEntryMode = true;
-  if (messageInputEl) {
-    messageInputEl.placeholder = promptText;
-    messageInputEl.value = '';
-    messageInputEl.classList.add('system-entry');
-    // Focus on desktop only (mobile keyboard stays closed)
-    if (hasPhysicalKeyboard()) {
-      messageInputEl.focus();
-    }
-  }
-  showMessageInput();
-}
-
-/**
- * Exit system entry mode, restore normal prompt
- */
-export function exitSystemEntryMode() {
-  systemEntryMode = false;
-  if (messageInputEl) {
-    messageInputEl.placeholder = 'Type a command...';
-    messageInputEl.classList.remove('system-entry');
-  }
-}
-
-/**
- * Check if we're in system entry mode
- */
-export function isSystemEntryMode() {
-  return systemEntryMode;
 }

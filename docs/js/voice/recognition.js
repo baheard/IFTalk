@@ -9,7 +9,7 @@ import { state } from '../core/state.js';
 import { dom } from '../core/dom.js';
 import { updateStatus } from '../utils/status.js';
 import { isEchoOfSpokenText } from './echo-detection.js';
-import { updateVoiceTranscript } from '../input/keyboard.js';
+import { updateVoiceTranscript } from '../input/keyboard/index.js';
 import { playCommandSent, playAppCommand, playLowConfidence, playBlockedCommand, LOW_CONFIDENCE_THRESHOLD } from '../utils/audio-feedback.js';
 import { scrollToBottom } from '../utils/scroll.js';
 

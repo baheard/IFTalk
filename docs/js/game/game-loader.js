@@ -10,7 +10,7 @@ import { updateStatus } from '../utils/status.js';
 import { updateNavButtons } from '../ui/nav-buttons.js';
 import { stopNarration } from '../narration/tts-player.js';
 import { createVoxGlk, sendInput, getInputType } from './voxglk.js';
-import { updateCurrentGameDisplay, reloadSettingsForGame } from '../ui/settings.js';
+import { updateCurrentGameDisplay, reloadSettingsForGame } from '../ui/settings/index.js';
 import { activateIfEnabled } from '../utils/wake-lock.js';
 import { confirmDialog } from '../ui/confirm-dialog.js';
 
@@ -60,7 +60,7 @@ export async function startGame(gamePath, onOutput) {
     if (charInputPanel) charInputPanel.classList.add('hidden'); // Hidden initially, shown by updateInputVisibility
 
     // Initialize keyboard input
-    const { initKeyboardInput } = await import('../input/keyboard.js');
+    const { initKeyboardInput } = await import('../input/keyboard/index.js');
     initKeyboardInput();
 
     // Verify ZVM is loaded

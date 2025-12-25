@@ -7,9 +7,10 @@
 
 import { state } from '../core/state.js';
 import { updateStatus } from '../utils/status.js';
-import { showMessageInput } from '../input/keyboard.js';
+import { showMessageInput } from '../input/keyboard/index.js';
 import { scrollToBottom } from '../utils/scroll.js';
 import { addGameText } from '../ui/game-output.js';
+import { getItem, setJSON, getJSON, removeItem } from '../utils/storage/storage-api.js';
 
 /**
  * Get current game signature from ZVM
@@ -50,98 +51,53 @@ function cleanHTMLForSave(html) {
 }
 
 /**
- * Quick save to dedicated quick slot
- * Uses same comprehensive approach as autosave
+ * Get current display state (HTML from status bar, upper window, lower window)
+ * @returns {Object} Object with statusBarHTML, upperWindowHTML, lowerWindowHTML
  */
-export async function quickSave() {
-    try {
-        const gameSignature = getGameSignature();
-        if (!gameSignature) {
-            updateStatus('Error: No game loaded', 'error');
-            return false;
-        }
+function getCurrentDisplayState() {
+    const statusBarEl = document.getElementById('statusBar');
+    const upperWindowEl = document.getElementById('upperWindow');
+    const lowerWindowEl = document.getElementById('lowerWindow');
 
-        // Get Quetzal save data from ZVM
-        const pc = window.zvmInstance.pc;
-        const quetzalData = window.zvmInstance.save_file(pc);
-
-        // Convert to base64 for localStorage
-        const base64Data = btoa(String.fromCharCode(...new Uint8Array(quetzalData)));
-
-        // Save the current display HTML so we can restore it
-        const statusBarEl = document.getElementById('statusBar');
-        const upperWindowEl = document.getElementById('upperWindow');
-        const lowerWindowEl = document.getElementById('lowerWindow');
-
-        // Get lowerWindow content excluding command line
-        let lowerWindowHTML = '';
-        if (lowerWindowEl) {
-            const commandLine = document.getElementById('commandLine');
-            if (commandLine) {
-                // Clone lowerWindow, remove commandLine, get HTML
-                const clone = lowerWindowEl.cloneNode(true);
-                const commandLineClone = clone.querySelector('#commandLine');
-                if (commandLineClone) {
-                    commandLineClone.remove();
-                }
-                lowerWindowHTML = clone.innerHTML;
-            } else {
-                lowerWindowHTML = lowerWindowEl.innerHTML;
+    // Get lowerWindow content excluding command line
+    let lowerWindowHTML = '';
+    if (lowerWindowEl) {
+        const commandLine = document.getElementById('commandLine');
+        if (commandLine) {
+            // Clone lowerWindow, remove commandLine, get HTML
+            const clone = lowerWindowEl.cloneNode(true);
+            const commandLineClone = clone.querySelector('#commandLine');
+            if (commandLineClone) {
+                commandLineClone.remove();
             }
+            lowerWindowHTML = clone.innerHTML;
+        } else {
+            lowerWindowHTML = lowerWindowEl.innerHTML;
         }
-
-        // Clean HTML to remove system messages, app commands, and low confidence voice commands
-        lowerWindowHTML = cleanHTMLForSave(lowerWindowHTML);
-
-        // Get VoxGlk state
-        const { getGeneration, getInputWindowId } = await import('./voxglk.js');
-        const savedGeneration = getGeneration();
-        const savedInputWindowId = getInputWindowId();
-
-        // Save with metadata (same structure as autosave)
-        const saveData = {
-            timestamp: new Date().toISOString(),
-            gameName: state.currentGameName || 'unknown',
-            gameSignature: gameSignature,
-            quetzalData: base64Data,
-            displayHTML: {
-                statusBar: statusBarEl?.innerHTML || '',
-                upperWindow: upperWindowEl?.innerHTML || '',
-                lowerWindow: lowerWindowHTML
-            },
-            voxglkState: {
-                generation: savedGeneration,
-                inputWindowId: savedInputWindowId
-            },
-            narrationState: {
-                currentChunkIndex: state.currentChunkIndex,
-                chunksLength: state.narrationChunks.length
-            }
-        };
-
-        const key = `iftalk_quicksave_${gameSignature}`;
-        localStorage.setItem(key, JSON.stringify(saveData));
-// Phase 3: Auto-sync to Google Drive (if enabled)        if (state.gdriveSyncEnabled && state.gdriveSignedIn) {            try {                const { scheduleDriveSync, getDeviceInfo } = await import('../utils/gdrive-sync.js');                const enrichedData = { ...saveData, device: getDeviceInfo() };                scheduleDriveSync(key, enrichedData);            } catch (error) {                // Drive sync failed silently            }        }
-
-        // Show system message in game area
-        addGameText('<div class="system-message">Game saved - quicksave</div>', false);
-
-        updateStatus('Quick saved', 'success');
-        return true;
-
-    } catch (error) {
-        updateStatus('Quick save failed: ' + error.message, 'error');
-        return false;
     }
+
+    // Clean HTML to remove system messages, app commands, and low confidence voice commands
+    lowerWindowHTML = cleanHTMLForSave(lowerWindowHTML);
+
+    return {
+        statusBarHTML: statusBarEl?.innerHTML || '',
+        upperWindowHTML: upperWindowEl?.innerHTML || '',
+        lowerWindowHTML: lowerWindowHTML
+    };
 }
 
 /**
- * Custom save to named slot (for SAVE meta-command)
- * @param {string} saveName - Name for the save slot
+ * Core save logic used by all save functions
+ * @param {string} storageKey - localStorage key for this save
+ * @param {string|null} displayName - Name shown in UI (null for autosave)
+ * @param {Object} additionalData - Extra data to include in save (e.g., saveName, verification)
+ * @returns {boolean} Success/failure
  */
-export async function customSave(saveName) {
+async function performSave(storageKey, displayName = null, additionalData = {}) {
     try {
+        const gameSignature = getGameSignature();
         if (!state.currentGameName) {
+            if (displayName) updateStatus('Error: No game loaded', 'error');
             return false;
         }
 
@@ -152,45 +108,24 @@ export async function customSave(saveName) {
         // Convert to base64 for localStorage
         const base64Data = btoa(String.fromCharCode(...new Uint8Array(quetzalData)));
 
-        // Save the current display HTML so we can restore it
-        const statusBarEl = document.getElementById('statusBar');
-        const upperWindowEl = document.getElementById('upperWindow');
-        const lowerWindowEl = document.getElementById('lowerWindow');
-
-        // Get lowerWindow content excluding command line
-        let lowerWindowHTML = '';
-        if (lowerWindowEl) {
-            const commandLine = document.getElementById('commandLine');
-            if (commandLine) {
-                const clone = lowerWindowEl.cloneNode(true);
-                const commandLineClone = clone.querySelector('#commandLine');
-                if (commandLineClone) {
-                    commandLineClone.remove();
-                }
-                lowerWindowHTML = clone.innerHTML;
-            } else {
-                lowerWindowHTML = lowerWindowEl.innerHTML;
-            }
-        }
-
-        // Clean HTML to remove system messages, app commands, and low confidence voice commands
-        lowerWindowHTML = cleanHTMLForSave(lowerWindowHTML);
+        // Get current display state (status bar, upper window, lower window)
+        const displayHTML = getCurrentDisplayState();
 
         // Get VoxGlk state
         const { getGeneration, getInputWindowId } = await import('./voxglk.js');
         const savedGeneration = getGeneration();
         const savedInputWindowId = getInputWindowId();
 
-        // Save with metadata (same structure as quicksave)
+        // Build save data object
         const saveData = {
             timestamp: new Date().toISOString(),
             gameName: state.currentGameName,
-            saveName: saveName,
+            gameSignature: gameSignature,
             quetzalData: base64Data,
             displayHTML: {
-                statusBar: statusBarEl?.innerHTML || '',
-                upperWindow: upperWindowEl?.innerHTML || '',
-                lowerWindow: lowerWindowHTML
+                statusBar: displayHTML.statusBarHTML,
+                upperWindow: displayHTML.upperWindowHTML,
+                lowerWindow: displayHTML.lowerWindowHTML
             },
             voxglkState: {
                 generation: savedGeneration,
@@ -199,42 +134,62 @@ export async function customSave(saveName) {
             narrationState: {
                 currentChunkIndex: state.currentChunkIndex,
                 chunksLength: state.narrationChunks.length
-            }
+            },
+            ...additionalData // Merge any additional data (saveName, verification, etc.)
         };
 
-        const key = `iftalk_customsave_${state.currentGameName}_${saveName}`;
-        localStorage.setItem(key, JSON.stringify(saveData));
-// Phase 3: Auto-sync to Google Drive (if enabled)        if (state.gdriveSyncEnabled && state.gdriveSignedIn) {            try {                const { scheduleDriveSync, getDeviceInfo } = await import('../utils/gdrive-sync.js');                const enrichedData = { ...saveData, device: getDeviceInfo() };                scheduleDriveSync(key, enrichedData);            } catch (error) {                // Drive sync failed silently            }        }
+        // Save to localStorage using storage API
+        setJSON(storageKey, saveData);
 
-        // Show system message in game area
-        addGameText(`<div class="system-message">Game saved - ${saveName}</div>`, false);
+        // Auto-sync to Google Drive (if enabled)
+        if (state.gdriveSyncEnabled && state.gdriveSignedIn) {
+            try {
+                const { scheduleDriveSync, getDeviceInfo } = await import('../utils/gdrive/index.js');
+                const enrichedData = { ...saveData, device: getDeviceInfo() };
+                scheduleDriveSync(storageKey, enrichedData);
+            } catch (error) {
+                // Drive sync failed silently
+            }
+        }
+
+        // Show system message in game area (if displayName provided)
+        if (displayName) {
+            addGameText(`<div class="system-message">Game saved - ${displayName}</div>`, false);
+            updateStatus(`Saved: ${displayName}`, 'success');
+        }
 
         return true;
 
     } catch (error) {
+        if (displayName) {
+            updateStatus(`Save failed: ${error.message}`, 'error');
+        }
         return false;
     }
 }
 
 /**
- * Custom load from named slot (for RESTORE meta-command)
- * @param {string} saveName - Name of the save slot
+ * Core restore logic used by all load functions
+ * @param {string} storageKey - localStorage key for this save
+ * @param {string|null} displayName - Name shown in UI (null for autosave)
+ * @param {Object} options - Configuration options
+ * @param {boolean} options.showSystemMessage - Show "Game restored" in game area
+ * @param {boolean} options.restoreNarrationState - Restore currentChunkIndex
+ * @param {string} options.successStatus - Status message on success
+ * @param {string} options.errorNotFound - Error message if save not found
+ * @returns {boolean} Success/failure
  */
-export async function customLoad(saveName) {
+async function performRestore(storageKey, displayName = null, options = {}) {
     try {
-        if (!state.currentGameName) {
+        // Read from localStorage using storage API
+        const saveData = getJSON(storageKey);
+
+        if (!saveData) {
+            if (options.errorNotFound) {
+                updateStatus(options.errorNotFound, 'error');
+            }
             return false;
         }
-
-        // Read from localStorage
-        const key = `iftalk_customsave_${state.currentGameName}_${saveName}`;
-        const saved = localStorage.getItem(key);
-
-        if (!saved) {
-            return false;
-        }
-
-        const saveData = JSON.parse(saved);
 
         // Decode base64 to binary
         const binaryString = atob(saveData.quetzalData);
@@ -282,8 +237,8 @@ export async function customLoad(saveName) {
                 }
             }
 
-            // Restore narration state if available
-            if (saveData.narrationState) {
+            // Restore narration state if requested
+            if (options.restoreNarrationState && saveData.narrationState) {
                 state.currentChunkIndex = saveData.narrationState.currentChunkIndex;
             }
 
@@ -294,205 +249,107 @@ export async function customLoad(saveName) {
             // Set flag to skip narration - position at end of chunks, not beginning
             state.skipNarrationAfterLoad = true;
 
-            // Show system message in game area
-            addGameText(`<div class="system-message">Game restored - ${saveName}</div>`, false);
+            // Show system message in game area (if requested)
+            if (options.showSystemMessage && displayName) {
+                addGameText(`<div class="system-message">Game restored - ${displayName}</div>`, false);
+            }
+
+            // Update status (if provided)
+            if (options.successStatus) {
+                updateStatus(options.successStatus, 'success');
+            }
 
             return true;
         } else {
+            if (displayName) {
+                updateStatus(`Restore failed: Invalid save data`, 'error');
+            }
             return false;
         }
 
     } catch (error) {
+        if (displayName) {
+            updateStatus(`Restore failed: ${error.message}`, 'error');
+        }
         return false;
     }
+}
+
+/**
+ * Quick save to dedicated quick slot
+ * Uses same comprehensive approach as autosave
+ */
+export async function quickSave() {
+    const gameSignature = getGameSignature();
+    if (!gameSignature) {
+        updateStatus('Error: No game loaded', 'error');
+        return false;
+    }
+
+    const key = `iftalk_quicksave_${gameSignature}`;
+    return await performSave(key, 'quicksave');
+}
+
+/**
+ * Custom save to named slot (for SAVE meta-command)
+ * @param {string} saveName - Name for the save slot
+ */
+export async function customSave(saveName) {
+    if (!state.currentGameName || !saveName) {
+        return false;
+    }
+
+    const key = `iftalk_customsave_${state.currentGameName}_${saveName}`;
+    return await performSave(key, saveName, { saveName: saveName });
+}
+
+/**
+ * Custom load from named slot (for RESTORE meta-command)
+ * @param {string} saveName - Name of the save slot
+ */
+export async function customLoad(saveName) {
+    if (!state.currentGameName || !saveName) {
+        return false;
+    }
+
+    const key = `iftalk_customsave_${state.currentGameName}_${saveName}`;
+    return await performRestore(key, saveName, {
+        showSystemMessage: true,
+        restoreNarrationState: true
+    });
 }
 
 /**
  * Auto save (happens automatically every turn)
  */
 export async function autoSave() {
-    try {
-        const gameSignature = getGameSignature();
-        if (!state.currentGameName) {
-            return false;
-        }
-
-        // Get Quetzal save data from ZVM
-        const pc = window.zvmInstance.pc;
-        const quetzalData = window.zvmInstance.save_file(pc);
-
-        // Convert to base64 for localStorage
-        const base64Data = btoa(String.fromCharCode(...new Uint8Array(quetzalData)));
-
-        // Save the current display HTML so we can restore it
-        const statusBarEl = document.getElementById('statusBar');
-        const upperWindowEl = document.getElementById('upperWindow');
-        const lowerWindowEl = document.getElementById('lowerWindow');
-
-        // Get lowerWindow content excluding command line
-        let lowerWindowHTML = '';
-        if (lowerWindowEl) {
-            const commandLine = document.getElementById('commandLine');
-            if (commandLine) {
-                // Clone lowerWindow, remove commandLine, get HTML
-                const clone = lowerWindowEl.cloneNode(true);
-                const commandLineClone = clone.querySelector('#commandLine');
-                if (commandLineClone) {
-                    commandLineClone.remove();
-                }
-                lowerWindowHTML = clone.innerHTML;
-            } else {
-                lowerWindowHTML = lowerWindowEl.innerHTML;
-            }
-        }
-
-        // Clean HTML to remove system messages, app commands, and low confidence voice commands
-        lowerWindowHTML = cleanHTMLForSave(lowerWindowHTML);
-
-        // Get VoxGlk state
-        const { getGeneration, getInputWindowId } = await import('./voxglk.js');
-        const savedGeneration = getGeneration();
-        const savedInputWindowId = getInputWindowId();
-
-        // Save with metadata, verification data, and display HTML
-        const saveData = {
-            timestamp: new Date().toISOString(),
-            gameName: state.currentGameName,
-            gameSignature: gameSignature,
-            quetzalData: base64Data,
-            // Verification data to confirm successful restore
-            verification: {
-                pc: pc,
-                stackDepth: window.zvmInstance.stack?.length || 0,
-                callStackDepth: window.zvmInstance.callstack?.length || 0
-            },
-            voxglkState: {
-                generation: savedGeneration,
-                inputWindowId: savedInputWindowId
-            },
-            displayHTML: {
-                statusBar: statusBarEl?.innerHTML || '',
-                upperWindow: upperWindowEl?.innerHTML || '',
-                lowerWindow: lowerWindowHTML
-            }
-        };
-
-        const key = `iftalk_autosave_${state.currentGameName}`;
-        localStorage.setItem(key, JSON.stringify(saveData));
-
-        // Phase 3: Auto-sync to Google Drive (if enabled)
-        if (state.gdriveSyncEnabled && state.gdriveSignedIn) {
-            try {
-                const { scheduleDriveSync, getDeviceInfo } = await import('../utils/gdrive-sync.js');
-                const enrichedData = { ...saveData, device: getDeviceInfo() };
-                scheduleDriveSync(key, enrichedData);
-            } catch (error) {
-                // Drive sync failed silently
-            }
-        }
-
-        return true;
-
-    } catch (error) {
+    if (!state.currentGameName) {
         return false;
     }
+
+    // Verification data to confirm successful restore
+    const verification = {
+        pc: window.zvmInstance?.pc || 0,
+        stackDepth: window.zvmInstance?.stack?.length || 0,
+        callStackDepth: window.zvmInstance?.callstack?.length || 0
+    };
+
+    const key = `iftalk_autosave_${state.currentGameName}`;
+    return await performSave(key, null, { verification });
 }
 
 /**
  * Auto load (happens automatically on game start)
  */
 export async function autoLoad() {
-    try {
-        if (!state.currentGameName) {
-            return false;
-        }
-
-        // Read from localStorage using game name
-        const key = `iftalk_autosave_${state.currentGameName}`;
-        const saved = localStorage.getItem(key);
-
-        if (!saved) {
-            return false;
-        }
-
-        const saveData = JSON.parse(saved);
-
-        // Verify game name matches (basic check)
-        if (saveData.gameName !== state.currentGameName) {
-            return false;
-        }
-
-        // Decode base64 to binary
-        const binaryString = atob(saveData.quetzalData);
-        const bytes = new Uint8Array(binaryString.length);
-        for (let i = 0; i < binaryString.length; i++) {
-            bytes[i] = binaryString.charCodeAt(i);
-        }
-
-        // Note: We don't need to cancel input requests anymore
-        // The auto-keypress approach handles the transition naturally
-        // Just restore the VM state and let the keypress clear the intro
-
-        // Restore using ZVM
-        const result = window.zvmInstance.restore_file(bytes.buffer);
-
-        if (result === 2) { // ZVM returns 2 on successful restore
-            updateStatus('Restored from last session', 'success');
-
-            // DON'T restore VoxGlk generation - keep it at 1 (current intro state)
-            // After page reload, glkapi.js is at gen:1, so VoxGlk must stay at gen:1
-            // The saved generation is just VM memory state, not the UI turn counter
-            // voxglk.js will send bootstrap with gen:1 which will be accepted
-
-            // Restore display HTML so user sees saved content immediately
-            if (saveData.displayHTML) {
-                const statusBarEl = document.getElementById('statusBar');
-                const upperWindowEl = document.getElementById('upperWindow');
-                const lowerWindowEl = document.getElementById('lowerWindow');
-
-                if (statusBarEl && saveData.displayHTML.statusBar) {
-                    statusBarEl.innerHTML = saveData.displayHTML.statusBar;
-                    statusBarEl.style.display = '';
-                }
-                if (upperWindowEl) {
-                    upperWindowEl.innerHTML = saveData.displayHTML.upperWindow || '';
-                    if (saveData.displayHTML.upperWindow && saveData.displayHTML.upperWindow.trim()) {
-                        upperWindowEl.style.display = '';
-                    } else {
-                        upperWindowEl.style.display = 'none';
-                    }
-                }
-                if (lowerWindowEl && saveData.displayHTML.lowerWindow) {
-                    // Preserve command line element before restoring
-                    const commandLine = document.getElementById('commandLine');
-
-                    // Restore game content
-                    lowerWindowEl.innerHTML = saveData.displayHTML.lowerWindow;
-
-                    // Re-append command line
-                    if (commandLine) {
-                        lowerWindowEl.appendChild(commandLine);
-                    }
-
-                    // Show command input immediately and scroll to bottom
-                    showMessageInput();
-                    scrollToBottom();
-                    // Don't auto-focus - let user click or type to focus
-                }
-            }
-
-            // Set flag to skip narration - position at end of chunks, not beginning
-            // User can use back/restart to hear content if desired
-            state.skipNarrationAfterLoad = true;
-
-            return true;
-        } else {
-            return false;
-        }
-
-    } catch (error) {
+    if (!state.currentGameName) {
         return false;
     }
+
+    const key = `iftalk_autosave_${state.currentGameName}`;
+    return await performRestore(key, null, {
+        successStatus: 'Restored from last session'
+    });
 }
 
 /**
@@ -500,102 +357,19 @@ export async function autoLoad() {
  * Uses same bootstrap technique as autoLoad
  */
 export async function quickLoad() {
-    try {
-        const gameSignature = getGameSignature();
-        if (!gameSignature) {
-            updateStatus('Error: No game loaded', 'error');
-            return false;
-        }
-
-        // Read from localStorage
-        const key = `iftalk_quicksave_${gameSignature}`;
-        const saved = localStorage.getItem(key);
-
-        if (!saved) {
-            updateStatus('No quick save found - Use Quick Save button first', 'error');
-            return false;
-        }
-
-        const saveData = JSON.parse(saved);
-
-        // Decode base64 to binary
-        const binaryString = atob(saveData.quetzalData);
-        const bytes = new Uint8Array(binaryString.length);
-        for (let i = 0; i < binaryString.length; i++) {
-            bytes[i] = binaryString.charCodeAt(i);
-        }
-
-        // Restore using ZVM
-        const result = window.zvmInstance.restore_file(bytes.buffer);
-
-        if (result === 2) { // ZVM returns 2 on successful restore
-            // DON'T restore VoxGlk generation - keep it at 1 (current intro state)
-            // After page reload, glkapi.js is at gen:1, so VoxGlk must stay at gen:1
-            // The saved generation is just VM memory state, not the UI turn counter
-            // voxglk.js will send bootstrap with gen:1 which will be accepted
-
-            // Restore display HTML so user sees saved content immediately
-            if (saveData.displayHTML) {
-                const statusBarEl = document.getElementById('statusBar');
-                const upperWindowEl = document.getElementById('upperWindow');
-                const lowerWindowEl = document.getElementById('lowerWindow');
-
-                if (statusBarEl && saveData.displayHTML.statusBar) {
-                    statusBarEl.innerHTML = saveData.displayHTML.statusBar;
-                    statusBarEl.style.display = '';
-                }
-                if (upperWindowEl) {
-                    upperWindowEl.innerHTML = saveData.displayHTML.upperWindow || '';
-                    if (saveData.displayHTML.upperWindow && saveData.displayHTML.upperWindow.trim()) {
-                        upperWindowEl.style.display = '';
-                    } else {
-                        upperWindowEl.style.display = 'none';
-                    }
-                }
-                if (lowerWindowEl && saveData.displayHTML.lowerWindow) {
-                    // Preserve command line element before restoring
-                    const commandLine = document.getElementById('commandLine');
-
-                    // Restore game content
-                    lowerWindowEl.innerHTML = saveData.displayHTML.lowerWindow;
-
-                    // Re-append command line
-                    if (commandLine) {
-                        lowerWindowEl.appendChild(commandLine);
-                    }
-
-                    // Show command input immediately and scroll to bottom
-                    showMessageInput();
-                    scrollToBottom();
-                }
-            }
-
-            // Restore narration state if available
-            if (saveData.narrationState) {
-                state.currentChunkIndex = saveData.narrationState.currentChunkIndex;
-            }
-
-            // DON'T send bootstrap here - let voxglk.js handle it
-            // voxglk.js will check if generation === 1 and send bootstrap
-            // Since we didn't call restore_state(), generation is still 1
-
-            // Set flag to skip narration - position at end of chunks, not beginning
-            state.skipNarrationAfterLoad = true;
-
-            // Show system message in game area
-            addGameText('<div class="system-message">Game restored - quicksave</div>', false);
-
-            updateStatus('Quick loaded', 'success');
-            return true;
-        } else {
-            updateStatus('Quick load failed: Invalid save data', 'error');
-            return false;
-        }
-
-    } catch (error) {
-        updateStatus('Quick load failed: ' + error.message, 'error');
+    const gameSignature = getGameSignature();
+    if (!gameSignature) {
+        updateStatus('Error: No game loaded', 'error');
         return false;
     }
+
+    const key = `iftalk_quicksave_${gameSignature}`;
+    return await performRestore(key, 'quicksave', {
+        showSystemMessage: true,
+        restoreNarrationState: true,
+        successStatus: 'Quick loaded',
+        errorNotFound: 'No quick save found - Use Quick Save button first'
+    });
 }
 
 /**
@@ -611,14 +385,12 @@ export function exportSaveToFile() {
 
         // Get the quick save from localStorage
         const key = `iftalk_quicksave_${gameSignature}`;
-        const saved = localStorage.getItem(key);
+        const saveData = getJSON(key);
 
-        if (!saved) {
+        if (!saveData) {
             updateStatus('No quick save found - Use Quick Save button first', 'error');
             return;
         }
-
-        const saveData = JSON.parse(saved);
 
         // Create a blob with the save data
         const blob = new Blob([JSON.stringify(saveData, null, 2)], { type: 'application/json' });
@@ -670,7 +442,7 @@ export function importSaveFromFile() {
 
             // Store in localStorage as quick save
             const key = `iftalk_quicksave_${saveData.gameSignature}`;
-            localStorage.setItem(key, JSON.stringify(saveData));
+            setJSON(key, saveData);
 
             updateStatus('Save imported! Use Quick Load button to load', 'success');
 
@@ -712,7 +484,7 @@ export function initSaveHandlers() {
                 return;
             }
             const key = `iftalk_quicksave_${gameSignature}`;
-            if (!localStorage.getItem(key)) {
+            if (!getItem(key)) {
                 updateStatus('No quick save found - Use Quick Save button first', 'error');
                 return;
             }
@@ -737,7 +509,7 @@ export function initSaveHandlers() {
                 return;
             }
             const key = `iftalk_quicksave_${gameSignature}`;
-            if (!localStorage.getItem(key)) {
+            if (!getItem(key)) {
                 updateStatus('No quick save found - Use Quick Save button first', 'error');
                 return;
             }

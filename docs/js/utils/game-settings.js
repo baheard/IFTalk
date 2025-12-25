@@ -10,6 +10,7 @@
  */
 
 import { state } from '../core/state.js';
+import { getJSON, setJSON, removeItem, hasItem, getItem, getItemsByPrefix } from './storage/storage-api.js';
 
 const APP_DEFAULTS_KEY = 'iftalk_app_defaults';
 
@@ -34,16 +35,7 @@ function getGameSettingsKey() {
  * @returns {Object} App defaults object
  */
 export function loadAppDefaults() {
-  const json = localStorage.getItem(APP_DEFAULTS_KEY);
-  if (json) {
-    try {
-      return JSON.parse(json);
-    } catch (error) {
-      console.error('[GameSettings] Failed to parse app defaults:', error);
-      return {};
-    }
-  }
-  return {};
+  return getJSON(APP_DEFAULTS_KEY, {});
 }
 
 /**
@@ -51,7 +43,7 @@ export function loadAppDefaults() {
  * @param {Object} defaults - Defaults object to save
  */
 export function saveAppDefaults(defaults) {
-  localStorage.setItem(APP_DEFAULTS_KEY, JSON.stringify(defaults));
+  setJSON(APP_DEFAULTS_KEY, defaults);
 }
 
 /**
@@ -81,7 +73,7 @@ export function setAppDefault(settingName, value) {
  * Clear all app defaults
  */
 export function clearAppDefaults() {
-  localStorage.removeItem(APP_DEFAULTS_KEY);
+  removeItem(APP_DEFAULTS_KEY);
 }
 
 // =============================================================================
@@ -94,19 +86,7 @@ export function clearAppDefaults() {
  */
 export function loadGameSettings() {
   const key = getGameSettingsKey();
-  const settingsJson = localStorage.getItem(key);
-
-  if (settingsJson) {
-    try {
-      const settings = JSON.parse(settingsJson);
-      return settings;
-    } catch (error) {
-      console.error(`[GameSettings] Failed to parse settings for ${key}:`, error);
-      return {};
-    }
-  }
-
-  return {};
+  return getJSON(key, {});
 }
 
 /**
@@ -115,8 +95,7 @@ export function loadGameSettings() {
  */
 export function saveGameSettings(settings) {
   const key = getGameSettingsKey();
-  const settingsJson = JSON.stringify(settings);
-  localStorage.setItem(key, settingsJson);
+  setJSON(key, settings);
 }
 
 /**
@@ -186,20 +165,12 @@ export function getDefaultSettings() {
  * @returns {Array<string>} Array of game names
  */
 export function listGamesWithSettings() {
-  const games = [];
   const prefix = 'gameSettings_';
+  const keys = getItemsByPrefix(prefix);
 
-  for (let i = 0; i < localStorage.length; i++) {
-    const key = localStorage.key(i);
-    if (key.startsWith(prefix)) {
-      const gameName = key.substring(prefix.length);
-      if (gameName !== 'default') {
-        games.push(gameName);
-      }
-    }
-  }
-
-  return games;
+  return keys
+    .map(key => key.substring(prefix.length))
+    .filter(gameName => gameName !== 'default');
 }
 
 /**
@@ -207,7 +178,7 @@ export function listGamesWithSettings() {
  */
 export function clearGameSettings() {
   const key = getGameSettingsKey();
-  localStorage.removeItem(key);
+  removeItem(key);
 }
 
 /**
@@ -215,16 +186,8 @@ export function clearGameSettings() {
  */
 export function clearAllGameSettings() {
   const prefix = 'gameSettings_';
-  const keysToRemove = [];
-
-  for (let i = 0; i < localStorage.length; i++) {
-    const key = localStorage.key(i);
-    if (key.startsWith(prefix)) {
-      keysToRemove.push(key);
-    }
-  }
-
-  keysToRemove.forEach(key => localStorage.removeItem(key));
+  const keys = getItemsByPrefix(prefix);
+  keys.forEach(key => removeItem(key));
 }
 
 /**
@@ -235,37 +198,33 @@ export function clearAllGameSettings() {
 export function clearVoiceSettingsFromAllGames() {
   const prefix = 'gameSettings_';
   const voiceSettings = ['narratorVoice', 'appVoice', 'speechRate'];
+  const keys = getItemsByPrefix(prefix);
   let gamesUpdated = 0;
 
-  for (let i = 0; i < localStorage.length; i++) {
-    const key = localStorage.key(i);
-    if (key && key.startsWith(prefix)) {
-      try {
-        const settings = JSON.parse(localStorage.getItem(key));
-        let modified = false;
+  keys.forEach(key => {
+    const settings = getJSON(key, null);
+    if (!settings) return;
 
-        // Remove voice-related settings
-        for (const setting of voiceSettings) {
-          if (settings[setting] !== undefined) {
-            delete settings[setting];
-            modified = true;
-          }
-        }
+    let modified = false;
 
-        if (modified) {
-          // If settings object is now empty, remove the key entirely
-          if (Object.keys(settings).length === 0) {
-            localStorage.removeItem(key);
-          } else {
-            localStorage.setItem(key, JSON.stringify(settings));
-          }
-          gamesUpdated++;
-        }
-      } catch (e) {
-        console.error(`[GameSettings] Failed to process ${key}:`, e);
+    // Remove voice-related settings
+    for (const setting of voiceSettings) {
+      if (settings[setting] !== undefined) {
+        delete settings[setting];
+        modified = true;
       }
     }
-  }
+
+    if (modified) {
+      // If settings object is now empty, remove the key entirely
+      if (Object.keys(settings).length === 0) {
+        removeItem(key);
+      } else {
+        setJSON(key, settings);
+      }
+      gamesUpdated++;
+    }
+  });
 
   return gamesUpdated;
 }
@@ -281,11 +240,11 @@ export function getGameData(gameName = null) {
   return {
     gameName: name,
     settings: gameName ?
-      JSON.parse(localStorage.getItem(`gameSettings_${name}`) || '{}') :
+      getJSON(`gameSettings_${name}`, {}) :
       loadGameSettings(),
     saves: {
-      quicksave: localStorage.getItem(`iftalk_quicksave_${name}`),
-      glkoteSave: localStorage.getItem(`glkote_quetzal_${name}`)
+      quicksave: getItem(`iftalk_quicksave_${name}`),
+      glkoteSave: getItem(`glkote_quetzal_${name}`)
     }
   };
 }
@@ -297,9 +256,9 @@ export function getGameData(gameName = null) {
  */
 export function hasGameData(gameName) {
   return {
-    hasSettings: localStorage.getItem(`gameSettings_${gameName}`) !== null,
-    hasQuickSave: localStorage.getItem(`iftalk_quicksave_${gameName}`) !== null,
-    hasGlkoteSave: localStorage.getItem(`glkote_quetzal_${gameName}`) !== null
+    hasSettings: hasItem(`gameSettings_${gameName}`),
+    hasQuickSave: hasItem(`iftalk_quicksave_${gameName}`),
+    hasGlkoteSave: hasItem(`glkote_quetzal_${gameName}`)
   };
 }
 
@@ -310,11 +269,11 @@ export function hasGameData(gameName) {
 export function clearAllGameData(gameName = null) {
   const name = gameName || state.currentGameName || 'default';
 
-  localStorage.removeItem(`gameSettings_${name}`);
-  localStorage.removeItem(`iftalk_quicksave_${name}`);
-  localStorage.removeItem(`iftalk_autosave_${name}`);
-  localStorage.removeItem(`glkote_quetzal_${name}`);
-  localStorage.removeItem(`zvm_autosave_${name}`);
+  removeItem(`gameSettings_${name}`);
+  removeItem(`iftalk_quicksave_${name}`);
+  removeItem(`iftalk_autosave_${name}`);
+  removeItem(`glkote_quetzal_${name}`);
+  removeItem(`zvm_autosave_${name}`);
 }
 
 /**
@@ -322,23 +281,17 @@ export function clearAllGameData(gameName = null) {
  * Used by "Delete All Data" on welcome screen
  */
 export function clearAllAppData() {
-  const keysToRemove = [];
+  const prefixes = ['iftalk_', 'gameSettings_', 'glkote_quetzal_', 'zvm_autosave_'];
+  let totalRemoved = 0;
 
-  // Find all IFTalk-related keys
-  for (let i = 0; i < localStorage.length; i++) {
-    const key = localStorage.key(i);
-    if (key.startsWith('iftalk_') ||
-        key.startsWith('gameSettings_') ||
-        key.startsWith('glkote_quetzal_') ||
-        key.startsWith('zvm_autosave_')) {
-      keysToRemove.push(key);
-    }
-  }
+  // Find and remove all IFTalk-related keys
+  prefixes.forEach(prefix => {
+    const keys = getItemsByPrefix(prefix);
+    keys.forEach(key => removeItem(key));
+    totalRemoved += keys.length;
+  });
 
-  // Remove all found keys
-  keysToRemove.forEach(key => localStorage.removeItem(key));
-
-  return keysToRemove.length;
+  return totalRemoved;
 }
 
 /**
@@ -348,39 +301,22 @@ export function clearAllAppData() {
 export function listAllGames() {
   const games = new Map();
 
-  // Scan all localStorage keys
-  for (let i = 0; i < localStorage.length; i++) {
-    const key = localStorage.key(i);
-
-    // Check for game settings
-    if (key.startsWith('gameSettings_')) {
-      const gameName = key.substring('gameSettings_'.length);
+  const processKeys = (prefix, property) => {
+    const keys = getItemsByPrefix(prefix);
+    keys.forEach(key => {
+      const gameName = key.substring(prefix.length);
       if (gameName !== 'default') {
         if (!games.has(gameName)) {
           games.set(gameName, { gameName, hasSettings: false, hasQuickSave: false, hasGlkoteSave: false });
         }
-        games.get(gameName).hasSettings = true;
+        games.get(gameName)[property] = true;
       }
-    }
+    });
+  };
 
-    // Check for quick saves
-    if (key.startsWith('iftalk_quicksave_')) {
-      const gameName = key.substring('iftalk_quicksave_'.length);
-      if (!games.has(gameName)) {
-        games.set(gameName, { gameName, hasSettings: false, hasQuickSave: false, hasGlkoteSave: false });
-      }
-      games.get(gameName).hasQuickSave = true;
-    }
-
-    // Check for glkote saves
-    if (key.startsWith('glkote_quetzal_')) {
-      const gameName = key.substring('glkote_quetzal_'.length);
-      if (!games.has(gameName)) {
-        games.set(gameName, { gameName, hasSettings: false, hasQuickSave: false, hasGlkoteSave: false });
-      }
-      games.get(gameName).hasGlkoteSave = true;
-    }
-  }
+  processKeys('gameSettings_', 'hasSettings');
+  processKeys('iftalk_quicksave_', 'hasQuickSave');
+  processKeys('glkote_quetzal_', 'hasGlkoteSave');
 
   return Array.from(games.values()).sort((a, b) => a.gameName.localeCompare(b.gameName));
 }

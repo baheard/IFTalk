@@ -27,12 +27,12 @@ import { initScrollDetection } from './narration/highlighting.js';
 // UI modules
 import { updateNavButtons } from './ui/nav-buttons.js';
 import { addGameText } from './ui/game-output.js';
-import { initSettings, loadBrowserVoiceConfig, initVoiceSelection, updateSettingsContext } from './ui/settings.js';
+import { initAllSettings, loadBrowserVoiceConfig, updateSettingsContext } from './ui/settings/index.js';
 import { initHistoryButtons } from './ui/history.js';
 import { initConfirmDialog } from './ui/confirm-dialog.js';
 
 // Game modules
-import { sendCommand, sendCommandDirect, initDialogInterceptor } from './game/commands.js';
+import { sendCommand, sendCommandDirect, initDialogInterceptor } from './game/commands/index.js';
 import { initSaveHandlers, quickSave, quickLoad } from './game/save-manager.js';
 import { initGameSelection } from './game/game-loader.js';
 
@@ -312,8 +312,7 @@ async function initApp() {
   state.browserVoiceConfig.volume = parseFloat(localStorage.getItem('iftalk_masterVolume') || '100') / 100;
 
   // Initialize UI components
-  initSettings();
-  initVoiceSelection();
+  initAllSettings();
   initHistoryButtons();
   initConfirmDialog();
   initSaveHandlers();
@@ -322,7 +321,7 @@ async function initApp() {
 
   // Initialize Google Drive sync (optional, graceful degradation)
   try {
-    const { initGDriveSync } = await import('./utils/gdrive-sync.js');
+    const { initGDriveSync } = await import('./utils/gdrive/index.js');
     await initGDriveSync();
   } catch (error) {
     console.warn('[App] Google Drive sync unavailable:', error.message);

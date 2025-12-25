@@ -7,7 +7,7 @@
 
 import { state, constants } from '../core/state.js';
 import { dom } from '../core/dom.js';
-import { setVoiceSpeaking, updateVoiceTranscript } from '../input/keyboard.js';
+import { setVoiceSpeaking, updateVoiceTranscript } from '../input/keyboard/index.js';
 
 /**
  * Start voice meter (audio visualization and sound detection)

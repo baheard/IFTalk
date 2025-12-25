@@ -1,0 +1,199 @@
+/**
+ * Data Management UI Module
+ *
+ * Handles delete game data and clear all data buttons.
+ */
+
+import { state } from '../../core/state.js';
+import { dom } from '../../core/dom.js';
+import { updateStatus } from '../../utils/status.js';
+import { clearAllGameData, clearAllAppData } from '../../utils/game-settings.js';
+import { confirmDialog } from '../confirm-dialog.js';
+
+/**
+ * Check if we're on the welcome screen (no game loaded)
+ * @returns {boolean} True if on welcome screen
+ */
+function isOnWelcomeScreen() {
+  return !state.currentGameName;
+}
+
+/**
+ * Get display name for a game (looks up proper title from game card, with fallback)
+ * @param {string} gameName - Game filename (with or without extension)
+ * @returns {string} Formatted display name
+ */
+function getGameDisplayName(gameName) {
+  if (!gameName) return '';
+
+  // Try to find the proper display name from game card
+  const gameCard = document.querySelector(`.game-card[data-game="${gameName}"]`) ||
+                   document.querySelector(`.game-card[data-game$="/${gameName}"]`);
+
+  if (gameCard) {
+    const titleEl = gameCard.querySelector('.game-title');
+    if (titleEl) {
+      // Get text without the meta span (year, length)
+      const metaSpan = titleEl.querySelector('.game-meta');
+      return metaSpan
+        ? titleEl.textContent.replace(metaSpan.textContent, '').trim()
+        : titleEl.textContent.trim();
+    }
+  }
+
+  // Fallback: format filename nicely
+  return gameName
+    .replace(/\.[^.]+$/, '') // Remove extension
+    .replace(/([A-Z])/g, ' $1') // Add space before capitals
+    .trim()
+    .split(/[\s_-]+/) // Split on spaces, underscores, hyphens
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+    .join(' ');
+}
+
+/**
+ * Initialize data management UI
+ */
+export function initDataManagementUI() {
+  // Clear Data button - behavior depends on context
+  const clearAllDataBtn = document.getElementById('clearAllDataBtn');
+  if (clearAllDataBtn) {
+    clearAllDataBtn.addEventListener('click', async () => {
+      const onWelcome = isOnWelcomeScreen();
+      const gameName = state.currentGameName;
+
+      // Different confirmation based on context
+      let confirmed;
+      if (onWelcome) {
+        // Welcome screen: clear ALL app data
+        confirmed = await confirmDialog(
+          'This will permanently delete ALL data for ALL games.\n\n' +
+          'This includes:\n' +
+          '• All saves and autosaves\n' +
+          '• All game progress\n' +
+          '• All settings (voices, speed)\n' +
+          '• App defaults\n\n' +
+          'This action cannot be undone!',
+          { title: 'Delete All Data?' }
+        );
+      } else {
+        // In-game: clear only this game's data
+        const displayName = getGameDisplayName(gameName);
+        confirmed = await confirmDialog(
+          'This includes:\n' +
+          '• Saves and autosave\n' +
+          '• Game progress\n' +
+          '• Voice/speed settings for this game\n\n' +
+          'App defaults and other games will NOT be affected.',
+          { title: `Delete "${displayName}"?` }
+        );
+      }
+
+      if (confirmed) {
+        try {
+          if (onWelcome) {
+            // Clear everything (localStorage + Google Drive)
+            const count = clearAllAppData();
+
+            // Also delete from Drive if signed in
+            if (state.gdriveSignedIn) {
+              try {
+                const { deleteAllDataFromDrive } = await import('../../utils/gdrive/index.js');
+                await deleteAllDataFromDrive();
+                updateStatus(`✓ Cleared all app data (local + Drive)`);
+              } catch (driveError) {
+                console.error('[Settings] Failed to delete from Drive:', driveError);
+                updateStatus(`✓ Cleared local data (Drive deletion failed)`);
+              }
+            } else {
+              updateStatus(`✓ Cleared all app data`);
+            }
+
+            alert('Successfully deleted all app data.\n\nAll saves, progress, and settings have been cleared.');
+          } else {
+            // Clear only current game (localStorage + Google Drive)
+            clearAllGameData(gameName);
+
+            // Also delete from Drive if signed in
+            if (state.gdriveSignedIn) {
+              try {
+                const { deleteGameDataFromDrive } = await import('../../utils/gdrive/index.js');
+                const deleteCount = await deleteGameDataFromDrive(gameName);
+                updateStatus(`✓ Cleared data for ${gameName} (${deleteCount} files from Drive)`);
+              } catch (driveError) {
+                console.error('[Settings] Failed to delete from Drive:', driveError);
+                updateStatus(`✓ Cleared local data for ${gameName} (Drive deletion failed)`);
+              }
+            } else {
+              updateStatus(`✓ Cleared data for ${gameName}`);
+            }
+
+            alert(`Successfully deleted data for "${gameName}".\n\nThis game will use app defaults on next load.`);
+          }
+
+          // Close settings panel
+          if (dom.settingsPanel) {
+            dom.settingsPanel.classList.remove('open');
+          }
+
+        } catch (error) {
+          console.error('[Settings] Failed to clear data:', error);
+          updateStatus('Error clearing data');
+          alert('Failed to clear data: ' + error.message);
+        }
+      } else {
+        updateStatus('Clear data cancelled');
+      }
+    });
+  }
+
+  // Standalone "Delete All App Data" button (welcome screen only)
+  const deleteAllAppDataBtn = document.getElementById('deleteAllAppDataBtn');
+  if (deleteAllAppDataBtn) {
+    deleteAllAppDataBtn.addEventListener('click', async () => {
+      const confirmed = await confirmDialog(
+        'This will permanently delete ALL data for ALL games.\n\n' +
+        'This includes:\n' +
+        '• All saves and autosaves\n' +
+        '• All game progress\n' +
+        '• All settings (voices, speed)\n' +
+        '• App defaults\n\n' +
+        'This action cannot be undone!',
+        { title: 'Delete All Data?' }
+      );
+
+      if (confirmed) {
+        try {
+          clearAllAppData();
+
+          // Also delete from Drive if signed in
+          if (state.gdriveSignedIn) {
+            try {
+              const { deleteAllDataFromDrive } = await import('../../utils/gdrive/index.js');
+              await deleteAllDataFromDrive();
+              updateStatus('✓ Cleared all app data (local + Drive)');
+            } catch (driveError) {
+              console.error('[Settings] Failed to delete from Drive:', driveError);
+              updateStatus('✓ Cleared local data (Drive deletion failed)');
+            }
+          } else {
+            updateStatus('✓ Cleared all app data');
+          }
+
+          alert('Successfully deleted all app data.\n\nAll saves, progress, and settings have been cleared.');
+
+          // Close settings panel
+          if (dom.settingsPanel) {
+            dom.settingsPanel.classList.remove('open');
+          }
+        } catch (error) {
+          console.error('[Settings] Failed to clear data:', error);
+          updateStatus('Error clearing data');
+          alert('Failed to clear data: ' + error.message);
+        }
+      } else {
+        updateStatus('Clear data cancelled');
+      }
+    });
+  }
+}

@@ -13,6 +13,7 @@
  */
 
 import { state } from '../core/state.js';
+import { getItem } from './storage/storage-api.js';
 
 let audioCtx = null;
 
@@ -32,7 +33,7 @@ function getContext() {
  * Centralized volume control for all audio feedback
  */
 function getMasterVolume() {
-  const saved = localStorage.getItem('iftalk_masterVolume');
+  const saved = getItem('iftalk_masterVolume');
   return saved ? parseInt(saved) / 100 : 1.0;
 }
 
@@ -41,7 +42,7 @@ function getMasterVolume() {
  * @returns {boolean} True if sound effects should play
  */
 function areSoundEffectsEnabled() {
-  const setting = localStorage.getItem('iftalk_soundEffectsEnabled');
+  const setting = getItem('iftalk_soundEffectsEnabled', 'true');
   return setting !== 'false';
 }
 
