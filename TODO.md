@@ -1,103 +1,171 @@
 # IFTalk TODO
 
-## ✅ Completed - December 23, 2024
+## 🚗 Current Priority: Bluetooth Car Mode
 
-### UX Improvements
-*******- ✅ **Escape key & Clear button** - Press Esc or click X to clear command input
-*********- ✅ **Shortened prompts** - Removed verbose "send nothing to cancel" text from system prompts
-********- ✅ **Adjustable listen timeout** - 2-10s range (default 3s), Settings → Voice & Input
-********- ✅ **Removed 'exit' command** - Only 'quit' remains for quitting games
-*********- ✅ **System message auto-narration** - Save/restore messages now speak automatically in app voice
-- ✅ **Removed save limit** - Unlimited custom saves (was limited to 5)
-- ✅ **Screen lock audio fix** - Audio feedback silenced when screen is locked
-- ✅ **Sound effects toggle** - Settings → Audio → Sound Effects (disable all audio feedback)
-- ✅ **Louder error sounds** - Low confidence 2x louder, blocked command 60% louder
-*******- ✅ **Back/skip N commands** - Voice commands like "back 3", "skip 5", "go back 2", etc.
-- ✅ **Favicon test page** - `docs/favicon-test.html` with 20 favicon design options
-- ✅ **Sound test page** - `docs/sound-test.html` with 10 pulse sound options for testing
-- ✅ **Voice lock fix** - Status now shows "Listening... Say 'unlock'" when screen locked
+### Problem: Bluetooth Audio Conflicts
 
-### Files Modified
-- `docs/js/input/keyboard.js` - Escape key handler, clear button
-- `docs/js/game/commands.js` - Removed save limit, removed 'exit' command, shortened prompts
-- `docs/js/core/app-commands.js` - Removed 'exit' from QUIT array
-- `docs/js/ui/game-output.js` - Auto-narration for system messages
-- `docs/js/narration/recognition.js` - Listen timeout implementation, voice lock status fix
-- `docs/js/ui/settings.js` - Listen timeout slider, sound effects toggle
-- `docs/js/utils/audio-feedback.js` - Screen lock check, sound effects toggle check, increased volumes
-- `docs/index.html` - Clear button, listen timeout slider, sound effects toggle, voice command help updated
-- `docs/styles.css` - Clear button styling
-- `docs/js/voice/voice-commands.js` - Added back/skip N pattern matching
-- `docs/js/app.js` - Added backN and skipN handlers
-- `docs/favicon-test.html` - New test page with 20 favicon designs
-- `docs/sound-test.html` - New test page with 10 pulse sound options
+**User Report**: App has issues when used with car Bluetooth systems.
+
+**Root Cause**: Web Speech API limitations with Bluetooth audio routing:
+- When microphone is active (continuous listening), browser switches Bluetooth to **HFP (Hands-Free Profile)** - "call mode"
+- Car thinks user is on a phone call continuously
+- TTS narration plays through low-quality call audio instead of high-quality media audio
+- Music/media may pause or be interrupted
+- Browser constantly switches between HFP (mic/call) and A2DP (media) profiles, causing:
+  - Audio stuttering
+  - Connection instability
+  - Poor user experience
+
+**Why Current Approach Doesn't Work**:
+- Continuous listening (mic always active) keeps Bluetooth in call mode
+- Pausing mic during TTS would break voice commands (pause, skip, etc.)
+- Web Speech API gives no control over audio routing or Bluetooth profiles
+- Browser automatically manages Bluetooth profile switching - developers cannot override
+
+### Proposed Solution: Push-to-Talk Mode
+
+**Add a new voice input setting**: "Push-to-Talk Mode"
+
+**Behavior Changes**:
+
+**When DISABLED (current behavior)**:
+- Mic icon toggles continuous listening on/off
+- Always listening for voice commands when unmuted
+- Bluetooth stays in call mode continuously
+- Lower audio quality but fully hands-free
+
+**When ENABLED (new push-to-talk behavior)**:
+- Mic button becomes a **hold-to-talk** button (like walkie-talkie)
+- Press and hold button → mic activates → speak command → release button
+- When button not pressed: mic is OFF, Bluetooth stays in high-quality media mode
+- TTS narration plays through A2DP media profile (high quality)
+- When button pressed: Bluetooth briefly switches to call mode for voice input
+- **Result**: Best audio quality, no constant "call mode", but requires button press
+
+**Implementation Details**:
+
+1. **Settings Toggle**:
+   - Location: Settings → Voice & Input
+   - Label: "Push-to-Talk Mode"
+   - Description: "Hold mic button to speak (recommended for car Bluetooth)"
+   - Default: OFF (current continuous listening)
+
+2. **Mic Button Behavior**:
+   - Store as `state.pushToTalkMode` boolean
+   - When enabled:
+     - `mousedown`/`touchstart` → start recognition
+     - `mouseup`/`touchend`/`mouseleave`/`touchcancel` → stop recognition
+     - Visual feedback: button stays highlighted while pressed
+     - Status shows "Hold mic button to speak" when idle
+
+3. **Recognition Lifecycle**:
+   - Push-to-talk mode: Only start recognition when button is held
+   - Don't auto-restart recognition in `onend` handler when push-to-talk enabled
+   - Stop recognition when button is released
+
+4. **User Experience**:
+   - Clear visual indication of push-to-talk mode (button label/tooltip)
+   - Audio feedback when mic activates/deactivates (optional beep)
+   - Works with existing mute toggle (can still mute entirely)
+
+5. **Compatibility**:
+   - Desktop: Click and hold mic button
+   - Mobile/car: Tap and hold mic button
+   - Lock screen: Hold unlock button also activates mic?
+   - Voice commands still work: pause, skip, etc. (while button is held)
+
+**Files to Modify**:
+- `docs/js/core/state.js` - Add `pushToTalkMode` flag
+- `docs/js/voice/recognition.js` - Modify `onend` handler to respect push-to-talk mode
+- `docs/js/app.js` - Add mousedown/mouseup handlers to mic button when push-to-talk enabled
+- `docs/js/ui/settings/index.js` - Add push-to-talk toggle
+- `docs/index.html` - Add push-to-talk setting in Voice & Input section
+- `docs/styles.css` - Visual feedback for push-to-talk button state
+
+**Testing Checklist**:
+- [ ] Push-to-talk toggle appears in settings
+- [ ] Mic button switches to hold-to-talk when enabled
+- [ ] Recognition starts only when button is held
+- [ ] Recognition stops when button is released
+- [ ] Visual feedback shows button is pressed
+- [ ] Status message indicates push-to-talk mode
+- [ ] Mute toggle still works (overrides push-to-talk)
+- [ ] TTS plays through media profile when mic is off
+- [ ] Voice commands work while button is held
+- [ ] Mobile touch events work correctly
+- [ ] Desktop mouse events work correctly
+- [ ] Setting persists across page reloads
+
+**Alternative Approaches Considered**:
+
+1. ❌ **Stop mic during TTS**: Breaks voice commands (pause, skip, etc.)
+2. ❌ **Use server-side TTS**: Requires internet, costs money, complex implementation
+3. ❌ **Longer delays between mic restarts**: Still switches profiles frequently, partial solution only
+4. ✅ **Push-to-Talk Mode**: User chooses hands-free vs. audio quality, simple to implement
 
 ---
 
-## 📋 Remaining Tasks
+## 📋 Other Tasks (Lower Priority)
+
+### Future: Cloud TTS for Better Bluetooth Audio Quality
+
+**Problem**: Browser TTS (`speechSynthesis`) and Web Speech Recognition both use the same Bluetooth profile, causing audio quality issues in cars.
+
+**Solution**: Use cloud-based TTS API that returns audio files, which can play through media profile (A2DP) instead of call profile (HFP).
+
+**Benefits**:
+- TTS narration plays through high-quality car speakers (media profile)
+- Voice recognition stays in call profile
+- No profile switching during narration
+- Better audio quality overall
+- More natural-sounding voices
+
+**Options to Research**:
+
+1. **Google Cloud Text-to-Speech**
+   - Pricing: ~$4 per 1M characters (WaveNet voices)
+   - Free tier: 1M characters/month (Standard voices)
+   - Best voice quality, many languages
+   - Would need API key and billing setup
+
+2. **Amazon Polly**
+   - Pricing: ~$4 per 1M characters (Neural voices)
+   - Free tier: 5M characters/month for 12 months
+   - Good voice quality, integrates with AWS
+   - Would need AWS account
+
+3. **ElevenLabs** (Premium)
+   - Pricing: ~$5-22/month subscription
+   - Extremely natural voices
+   - Best quality but most expensive
+   - Good for premium features
+
+4. **OpenAI TTS**
+   - Pricing: ~$15 per 1M characters
+   - Good quality, simple API
+   - No free tier
+
+**Implementation Considerations**:
+- Need to cache audio files to avoid repeated API calls
+- Network latency for first-time narration
+- Requires internet connection (offline mode not possible)
+- Need to handle API errors/rate limits gracefully
+- Cost considerations for heavy users
+- Privacy: Text sent to third-party service
+
+**Recommendation**: Start with Google Cloud TTS free tier to test concept, then evaluate based on usage patterns.
+
+---
 
 ### Medium Priority
 - [ ] **Hide transition error messages** - Filter "I didn't understand that sentence" after autorestore
 - [ ] **Add "Restoring..." overlay** - Visual feedback during transition
-- [ ] **Chunk index restoration** - Test narration resumes from correct chunk
-- [ ] **Visual feedback** - Show "Restored from last session" toast
 - [ ] **Clear old autosaves** - Cleanup saves older than 30 days
-- [ ] **Storage efficiency** - Consider IndexedDB for large saves
 
 ### Low Priority
 - [ ] **Autosave indicator** - Visual feedback when autosave occurs
 - [ ] **Export/import saves** - Download/upload save files
-- [ ] **Gesture support** - Add swipe gestures as alternative to buttons (char panel)
-- [ ] **Collapsible char panel** - Toggle to show/hide for advanced users
 - [ ] **Haptic feedback** - Add vibration on button press (mobile)
-
----
-
-## ✅ Previously Completed
-
-### Autosave/Restore: WORKING (December 17, 2024)
-- ✅ Autosave after each turn
-- ✅ Auto-restore on page load
-- ✅ VM restores to correct position
-- ✅ Display HTML shows saved content immediately
-- ✅ Auto-keypress advances past intro
-- ✅ Input becomes available automatically
-
-**Known Issues:**
-- Minor transition error messages ("I didn't understand that sentence") - cosmetic only
-
-### 'R' Key Restore / Dialog.open (December 19, 2024)
-- ✅ Fixed char input sending (was sending numbers instead of strings)
-- ✅ Implemented native restore via Dialog.open
-- ✅ Anchorhead's "Press R to restore" now works properly
-
-### Messaging Interface (December 18, 2024)
-- ✅ Text input + Send button in controls panel
-- ✅ Commands appear in game content area
-- ✅ Auto-focus on game load
-- ✅ Dynamic placeholder based on mic state
-
-### Character Input Panel for Mobile (December 18, 2024)
-- ✅ Arrow buttons (← ↑ ↓ →) for game menus
-- ✅ Enter and Escape buttons
-- ✅ Keyboard button (⌨️) for virtual keyboard on mobile
-- ✅ Smart input swapping (line mode vs char mode)
-- ✅ Touch device detection
-- ✅ Proper Glk keycode mapping
-
-### UX Improvements (December 16, 2024)
-- ✅ TTS/Narration with browser speechSynthesis
-- ✅ Upper window narration
-- ✅ Settings panel with collapsible sections
-- ✅ Speech speed slider (0.5x - 1.5x)
-- ✅ Auto-scroll to highlighted text
-- ✅ Title chunking for section headers
-
-### Core Fixes (December 15, 2024)
-- ✅ Updated ifvms.js to 1.1.6
-- ✅ Removed Socket.IO (fully browser-based)
-- ✅ Fixed generation counter
-- ✅ Fixed VM start timing
 
 ---
 
@@ -105,43 +173,6 @@
 
 **Reference files:**
 - `reference/save-restore-research.md` - Deep dive into ifvms.js/GlkOte
-- `reference/save-restore-status.md` - Current implementation status
 - `reference/design-decisions.md` - Text processing pipeline
 - `reference/navigation-rules.md` - Playback controls behavior
-- `reference/zvm-integration.md` - ifvms.js + GlkOte setup
 - `CLAUDE.md` - Project instructions and architecture overview
-
----
-
-## 🔧 Quick Reference
-
-### Testing Autosave/Restore
-```bash
-1. Load game (e.g., Anchorhead)
-2. Play for a few turns
-3. Refresh page (Ctrl+R)
-4. Should restore automatically
-5. Continue playing normally
-```
-
-### Clear Saves
-```javascript
-// In browser console:
-localStorage.clear()
-```
-
-### Inspect Save Data
-```javascript
-// In browser console:
-JSON.parse(localStorage.getItem('iftalk_autosave_anchorhead'))
-```
-
-### Listen Timeout Setting
-- Default: 3 seconds
-- Range: 2-10 seconds
-- Location: Settings → Voice & Input → Listen Timeout
-
-### Sound Effects Control
-- Toggle: Settings → Audio → Sound Effects
-- When disabled: All command beeps, confirmations, and error sounds are silenced
-- TTS narration still works when disabled

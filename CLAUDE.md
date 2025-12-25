@@ -401,6 +401,89 @@ For detailed technical information, see the `reference/` folder:
      - `createConflictBackup()` updated for Google Drive sync conflicts
      - Automatic 2-minute timer creates autosave backups continuously
 
+### December 25, 2024 - Voice Recognition, Wake Lock, Lock Screen & Push-to-Talk
+1. **Voice Recognition Restart on Page Lifecycle Events** - Fixed listening mode getting "stuck" after minimize/lock/rotation
+   - File: `docs/js/app.js`
+   - **Root Cause**: Browser terminates voice recognition when page is hidden, minimized, or device locks
+   - **Previous Behavior**: Voice recognition would not restart when user returned to app
+   - **New Behavior**: Comprehensive event handling restarts recognition automatically:
+     - **visibilitychange**: Restarts when page becomes visible (tab switch, minimize, unlock)
+     - **orientationchange**: Restarts after screen rotation (500ms delay for transition)
+     - **focus**: Restarts when window regains focus (app switching, lock screen)
+     - **pageshow**: Restarts when page restored from bfcache (iOS/mobile back button)
+   - All handlers check `state.listeningEnabled` and `!state.isRecognitionActive` before restarting
+   - Detailed console logging for debugging (e.g., "Page visible - restarting voice recognition")
+   - **Result**: Voice recognition now reliably resumes after minimize, lock, rotation, or app switch
+   - **Note**: Recognition continues listening even when muted (to hear "unmute" command)
+
+2. **Wake Lock Reliability Improvements** - Fixed screen powering off despite wake lock being enabled
+   - Files: `docs/js/utils/wake-lock.js`, `docs/js/utils/lock-screen.js`
+   - **Root Cause**: Wake lock can be silently released by browser/OS, with no automatic retry
+   - **Previous Behavior**: Wake lock would fail silently or not re-acquire after page visibility changes
+   - **New Behavior**: Robust wake lock management with multiple safeguards:
+     - **Automatic retry**: If wake lock is released by system, automatically retries after 2 seconds
+     - **Periodic check**: Checks every 10 seconds if wake lock is still active, re-acquires if lost
+     - **Page visibility handling**: Only requests wake lock when page is visible (prevents silent failures)
+     - **Event-driven re-acquisition**: Responds to visibilitychange events to re-acquire wake lock
+     - **Comprehensive logging**: Emoji-coded console logs for all wake lock events:
+       - 🟢 Enabling, 🔴 Disabling, ✅ Acquired, 🔓 Released, ❌ Failed, 🔄 Retrying
+       - 🔒 Lock screen enable, 🎮 User interaction, 👁️ Visibility change, ⏸️ Page hidden
+   - **Lock Screen Integration**: Lock screen automatically enables wake lock when locked
+     - Stores previous state and restores it on unlock
+     - Logs all state changes for debugging
+   - **Result**: Screen stays awake reliably during gameplay and when lock screen is active
+   - **Note**: Wake lock is automatically enabled when lock screen is activated, even if toggle is off
+
+3. **Lock Screen Robustness Improvements** - Better protection against accidental browser navigation
+   - Files: `docs/js/utils/lock-screen.js`, `docs/styles.css`
+   - **Root Cause**: Mobile Chrome may not enter fullscreen, or user can easily exit it, exposing browser controls
+   - **Previous Behavior**: Fullscreen would fail silently, leaving browser tab/navigation buttons accessible
+   - **New Behavior**: Multiple layers of protection:
+     - **Fullscreen monitoring**: Detects when fullscreen is exited while screen is locked
+     - **Visual warning**: Bright orange warning banner at top if fullscreen fails or is exited
+       - "⚠️ Browser controls visible - Be careful not to tap browser buttons"
+       - Animated pulsing to draw attention
+     - **Tap shields**: Invisible 100px zones at top AND bottom of lock screen absorb accidental taps
+       - Covers areas where browser controls typically appear (address bar, tabs, navigation)
+       - Prevents touches from reaching browser UI elements
+     - **Comprehensive logging**:
+       - ✅ "Fullscreen activated" when successful
+       - ⚠️ "Fullscreen API not supported" if API unavailable
+       - ❌ "Fullscreen request failed" with error details
+       - ⚠️ "Fullscreen exited while screen locked" if user exits
+   - **Result**: Visual feedback when fullscreen protection isn't available, reduced accidental navigation
+   - **Note**: On devices where fullscreen API doesn't work, warning helps user avoid accidental taps
+
+4. **Push-to-Talk Mode** - Solution for car Bluetooth audio conflicts
+   - Files: `docs/js/core/state.js`, `docs/js/voice/recognition.js`, `docs/js/app.js`, `docs/index.html`, `docs/styles.css`
+   - **Problem**: Continuous listening keeps car Bluetooth in low-quality "call mode" (HFP profile)
+     - TTS narration plays through call audio instead of high-quality media audio
+     - Car thinks user is always on phone call
+     - Music/media may pause or be interrupted
+     - Browser switches between HFP and A2DP profiles causing stuttering
+   - **Solution**: Optional push-to-talk mode for Bluetooth-friendly operation
+   - **Settings Toggle**: Settings → Voice & Input → "Push-to-Talk Mode"
+     - Default: OFF (continuous listening - current behavior)
+     - Description: "Hold mic button to speak (recommended for car Bluetooth)"
+   - **Behavior When Enabled**:
+     - **Hold mic button** to activate voice recognition (like walkie-talkie)
+     - Mic is OFF when button not pressed → Bluetooth stays in media mode (A2DP)
+     - TTS narration plays through high-quality media profile
+     - When button pressed → Bluetooth briefly switches to call mode for voice input
+     - Button released → Recognition stops, Bluetooth returns to media mode
+   - **Visual Feedback**:
+     - Bright blue glow when button is held (`.push-to-talk-active` CSS class)
+     - Status shows "🎤 Listening... Speak now!" when active
+     - Status shows "Hold mic button to speak" when idle
+   - **Implementation Details**:
+     - `state.pushToTalkMode` flag stored in localStorage (`iftalk_push_to_talk`)
+     - Mouse events: `mousedown`/`mouseup`/`mouseleave` for desktop
+     - Touch events: `touchstart`/`touchend`/`touchcancel` for mobile
+     - Recognition auto-restart disabled in `recognition.onend` when push-to-talk enabled
+     - Click handler on mic button disabled in push-to-talk mode (only hold works)
+   - **Result**: Users can choose between hands-free (lower audio quality) or button-press (high audio quality)
+   - **Note**: Voice commands (pause, skip, etc.) still work while button is held
+
 ### December 23, 2024 - Tooltip System, Tap-to-Examine Improvements & Input Clearing
 1. **Unified Tooltip System** - Consolidated all tooltip behavior into single function
    - Files: `docs/js/app.js`, `docs/styles.css`

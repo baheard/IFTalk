@@ -44,6 +44,28 @@ export function initLockScreen() {
   if (!lockScreenOverlay || !unlockButton || !unlockProgress) {
     return;
   }
+
+  // Monitor fullscreen changes to detect if user exits fullscreen
+  const fullscreenChangeHandler = () => {
+    const isFullscreen = !!(
+      document.fullscreenElement ||
+      document.webkitFullscreenElement ||
+      document.mozFullScreenElement ||
+      document.msFullscreenElement
+    );
+
+    if (state.isScreenLocked && !isFullscreen) {
+      // Screen is locked but fullscreen was exited - show warning
+      console.warn('[LockScreen] ⚠️ Fullscreen exited while screen locked');
+      showFullscreenWarning();
+    }
+  };
+
+  // Add listeners for all vendor-prefixed fullscreen change events
+  document.addEventListener('fullscreenchange', fullscreenChangeHandler);
+  document.addEventListener('webkitfullscreenchange', fullscreenChangeHandler);
+  document.addEventListener('mozfullscreenchange', fullscreenChangeHandler);
+  document.addEventListener('MSFullscreenChange', fullscreenChangeHandler);
 }
 
 /**
@@ -58,10 +80,13 @@ export function lockScreen() {
 
   // Enable keep awake mode (prevent screen sleep during lock)
   // Store previous state so we can restore it on unlock
-  import('./wake-lock.js').then(module => {
+  import('./wake-lock.js').then(async module => {
     wasKeepAwakeEnabledBeforeLock = module.isKeepAwakeEnabled();
     if (!wasKeepAwakeEnabledBeforeLock) {
-      module.enableKeepAwake();
+      console.log('[LockScreen] 🔒 Enabling wake lock for locked screen');
+      await module.enableKeepAwake();
+    } else {
+      console.log('[LockScreen] 🔒 Wake lock already enabled');
     }
   });
 
@@ -108,9 +133,12 @@ export function unlockScreen() {
   state.isScreenLocked = false;
 
   // Restore keep awake mode to previous state
-  import('./wake-lock.js').then(module => {
+  import('./wake-lock.js').then(async module => {
     if (!wasKeepAwakeEnabledBeforeLock) {
-      module.disableKeepAwake();
+      console.log('[LockScreen] 🔓 Disabling wake lock (restoring previous state)');
+      await module.disableKeepAwake();
+    } else {
+      console.log('[LockScreen] 🔓 Keeping wake lock enabled (was enabled before lock)');
     }
   });
 
@@ -282,27 +310,67 @@ function resumeAnimations() {
 /**
  * Request fullscreen mode to hide browser controls
  */
-function requestFullscreen() {
+async function requestFullscreen() {
   try {
     const elem = document.documentElement;
+    let fullscreenPromise = null;
 
+    // Try standard fullscreen API
     if (elem.requestFullscreen) {
-      elem.requestFullscreen()
-        .then(() => {
-          // Fullscreen activated
-        })
-        .catch(err => {
-          // Fullscreen request failed
-        });
+      fullscreenPromise = elem.requestFullscreen();
     } else if (elem.webkitRequestFullscreen) {
-      elem.webkitRequestFullscreen();
+      fullscreenPromise = elem.webkitRequestFullscreen();
     } else if (elem.mozRequestFullScreen) {
-      elem.mozRequestFullScreen();
+      fullscreenPromise = elem.mozRequestFullScreen();
     } else if (elem.msRequestFullscreen) {
-      elem.msRequestFullscreen();
+      fullscreenPromise = elem.msRequestFullscreen();
+    }
+
+    if (fullscreenPromise) {
+      await fullscreenPromise;
+      console.log('[LockScreen] ✅ Fullscreen activated');
+      hideFullscreenWarning();
+    } else {
+      console.warn('[LockScreen] ⚠️ Fullscreen API not supported');
+      showFullscreenWarning();
     }
   } catch (err) {
-    // Fullscreen not supported
+    console.warn('[LockScreen] ❌ Fullscreen request failed:', err.message);
+    showFullscreenWarning();
+  }
+}
+
+/**
+ * Show warning that fullscreen is not active
+ */
+function showFullscreenWarning() {
+  // Add visual warning to lock screen
+  if (lockScreenOverlay) {
+    let warning = lockScreenOverlay.querySelector('.fullscreen-warning');
+    if (!warning) {
+      warning = document.createElement('div');
+      warning.className = 'fullscreen-warning';
+      warning.innerHTML = `
+        <div class="warning-content">
+          ⚠️ Browser controls visible<br>
+          <small>Be careful not to tap browser buttons</small>
+        </div>
+      `;
+      lockScreenOverlay.insertBefore(warning, lockScreenOverlay.firstChild);
+    }
+    warning.classList.remove('hidden');
+  }
+}
+
+/**
+ * Hide fullscreen warning
+ */
+function hideFullscreenWarning() {
+  if (lockScreenOverlay) {
+    const warning = lockScreenOverlay.querySelector('.fullscreen-warning');
+    if (warning) {
+      warning.classList.add('hidden');
+    }
   }
 }
 

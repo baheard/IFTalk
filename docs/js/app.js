@@ -238,7 +238,20 @@ async function initApp() {
 
   setMobileViewportHeight();
   window.addEventListener('resize', setMobileViewportHeight);
-  window.addEventListener('orientationchange', setMobileViewportHeight);
+  window.addEventListener('orientationchange', () => {
+    setMobileViewportHeight();
+    // Restart voice recognition after orientation change (can terminate recognition)
+    setTimeout(() => {
+      if (state.listeningEnabled && state.recognition && !state.isRecognitionActive) {
+        try {
+          console.log('[App] Orientation changed - restarting voice recognition');
+          state.recognition.start();
+        } catch (err) {
+          console.log('[App] Voice recognition already active or failed to restart:', err.message);
+        }
+      }
+    }, 500); // Wait for orientation transition to complete
+  });
 
   // Initialize DOM
   initDOM();
@@ -381,6 +394,43 @@ async function initApp() {
     });
   }
 
+  // Initialize push-to-talk mode toggle
+  const pushToTalkToggle = document.getElementById('pushToTalkToggle');
+  if (pushToTalkToggle) {
+    const saved = localStorage.getItem('iftalk_push_to_talk');
+    state.pushToTalkMode = saved === 'true'; // default disabled
+    pushToTalkToggle.checked = state.pushToTalkMode;
+
+    pushToTalkToggle.addEventListener('change', (e) => {
+      state.pushToTalkMode = e.target.checked;
+      localStorage.setItem('iftalk_push_to_talk', e.target.checked.toString());
+
+      if (e.target.checked) {
+        updateStatus('Push-to-talk mode enabled - Hold mic button to speak');
+        // Stop continuous listening if currently active
+        if (state.recognition && state.isRecognitionActive) {
+          try {
+            state.recognition.stop();
+          } catch (err) {
+            console.log('[App] Recognition already stopped');
+          }
+        }
+        state.listeningEnabled = false;
+      } else {
+        updateStatus('Push-to-talk mode disabled - Continuous listening');
+        // Resume continuous listening if mic is unmuted
+        if (!state.isMuted && state.recognition && !state.isRecognitionActive) {
+          state.listeningEnabled = true;
+          try {
+            state.recognition.start();
+          } catch (err) {
+            console.log('[App] Recognition already running');
+          }
+        }
+      }
+    });
+  }
+
   // Initialize help icon tooltips (shared utility for all help icons)
   initHelpTooltips();
 
@@ -485,15 +535,75 @@ async function initApp() {
   // const talkModeBtn = document.getElementById('talkModeBtn');
   // if (talkModeBtn) { ... }
 
-  // Mute button
+  // Mute button with push-to-talk support
   if (dom.muteBtn) {
-    dom.muteBtn.addEventListener('click', () => {
-      if (state.isMuted) {
-        voiceCommandHandlers.unmute();
-      } else {
-        voiceCommandHandlers.mute();
+    // Click handler - toggles mute in continuous mode, does nothing in push-to-talk mode
+    dom.muteBtn.addEventListener('click', (e) => {
+      // Only handle clicks in continuous listening mode
+      if (!state.pushToTalkMode) {
+        if (state.isMuted) {
+          voiceCommandHandlers.unmute();
+        } else {
+          voiceCommandHandlers.mute();
+        }
       }
+      // In push-to-talk mode, clicks are ignored (only hold matters)
     });
+
+    // Push-to-talk: Hold to activate mic
+    let pushToTalkActive = false;
+
+    const startPushToTalk = (e) => {
+      if (!state.pushToTalkMode || pushToTalkActive) return;
+
+      e.preventDefault();
+      pushToTalkActive = true;
+
+      console.log('[PushToTalk] 🎤 Button pressed - starting recognition');
+      dom.muteBtn.classList.add('push-to-talk-active');
+      updateStatus('🎤 Listening... Speak now!');
+
+      // Start recognition
+      state.listeningEnabled = true;
+      if (state.recognition && !state.isRecognitionActive) {
+        try {
+          state.recognition.start();
+        } catch (err) {
+          console.log('[PushToTalk] Recognition already running');
+        }
+      }
+    };
+
+    const stopPushToTalk = (e) => {
+      if (!state.pushToTalkMode || !pushToTalkActive) return;
+
+      e.preventDefault();
+      pushToTalkActive = false;
+
+      console.log('[PushToTalk] 🎤 Button released - stopping recognition');
+      dom.muteBtn.classList.remove('push-to-talk-active');
+      updateStatus('Hold mic button to speak');
+
+      // Stop recognition
+      state.listeningEnabled = false;
+      if (state.recognition && state.isRecognitionActive) {
+        try {
+          state.recognition.stop();
+        } catch (err) {
+          console.log('[PushToTalk] Recognition already stopped');
+        }
+      }
+    };
+
+    // Mouse events (desktop)
+    dom.muteBtn.addEventListener('mousedown', startPushToTalk);
+    dom.muteBtn.addEventListener('mouseup', stopPushToTalk);
+    dom.muteBtn.addEventListener('mouseleave', stopPushToTalk);
+
+    // Touch events (mobile)
+    dom.muteBtn.addEventListener('touchstart', startPushToTalk, { passive: false });
+    dom.muteBtn.addEventListener('touchend', stopPushToTalk, { passive: false });
+    dom.muteBtn.addEventListener('touchcancel', stopPushToTalk, { passive: false });
   }
 
 
@@ -539,11 +649,53 @@ async function initApp() {
     }
   });
 
-  // Handle visibility change (tab switch, minimize)
-  document.addEventListener('visibilitychange', () => {
-    if (document.hidden && 'speechSynthesis' in window) {
-      speechSynthesis.cancel();
+  // Handle page show (returning from bfcache on iOS/mobile)
+  window.addEventListener('pageshow', (event) => {
+    // If page was restored from bfcache, restart voice recognition
+    if (event.persisted && state.listeningEnabled && state.recognition && !state.isRecognitionActive) {
+      try {
+        console.log('[App] Page restored from cache - restarting voice recognition');
+        state.recognition.start();
+      } catch (err) {
+        console.log('[App] Voice recognition already active or failed to restart:', err.message);
+      }
     }
+  });
+
+  // Handle visibility change (tab switch, minimize, lock screen, etc.)
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) {
+      // Page hidden: cancel speech
+      if ('speechSynthesis' in window) {
+        speechSynthesis.cancel();
+      }
+    } else {
+      // Page visible again: restart voice recognition if it should be running
+      if (state.listeningEnabled && state.recognition && !state.isRecognitionActive) {
+        try {
+          console.log('[App] Page visible - restarting voice recognition');
+          state.recognition.start();
+        } catch (err) {
+          // Ignore if already running
+          console.log('[App] Voice recognition already active or failed to restart:', err.message);
+        }
+      }
+    }
+  });
+
+  // Handle window focus/blur (app switching, returning from lock screen, etc.)
+  window.addEventListener('focus', () => {
+    // Window regained focus: restart voice recognition if it should be running
+    setTimeout(() => {
+      if (state.listeningEnabled && state.recognition && !state.isRecognitionActive) {
+        try {
+          console.log('[App] Window focused - restarting voice recognition');
+          state.recognition.start();
+        } catch (err) {
+          console.log('[App] Voice recognition already active or failed to restart:', err.message);
+        }
+      }
+    }, 300); // Small delay to ensure focus is fully restored
   });
 
   // Smart scroll on window resize to keep content visible

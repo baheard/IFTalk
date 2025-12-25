@@ -2079,6 +2079,32 @@ body.tap-to-examine-enabled .game-text {
   pointer-events: none;
 }
 
+/* Tap shield - absorb accidental taps at top where browser controls are */
+.lock-screen-overlay::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 100px; /* Cover area where browser controls typically are */
+  background: transparent;
+  pointer-events: auto;
+  z-index: 1;
+}
+
+/* Tap shield - absorb accidental taps at bottom where browser controls are */
+.lock-screen-overlay::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 100px; /* Cover area where browser controls typically are */
+  background: transparent;
+  pointer-events: auto;
+  z-index: 1;
+}
+
 .lock-screen-content {
   display: flex;
   flex-direction: column;
@@ -2242,6 +2268,50 @@ body.tap-to-examine-enabled .game-text {
 .lock-screen-overlay * {
   user-select: none;
   -webkit-user-select: none;
+}
+
+/* Fullscreen Warning */
+.fullscreen-warning {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  background: rgba(255, 152, 0, 0.95);
+  color: #000;
+  padding: 12px;
+  text-align: center;
+  font-family: var(--font-sans);
+  font-size: 14px;
+  font-weight: 500;
+  z-index: 10001;
+  border-bottom: 2px solid rgba(255, 152, 0, 1);
+  animation: warning-pulse 2s ease-in-out infinite;
+}
+
+.fullscreen-warning.hidden {
+  display: none;
+}
+
+.fullscreen-warning .warning-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.fullscreen-warning small {
+  font-size: 12px;
+  opacity: 0.9;
+  font-weight: 400;
+}
+
+@keyframes warning-pulse {
+  0%, 100% {
+    background: rgba(255, 152, 0, 0.95);
+  }
+  50% {
+    background: rgba(255, 152, 0, 0.85);
+  }
 }
 
 .game-title {
@@ -2431,6 +2501,18 @@ body.tap-to-examine-enabled .game-text {
 
 .btn-mic.muted:hover {
   opacity: 1;
+}
+
+/* Push-to-talk active state - bright blue glow when holding button */
+.btn-mic.push-to-talk-active {
+  background: rgb(59, 130, 246); /* blue-500 */
+  box-shadow:
+    0 0 20px rgba(59, 130, 246, 0.6),
+    0 0 40px rgba(59, 130, 246, 0.4),
+    0 2px 8px rgba(0, 0, 0, 0.15);
+  filter: brightness(1.2);
+  transform: scale(1.1);
+  transition: all 0.1s ease;
 }
 
 /* Message Input Row */

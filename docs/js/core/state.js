@@ -24,6 +24,7 @@ const _state = {
   isMuted: true,  // Start with microphone muted by default
   hasProcessedResult: false,
   hasManualTyping: false,
+  pushToTalkMode: false,  // When true, mic only activates while button is held (for car Bluetooth)
 
   // Narration state
   currentAudio: null,

@@ -287,6 +287,12 @@ export function initVoiceRecognition(processVoiceKeywords) {
     // Voice commands are now sent immediately in onresult handler
     // No need to check for input field or auto-send here
 
+    // In push-to-talk mode, don't auto-restart (only restart when button is held)
+    if (state.pushToTalkMode) {
+      console.log('[Recognition] 🎤 Push-to-talk mode: not auto-restarting');
+      return;
+    }
+
     // Always restart listening if enabled (even when muted - to listen for "unmute")
     if (state.listeningEnabled) {
       setTimeout(() => {
@@ -304,7 +310,7 @@ export function initVoiceRecognition(processVoiceKeywords) {
             // Ignore if already running - silently ignore restart errors
           }
         }
-      }, 200); // Reduced from 300ms
+      }, 200);
     }
   };
 
