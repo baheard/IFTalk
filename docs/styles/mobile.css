@@ -1,0 +1,400 @@
+/* Mobile Responsive Styles - All Media Queries */
+
+@media (max-width: 768px) {
+  .mobile-only {
+    display: block !important;
+  }
+
+  .mobile-only.setting-item {
+    display: block !important;
+  }
+}
+
+@media (max-width: 600px) {
+  /* Header */
+  .header {
+    padding: 12px 16px;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+
+  .header h1 {
+    font-size: 18px;
+    flex: 1;
+  }
+
+  .header-controls {
+    width: 100%;
+    justify-content: space-between;
+    order: 1;
+  }
+
+  .voice-selector {
+    display: none;
+  }
+
+  #selectGameBtn {
+    padding: 8px 12px;
+    font-size: 13px;
+  }
+
+  /* Voice Help Tooltip - full width dropdown */
+  .voice-help-tooltip {
+    position: fixed;
+    top: auto;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    transform: none;
+    min-width: 100%;
+    max-width: 100%;
+    border-radius: 16px 16px 0 0;
+    padding: 20px;
+    max-height: 70vh;
+    overflow-y: auto;
+  }
+
+  /* Settings panel full width */
+  .settings-panel {
+    width: 100%;
+    right: -100%;
+  }
+
+  .settings-panel.open {
+    right: 0;
+  }
+
+  .voice-setting {
+    flex-wrap: wrap;
+  }
+
+  .voice-setting label {
+    min-width: 100%;
+    margin-bottom: 6px;
+  }
+
+  .voice-setting .voice-dropdown {
+    flex: 1;
+    min-width: 0;
+    max-width: none;
+  }
+
+  .voice-setting .btn-test-voice {
+    flex-shrink: 0;
+  }
+
+  .pronunciation-item {
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  .pronunciation-word {
+    min-width: 80px;
+    font-size: 13px;
+  }
+
+  .add-pronunciation {
+    flex-direction: column;
+  }
+
+  .add-pronunciation input {
+    width: 100%;
+  }
+
+  /* Game output */
+  .game-text {
+    font-size: var(--font-m);
+    line-height: 1.8;
+  }
+
+  /* Welcome screen */
+  .welcome {
+    padding: 30px 16px;
+  }
+
+  .welcome h2 {
+    font-size: 28px;
+  }
+
+  .game-card {
+    padding: 16px;
+  }
+
+  .game-title {
+    font-size: 18px;
+  }
+
+  /* Input area - compact on mobile */
+  .input-area {
+    padding: 8px 12px;
+  }
+
+  /* .controls {
+    flex-direction: row;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+  } */
+
+  .btn-control {
+    padding: 8px 14px;
+    font-size: 13px;
+  }
+
+  .btn-talk-mode {
+    padding: 8px 14px;
+    font-size: 13px;
+  }
+
+  .narration-controls {
+    display: flex;
+    gap: 4px;
+  }
+
+  /* Hide narration controls until talk mode active */
+  .narration-controls.hidden {
+    display: none;
+  }
+
+  .btn-nav {
+    padding: 6px 8px;
+    font-size: 14px;
+    min-width: 36px;
+    min-height: 36px;
+  }
+
+
+  /* Char Input Panel - Mobile touch targets (messaging-interface) */
+  .btn-char-nav {
+    width: 48px;
+    height: 48px;
+  }
+
+  .btn-char-action {
+    padding: 10px 14px;
+  }
+
+  #charEscBtn {
+    width: 48px;
+    height: 48px;
+  }
+  .input-mode-hint {
+    display: none;
+  }
+
+  /* Hide slider/progress until talk mode active on mobile */
+  .narration-progress {
+    display: none;
+  }
+
+  .narration-progress.active {
+    display: block;
+    padding: 6px 10px;
+    margin-bottom: 8px;
+  }
+
+  /* Two-panel to stacked layout */
+  .input-panels {
+    flex-direction: column;
+    gap: 8px;
+    margin-top: 8px;
+  }
+
+  .input-panel {
+    min-height: auto;
+    padding: 10px;
+  }
+
+  /* Hide voice panel when not in talk mode */
+  .voice-panel {
+    display: none;
+  }
+
+  .voice-panel.active {
+    display: flex;
+  }
+
+  .panel-header {
+    font-size: 12px;
+    margin-bottom: 8px;
+    padding-bottom: 4px;
+  }
+
+  .input-container {
+    display: flex;
+    gap: 8px;
+  }
+
+  #userInput {
+    flex: 1;
+    padding: 10px 12px;
+    font-size: var(--font-m);
+  }
+
+  #sendBtn {
+    padding: 10px 16px;
+    font-size: 14px;
+    min-height: 40px;
+  }
+
+  /* Mode switch */
+  .mode-switch-container {
+    gap: 4px;
+  }
+
+  .mode-label {
+    font-size: 10px;
+    min-width: 40px;
+  }
+
+  /* Command history - more compact */
+  .panel-history {
+    margin-top: 8px;
+  }
+
+  .command-history {
+    max-height: 80px;
+  }
+
+  .command-history-item {
+    padding: 6px 8px;
+    font-size: 11px;
+  }
+
+  /* Voice feedback */
+  .voice-feedback {
+    padding: 4px 8px;
+    margin-bottom: 4px;
+  }
+
+  .voice-transcript {
+    font-size: 11px;
+  }
+
+  .voice-history-item {
+    font-size: 11px;
+    padding: 4px 6px;
+  }
+
+  /* Progress info compact */
+  .progress-info {
+    font-size: 11px;
+    margin-bottom: 4px;
+  }
+
+  .narration-slider {
+    height: 4px;
+  }
+
+  .narration-slider::-webkit-slider-thumb {
+    width: 14px;
+    height: 14px;
+  }
+
+  .narration-slider::-moz-range-thumb {
+    width: 14px;
+    height: 14px;
+  }
+
+  /* Status bar - slim */
+  .status {
+    padding: 6px 12px;
+    font-size: 11px;
+  }
+
+  /* Additional mobile adjustments */
+  .voice-help-icon,
+  .settings-btn {
+    width: 36px;
+    height: 36px;
+    font-size: var(--font-m);
+  }
+
+  /* Fix body height for mobile browsers with address bar */
+  body {
+    height: calc(var(--vh, 1vh) * 100);
+  }
+
+  /* Game output container - allow scrolling */
+  .game-output {
+    align-items: start;
+    overflow-y: auto !important;
+    overflow-x: hidden;
+  }
+
+  /* Status bar: fixed to top on mobile */
+  #statusBar {
+    position: sticky;
+    top: 0;
+  }
+
+  /* Upper window: scrolls with content */
+  #upperWindow {
+    font-size: var(--font-xs);
+    white-space: normal !important;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    padding: 16px 8px;
+  }
+
+  /* Lower window: no separate scroll, scrolls with parent */
+  #lowerWindow {
+    overflow-y: visible !important;
+    flex: none !important;
+    padding: 0 8px 16px;
+    white-space: normal !important;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+  }
+
+  #lowerWindow span[style*="white-space: pre"] {
+    white-space: normal !important;
+  }
+
+  /* Convert grid layout to normal flow on mobile */
+  .grid-status.multiline {
+    display: block !important;
+    text-align: left;
+    word-wrap: break-word;
+  }
+
+  .grid-status .grid-line {
+    display: block !important;
+    text-align: left;
+    margin: 0;
+    line-height: 1.4;
+    word-spacing: normal !important;
+  }
+
+  /* Hide single line breaks (ignore), keep double line breaks (paragraph spacing) */
+  .grid-status .grid-line.empty-line-single {
+    display: none !important;
+  }
+
+  .grid-status .grid-line.empty-line-continuation {
+    display: none !important;
+  }
+
+  .grid-status .grid-line.empty-line-first {
+    display: block !important;
+    height: 1em;
+    line-height: 1em;
+  }
+
+  /* Grid-positioned spans: remove grid, flow as inline text */
+  .grid-status span[style*="grid-column"] {
+    display: inline !important;
+    grid-column: unset !important;
+    white-space: normal !important;
+  }
+
+  /* Hide spans that are purely whitespace (trims leading whitespace) */
+  .grid-status span.whitespace-only {
+    display: none !important;
+  }
+
+  /* Lower window: collapse consecutive blank lines to just one */
+  #lowerWindow .blank-line-spacer + .blank-line-spacer {
+    display: none !important;
+  }
+}

@@ -1,0 +1,189 @@
+/* Lock Screen - Lock Screen Overlay and Unlock Button */
+
+/* Lock Screen Overlay */
+.lock-screen-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.9); /* 90% black for dimming (battery savings on OLED) */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10000; /* Above everything else */
+  pointer-events: all; /* Block all touch events */
+  opacity: 1;
+  transition: opacity 0.3s ease;
+}
+
+.lock-screen-overlay.hidden {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.lock-screen-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 24px;
+  padding: 40px;
+  max-width: 400px;
+  text-align: center;
+}
+
+.lock-screen-icon {
+  font-size: 80px;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.lock-screen-icon .material-icons {
+  font-size: 80px;
+}
+
+.lock-screen-listening-indicator {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--font-sans);
+  font-size: 16px;
+  color: var(--accent-primary);
+  margin-bottom: 8px;
+}
+
+.lock-screen-listening-indicator.hidden {
+  display: none;
+}
+
+.lock-screen-listening-indicator .mic-pulse {
+  font-size: 24px;
+  animation: pulse-mic 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse-mic {
+  0%, 100% {
+    opacity: 0.6;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.1);
+  }
+}
+
+.lock-screen-muted-indicator {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--font-sans);
+  font-size: 16px;
+  color: #ff6b6b;
+  margin-bottom: 8px;
+}
+
+.lock-screen-muted-indicator.hidden {
+  display: none;
+}
+
+.lock-screen-muted-indicator .material-icons {
+  font-size: 24px;
+}
+
+.lock-screen-instructions {
+  font-family: var(--font-sans);
+  font-size: 18px;
+  color: rgba(255, 255, 255, 0.8);
+  margin-bottom: 8px;
+}
+
+.lock-screen-transcript {
+  font-family: var(--font-mono);
+  font-size: 20px;
+  color: rgba(255, 255, 255, 0.95);
+  padding: 12px 24px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  min-height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  max-width: 300px;
+  word-break: break-word;
+  margin: 8px 0;
+}
+
+.lock-screen-transcript.hidden {
+  display: none;
+}
+
+/* Unlock Button */
+.unlock-button {
+  position: relative;
+  width: 180px;
+  height: 180px;
+  border-radius: 50%;
+  border: 3px solid rgba(255, 255, 255, 0.3);
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(10px);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  overflow: hidden;
+  -webkit-tap-highlight-color: transparent; /* Remove tap highlight on mobile */
+}
+
+.unlock-button:active {
+  transform: scale(0.95);
+  border-color: rgba(255, 255, 255, 0.5);
+}
+
+.unlock-button-inner {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  gap: 8px;
+}
+
+.unlock-button-inner .material-icons {
+  font-size: 48px;
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.unlock-text {
+  font-family: var(--font-sans);
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.8);
+  font-weight: 500;
+}
+
+/* Unlock Progress Indicator (Bottom-to-Top Fill) */
+.unlock-progress {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 0%;
+  background: rgba(196, 163, 90, 0.4); /* Accent warm with transparency */
+  z-index: 1;
+  transition: height 0.05s linear;
+  border-radius: 0 0 50% 50%;
+}
+
+.unlock-button.unlocking .unlock-progress {
+  transition: height 2s linear; /* 2-second fill animation */
+  height: 100%;
+}
+
+.unlock-button.unlocking {
+  border-color: var(--accent-warm);
+}
+
+/* Prevent text selection during hold */
+.lock-screen-overlay * {
+  user-select: none;
+  -webkit-user-select: none;
+}
+

@@ -248,6 +248,9 @@ function showHintPromptDialog(prompt) {
   dialog.className = 'hint-dialog';
   dialog.style.cssText = 'background:var(--bg-elevated,#2a2a2a);color:var(--text-primary,#e0e0e0);padding:0;border-radius:12px;max-width:700px;width:100%;max-height:85vh;display:flex;flex-direction:column;box-shadow:0 8px 32px rgba(0,0,0,0.4);';
 
+  // Get saved hint type preference
+  const savedHintType = localStorage.getItem('iftalk_hintType') || 'general';
+
   // Add content with improved styling
   dialog.innerHTML = `
     <div class="hint-dialog-header" style="padding:20px;border-bottom:1px solid var(--border-subtle,#3a3a3a);display:flex;justify-content:space-between;align-items:center;">
@@ -258,10 +261,18 @@ function showHintPromptDialog(prompt) {
       <button class="close-dialog-btn" style="background:none;border:none;color:var(--text-secondary,#999);font-size:24px;cursor:pointer;padding:0;width:32px;height:32px;display:flex;align-items:center;justify-content:center;border-radius:4px;">✕</button>
     </div>
     <div class="hint-dialog-body" style="padding:20px;flex:1;overflow:auto;">
+      <div style="margin-bottom:15px;">
+        <label style="display:block;margin-bottom:6px;font-size:14px;font-weight:500;">Hint Type:</label>
+        <select id="hintTypeSelect" class="hint-type-select" style="width:100%;padding:8px 12px;border:1px solid var(--border-subtle,#3a3a3a);border-radius:6px;background:var(--bg-primary,#1e1e1e);color:var(--text-primary,#e0e0e0);font-size:14px;">
+          <option value="general" ${savedHintType === 'general' ? 'selected' : ''}>General Hint</option>
+          <option value="puzzle" ${savedHintType === 'puzzle' ? 'selected' : ''}>Puzzle Help</option>
+          <option value="location" ${savedHintType === 'location' ? 'selected' : ''}>Navigation Help</option>
+        </select>
+      </div>
       <p class="hint-dialog-instructions" style="margin:0 0 12px 0;color:var(--text-secondary,#b0b0b0);font-size:14px;">
         Review the prompt below, then copy it to get AI-powered hints:
       </p>
-      <textarea readonly class="hint-prompt-textarea" style="width:100%;height:300px;font-family:monospace;font-size:13px;padding:12px;border:1px solid var(--border-subtle,#3a3a3a);border-radius:6px;background:var(--bg-primary,#1e1e1e);color:var(--text-primary,#e0e0e0);resize:vertical;min-height:200px;">${prompt}</textarea>
+      <textarea readonly class="hint-prompt-textarea" style="width:100%;height:250px;font-family:monospace;font-size:13px;padding:12px;border:1px solid var(--border-subtle,#3a3a3a);border-radius:6px;background:var(--bg-primary,#1e1e1e);color:var(--text-primary,#e0e0e0);resize:vertical;min-height:200px;">${prompt}</textarea>
     </div>
     <div class="hint-dialog-footer" style="padding:20px;border-top:1px solid var(--border-subtle,#3a3a3a);display:flex;flex-direction:column;gap:10px;">
       <button id="copyAndOpenBtn" class="btn btn-primary btn-full-width" style="padding:12px 24px;background:var(--accent-primary,#4CAF50);color:white;border:none;border-radius:6px;cursor:pointer;font-size:15px;font-weight:600;display:flex;align-items:center;justify-content:center;gap:8px;transition:background 0.2s;">
@@ -286,6 +297,20 @@ function showHintPromptDialog(prompt) {
   // Select all text for easy copying
   const textarea = dialog.querySelector('.hint-prompt-textarea');
   textarea.select();
+
+  // Handle hint type changes
+  const hintTypeSelect = dialog.querySelector('#hintTypeSelect');
+  if (hintTypeSelect) {
+    hintTypeSelect.addEventListener('change', (e) => {
+      const newHintType = e.target.value;
+      // Save preference
+      localStorage.setItem('iftalk_hintType', newHintType);
+      // Rebuild prompt with new hint type
+      // We need to get the context from the original prompt
+      // For now, just update the prompt textarea
+      // TODO: Could rebuild the full prompt here, but that requires context
+    });
+  }
 
   // Copy & Open ChatGPT button (primary action)
   dialog.querySelector('#copyAndOpenBtn').onclick = () => {

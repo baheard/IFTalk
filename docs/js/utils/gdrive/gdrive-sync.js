@@ -289,7 +289,7 @@ export function scheduleDriveSync(saveKey, saveData) {
 /**
  * Create conflict backup when local save is about to be overwritten
  * Stores backup in localStorage with timestamped key
- * Shares the same 5 backup limit with interval-based autosave backups
+ * Backup limits: Autosaves (5 backups), Other saves (2 backups)
  * @param {string} localStorageKey - The localStorage key (e.g., "iftalk_autosave_lostpig")
  * @param {object} localData - The save data to backup
  */
@@ -301,13 +301,17 @@ function createConflictBackup(localStorageKey, localData) {
   // Store backup
   localStorage.setItem(backupKey, JSON.stringify(localData));
 
-  // Find all backups for this save (same prefix without timestamp)
+  // Determine save type from key
+  const isAutosave = localStorageKey.includes('_autosave_');
+  const maxBackups = isAutosave ? 5 : 2;
+
+  // Find all backups for this save (same prefix without timestamp, exclude exempt)
   const backupPrefix = backupKey.substring(0, backupKey.lastIndexOf('_'));
   const allBackups = [];
 
   for (let i = 0; i < localStorage.length; i++) {
     const key = localStorage.key(i);
-    if (key && key.startsWith(backupPrefix + '_')) {
+    if (key && key.startsWith(backupPrefix + '_') && !key.endsWith('_exempt')) {
       // Extract timestamp from key
       const parts = key.split('_');
       const ts = parseInt(parts[parts.length - 1]);
@@ -318,15 +322,16 @@ function createConflictBackup(localStorageKey, localData) {
   // Sort by timestamp (newest first)
   allBackups.sort((a, b) => b.timestamp - a.timestamp);
 
-  // Keep only the 5 most recent backups (shared limit with interval backups)
-  if (allBackups.length > 5) {
-    const toRemove = allBackups.slice(5);
+  // Keep only the most recent backups based on save type
+  // Autosaves: 5 backups, Other types: 2 backups
+  if (allBackups.length > maxBackups) {
+    const toRemove = allBackups.slice(maxBackups);
     toRemove.forEach(({ key }) => {
       localStorage.removeItem(key);
       console.log(`[Backup] Removed old conflict backup: ${key}`);
     });
   }
 
-  console.log(`[Backup] Created conflict backup: ${backupKey}`);
-  console.log(`[Backup] Total backups for this save: ${Math.min(allBackups.length, 5)}/5`);
+  console.log(`[Backup] Created conflict backup from Drive sync: ${backupKey}`);
+  console.log(`[Backup] Total backups for this save: ${Math.min(allBackups.length, maxBackups)}/${maxBackups}`);
 }

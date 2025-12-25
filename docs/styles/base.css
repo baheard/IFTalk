@@ -1,0 +1,327 @@
+/* Base Styles - HTML, Body, Typography, Utilities */
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html {
+  font-size: var(--html-font-size);
+}
+
+body {
+  font-family: var(--font-sans);
+  font-size: var(--font-m);
+  line-height: 1.4;
+  background: linear-gradient(145deg, var(--bg-primary) 0%, var(--bg-secondary) 100%);
+  color: var(--text-primary);
+  height: 100vh;
+  height: 100dvh; /* Dynamic viewport height for mobile browsers */
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* Utility Classes */
+.hidden {
+  display: none !important;
+}
+
+/* Loading Overlay */
+.loading-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: var(--bg-primary);
+  z-index: 9999;
+  opacity: 1;
+  transition: opacity 0.1s ease-out;
+  pointer-events: none;
+}
+
+.loading-overlay.fade-out {
+  opacity: 0;
+}
+
+/* Header */
+.header {
+  background: var(--bg-surface);
+  padding: 15px 20px;
+  border-bottom: 1px solid var(--border-subtle);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.header h1 {
+  font-size: var(--font-xl);
+  color: var(--text-primary);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.header-controls {
+  display: flex;
+  gap: 15px;
+  align-items: center;
+}
+
+/* Voice Help Icon */
+.voice-help-icon {
+  position: relative;
+  font-size: 20px;
+  cursor: help;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-muted);
+  opacity: 0.5;
+  transition: opacity 0.15s;
+}
+
+/* Hover state for desktop only */
+@media (hover: hover) and (pointer: fine) {
+  .voice-help-icon:hover {
+    opacity: 1;
+  }
+}
+
+.voice-help-icon.active {
+  opacity: 1;
+}
+
+.voice-help-tooltip {
+  position: absolute;
+  top: 45px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-accent);
+  border-radius: 10px;
+  padding: 16px 20px;
+  min-width: 320px;
+  max-width: 400px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.3s ease;
+  z-index: 1000;
+}
+
+/* Show tooltip on hover (desktop only - not touch devices) */
+@media (hover: hover) and (pointer: fine) {
+  .voice-help-icon:hover .voice-help-tooltip {
+    opacity: 1;
+    pointer-events: auto;
+  }
+}
+
+/* Show tooltip on tap/click (all devices) - requires JS */
+.voice-help-icon.active .voice-help-tooltip {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.voice-help-tooltip h3 {
+  margin: 0 0 12px 0;
+  font-size: 18px;
+  color: var(--accent-primary);
+  border-bottom: 1px solid var(--border-subtle);
+  padding-bottom: 8px;
+}
+
+.voice-help-tooltip .help-section {
+  margin-bottom: 12px;
+}
+
+.voice-help-tooltip .help-section:last-child {
+  margin-bottom: 0;
+}
+
+.voice-help-tooltip strong {
+  display: block;
+  margin-bottom: 6px;
+  color: var(--accent-warm);
+  font-size: 14px;
+}
+
+.voice-help-tooltip ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.voice-help-tooltip li {
+  font-size: 13px;
+  line-height: 1.6;
+  padding: 3px 0;
+  color: var(--text-secondary);
+}
+
+.voice-help-tooltip code {
+  background: var(--bg-surface);
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 12px;
+  color: var(--accent-primary);
+}
+
+.voice-help-tooltip em {
+  color: var(--text-muted);
+}
+
+/* Container */
+.container {
+  flex: 1;
+  overflow: auto;
+  display: flex;
+}
+
+/* Button Base Styles */
+.btn {
+  padding: 8px 16px;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+}
+
+.btn-primary {
+  background: var(--accent-primary);
+  color: var(--bg-primary);
+}
+
+.btn-primary:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(139, 157, 195, 0.3);
+  filter: brightness(1.1);
+}
+
+.btn-secondary {
+  background: var(--bg-elevated);
+  color: var(--text-primary);
+  border: 1px solid var(--border-subtle);
+}
+
+.btn-secondary:hover {
+  background: var(--highlight-active);
+  border-color: var(--accent-muted);
+}
+
+.btn-danger {
+  background: rgba(220, 80, 80, 0.12);
+  color: #e88888;
+  border: 1px solid rgba(220, 80, 80, 0.3);
+}
+
+.btn-danger:hover {
+  background: rgba(220, 80, 80, 0.2);
+  border-color: rgba(220, 80, 80, 0.5);
+  color: #ff9999;
+  box-shadow: 0 2px 8px rgba(220, 80, 80, 0.3);
+}
+
+.btn-warning {
+  background: rgba(255, 165, 0, 0.12);
+  color: #ffb347;
+  border: 1px solid rgba(255, 165, 0, 0.3);
+}
+
+.btn-warning:hover {
+  background: rgba(255, 165, 0, 0.2);
+  border-color: rgba(255, 165, 0, 0.5);
+  color: #ffc266;
+  box-shadow: 0 2px 8px rgba(255, 165, 0, 0.3);
+}
+
+.btn-small {
+  padding: 8px 16px;
+  font-size: 14px;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.btn-sm {
+  padding: 6px 12px;
+  font-size: 13px;
+}
+
+.btn-sm .material-icons {
+  font-size: 16px;
+}
+
+.btn-full-width {
+  flex: 1;
+  width: 100%;
+}
+
+.btn-half-width {
+  flex: 1;
+}
+
+/* Badge for coming soon features */
+.badge {
+  display: inline-block;
+  padding: 2px 8px;
+  background: var(--accent-warm);
+  color: var(--background-dark);
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 600;
+  margin-left: 8px;
+}
+
+/* Animations */
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes glow-pulse {
+  0%, 100% { box-shadow: 0 0 15px var(--highlight-speaking); }
+  50% { box-shadow: 0 0 25px var(--highlight-speaking); }
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 0.7; }
+  50% { opacity: 1; }
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.spinning {
+  animation: spin 1s linear infinite;
+  display: inline-block;
+}
+
+@keyframes blink {
+  0%, 50% { opacity: 1; }
+  51%, 100% { opacity: 0; }
+}
+
+.cursor {
+  animation: blink 1s step-end infinite;
+  color: var(--accent-primary);
+  margin-left: 0.25ch;
+}

@@ -18,7 +18,7 @@
   <!-- Google Identity Services (OAuth 2.0) -->
   <script src="https://accounts.google.com/gsi/client" async defer></script>
 
-  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="styles/main.css">
 
   <meta name="viewport" content="width=device-width, initial-scale=1, interactive-widget=resizes-content">
 
@@ -37,8 +37,8 @@
 
     <div class="settings-content">
 
-      <!-- Quick Actions Section -->
-      <div class="settings-section collapsible collapsed" id="quickActionsSection">
+      <!-- Quick Actions Section (default open) -->
+      <div class="settings-section collapsible" id="quickActionsSection">
         <h3 class="section-header">
           <span class="material-icons">bolt</span> Quick Actions
         </h3>
@@ -70,12 +70,19 @@
           </button>
 
           <!-- Quick Save/Load buttons (in-game only) -->
-          <div class="quick-actions-buttons game-section-item">
-            <button id="quickSaveBtn" class="compact-btn quick-action-btn" title="F5">
-              <span class="material-icons">save</span> Quick Save
-            </button>
-            <button id="quickRestoreBtn" class="compact-btn quick-action-btn" title="F9">
-              <span class="material-icons">restore</span> Quick Restore
+          <div class="game-section-item">
+            <div class="button-group">
+              <button id="quickSaveBtn" class="compact-btn quick-action-btn" title="F5">
+                <span class="material-icons">save</span> Quick Save
+              </button>
+              <button id="quickRestoreBtn" class="compact-btn quick-action-btn" title="F9">
+                <span class="material-icons">restore</span> Quick Restore
+              </button>
+            </div>
+
+            <!-- Get ChatGPT Hint button (in-game only) -->
+            <button id="getHintBtn" class="compact-btn quick-action-btn game-section-item" style="margin-top: 10px;">
+              <span class="material-icons">lightbulb</span> Get ChatGPT Hint
             </button>
           </div>
         </div>
@@ -94,6 +101,15 @@
               <input type="range" id="masterVolume" min="0" max="100" step="5" value="100" class="slider">
               <span id="masterVolumeValue" class="slider-value">100%</span>
             </div>
+          </div>
+
+          <!-- Sound Effects (moved from bottom) -->
+          <div class="setting-item">
+            <label>
+              Sound Effects
+              <input type="checkbox" id="soundEffectsToggle" class="toggle-switch" checked>
+            </label>
+            <p class="setting-description">Audio feedback for commands and actions</p>
           </div>
 
           <!-- Speech Speed -->
@@ -132,15 +148,6 @@
               </button>
             </div>
           </div>
-
-          <!-- Sound Effects -->
-          <div class="setting-item">
-            <label>
-              Sound Effects
-              <input type="checkbox" id="soundEffectsToggle" class="toggle-switch" checked>
-            </label>
-            <p class="setting-description">Audio feedback for commands and actions</p>
-          </div>
         </div>
       </div>
 
@@ -150,6 +157,15 @@
           <span class="material-icons">mic</span> Voice & Input
         </h3>
         <div class="section-content">
+          <!-- Tap to Examine toggle (moved to top) -->
+          <div class="setting-item">
+            <label>
+              Tap to Examine
+              <input type="checkbox" id="tapToExamineToggle" class="toggle-switch">
+            </label>
+            <p class="setting-description">Tap words to enter them in the command input</p>
+          </div>
+
           <!-- Voice Controls toggle -->
           <div class="setting-item">
             <label>
@@ -157,15 +173,6 @@
               <input type="checkbox" id="voiceControlsToggle" class="toggle-switch" checked>
             </label>
             <p class="setting-description">Show voice navigation bar (play, pause, skip controls)</p>
-          </div>
-
-          <!-- Tap to Examine toggle -->
-          <div class="setting-item">
-            <label>
-              Tap to Examine
-              <input type="checkbox" id="tapToExamineToggle" class="toggle-switch">
-            </label>
-            <p class="setting-description">Tap words to hear their examination</p>
           </div>
 
           <!-- Voice Commands (collapsible help) -->
@@ -221,38 +228,6 @@
         </div>
       </div>
 
-      <!-- Get Hint -->
-      <div class="settings-section collapsible collapsed" id="hintSection">
-        <h3 class="section-header">
-          <span class="material-icons">lightbulb</span> Get Hint
-        </h3>
-        <div class="section-content">
-          <p class="settings-description">Get AI-powered hints from ChatGPT</p>
-
-          <!-- Hint type dropdown -->
-          <div class="voice-setting">
-            <label for="hintTypeSelect">Hint Type:</label>
-            <select id="hintTypeSelect" class="voice-dropdown">
-              <option value="general">General Hint</option>
-              <option value="puzzle">Puzzle Help</option>
-              <option value="location">Navigation Help</option>
-            </select>
-          </div>
-
-          <!-- Get Hint button -->
-          <div class="game-actions" style="margin-top: 15px;">
-            <button class="btn btn-secondary btn-full-width" id="getHintBtn">
-              <span class="material-icons">lightbulb</span> Get Hint from ChatGPT
-            </button>
-          </div>
-
-          <!-- Help text -->
-          <p class="settings-help" style="margin-top: 15px;">
-            Sends room description and inventory to ChatGPT for context-aware hints. Keyboard shortcut: <kbd>Ctrl+Shift+H</kbd>
-            ChatGPT will open in a new tab with the prompt ready.
-          </p>
-        </div>
-      </div>
 
       <!-- Saves & Data Section -->
       <div class="settings-section collapsible collapsed" id="savesDataSection">
@@ -269,31 +244,81 @@
             <p class="setting-description">Automatically save after each turn</p>
           </div>
 
-          <!-- Auto-export toggle (placeholder) -->
-          <div class="setting-item disabled">
-            <label>
-              Auto-export
-              <span class="badge">Coming Soon</span>
-            </label>
-            <input type="checkbox" id="autoexportToggle" class="toggle-switch" disabled>
-            <p class="setting-description">Automatically export saves to file</p>
+          <!-- Cloud Sync submenu -->
+          <div class="settings-section collapsible collapsed" id="cloudSyncSubmenu">
+            <h4 class="section-header">Cloud Sync</h4>
+            <div class="section-content">
+              <!-- Auto-export toggle -->
+              <div class="setting-item">
+                <label>
+                  Auto-export
+                  <input type="checkbox" id="autoexportToggle" class="toggle-switch">
+                </label>
+                <p class="setting-description">Automatically sync saves to Google Drive</p>
+              </div>
+
+              <!-- Sign-in area (shown when not signed in) -->
+              <div id="gdriveSignInArea">
+                <button class="btn btn-primary btn-full-width" id="gdriveSignInBtn">
+                  <span class="material-icons">cloud_upload</span>
+                  Sign in with Google
+                </button>
+                <p class="settings-help">
+                  Optional: Enable cloud backup and sync across devices
+                </p>
+              </div>
+
+              <!-- Account area (shown when signed in) -->
+              <div id="gdriveAccountArea" class="hidden">
+                <div class="gdrive-account-info">
+                  <span class="material-icons">account_circle</span>
+                  <span id="gdriveEmail">user@example.com</span>
+                </div>
+
+                <div class="gdrive-sync-status">
+                  <span id="gdriveSyncStatus">Last synced: Never</span>
+                </div>
+
+                <div class="game-actions" style="margin-top: 15px;">
+                  <button class="btn btn-secondary btn-full-width" id="gdriveSyncToBtn">
+                    <span class="material-icons">cloud_upload</span>
+                    Sync to Drive
+                  </button>
+                </div>
+
+                <div class="game-actions" style="margin-top: 10px;">
+                  <button class="btn btn-secondary btn-full-width" id="gdriveSyncFromBtn">
+                    <span class="material-icons">cloud_download</span>
+                    Sync from Drive
+                  </button>
+                </div>
+
+                <div class="game-actions" style="margin-top: 10px;">
+                  <button class="btn btn-secondary btn-full-width" id="gdriveSignOutBtn">
+                    <span class="material-icons">logout</span>
+                    Sign Out
+                  </button>
+                </div>
+              </div>
+            </div>
           </div>
+
+          <!-- View Backup Saves button -->
+          <button id="viewBackupSavesBtn" class="compact-btn quick-action-btn game-section-item">
+            <span class="material-icons">history</span> View Backup Saves
+          </button>
 
           <!-- Export/Import buttons -->
-          <div class="game-actions-pair">
-            <button id="exportSaveBtn" class="compact-btn game-actions-pair-start">
-              <span class="material-icons">upload</span> Export
-            </button>
-            <button id="importSaveBtn" class="compact-btn game-actions-pair-end">
-              <span class="material-icons">download</span> Import
-            </button>
+          <div class="game-section-item">
+            <div class="button-group">
+              <button id="exportSaveBtn" class="compact-btn quick-action-btn">
+                <span class="material-icons">upload</span> Export File
+              </button>
+              <button id="importSaveBtn" class="compact-btn quick-action-btn">
+                <span class="material-icons">download</span> Import File
+              </button>
+            </div>
           </div>
-
-          <!-- Sync from GitHub (placeholder) -->
-          <button id="syncGitHubBtn" class="compact-btn disabled" disabled>
-            <span class="material-icons">sync</span> Sync from GitHub
-            <span class="badge">Coming Soon</span>
-          </button>
 
           <!-- Developer Tools (localhost only, injected by JS) -->
           <div id="devToolsContainer"></div>
@@ -336,102 +361,6 @@
         </div>
       </div>
 
-      <!-- Cloud Sync Section -->
-      <div class="settings-section collapsible collapsed" id="cloudSyncSection">
-        <h3 class="section-header">
-          <span class="material-icons">cloud</span> Cloud Sync
-        </h3>
-        <div class="section-content">
-          <p class="settings-description">
-            Sync your saves to Google Drive for backup and cross-device play
-          </p>
-
-          <!-- Sign-in area (shown when not signed in) -->
-          <div id="gdriveSignInArea">
-            <button class="btn btn-primary btn-full-width" id="gdriveSignInBtn">
-              <span class="material-icons">cloud_upload</span>
-              Sign in with Google
-            </button>
-            <p class="settings-help">
-              Optional: Enable cloud backup and sync across devices
-            </p>
-          </div>
-
-          <!-- Account area (shown when signed in) -->
-          <div id="gdriveAccountArea" class="hidden">
-            <div class="gdrive-account-info">
-              <span class="material-icons">account_circle</span>
-              <span id="gdriveEmail">user@example.com</span>
-            </div>
-
-            <div class="gdrive-sync-status">
-              <span id="gdriveSyncStatus">Last synced: Never</span>
-            </div>
-
-            <!-- Auto-Sync toggle (Phase 3) -->
-            <div class="setting-item">
-              <label>
-                Auto-Sync
-                <input type="checkbox" id="autoSyncToggle" class="toggle-switch">
-              </label>
-              <p class="setting-description">Automatically upload saves after each turn (5-second delay)</p>
-            </div>
-
-            <!-- Backup History toggle (Phase 4) -->
-            <div class="setting-item">
-              <label>
-                Keep Backup History
-                <input type="checkbox" id="backupHistoryToggle" class="toggle-switch">
-              </label>
-              <p class="setting-description">Keep last 10 versions of each save for recovery</p>
-            </div>
-
-            <div class="game-actions" style="margin-top: 15px;">
-              <button class="btn btn-secondary btn-full-width" id="gdriveSyncNowBtn">
-                <span class="material-icons">sync</span>
-                Sync Now
-              </button>
-            </div>
-
-            <!-- View Backup History button (Phase 4) -->
-            <div class="game-actions" style="margin-top: 10px;">
-              <button class="btn btn-secondary btn-full-width" id="viewBackupsBtn">
-                <span class="material-icons">history</span>
-                View Backup History
-              </button>
-            </div>
-
-            <div class="game-actions" style="margin-top: 10px;">
-              <button class="btn btn-secondary btn-full-width" id="gdriveSignOutBtn">
-                <span class="material-icons">logout</span>
-                Sign Out
-              </button>
-            </div>
-
-            <!-- Backup History Modal (Phase 4) -->
-            <div id="backupHistoryModal" class="modal hidden">
-              <div class="modal-content">
-                <div class="modal-header">
-                  <h3>Backup History</h3>
-                  <button class="modal-close" id="closeBackupModal">
-                    <span class="material-icons">close</span>
-                  </button>
-                </div>
-
-                <div class="modal-body">
-                  <p class="settings-description">
-                    Last 10 versions of your saves. Click to restore.
-                  </p>
-
-                  <div id="backupList" class="backup-list">
-                    <!-- Populated dynamically -->
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
 
     </div>
   </div>

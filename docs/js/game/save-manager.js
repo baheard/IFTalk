@@ -462,49 +462,72 @@ let backupIntervalId = null;
 
 /**
  * Create a timestamped backup of the current autosave
- * @returns {boolean} Success/failure
+ * @returns {Promise<boolean>} Success/failure
  */
-function createAutosaveBackup() {
+async function createAutosaveBackup() {
     if (!state.currentGameName) {
         return false;
     }
 
-    // Get current autosave
-    const autosaveKey = `iftalk_autosave_${state.currentGameName}`;
-    const autosaveData = getJSON(autosaveKey);
+    // Use the new createBackup function with autosave type
+    return await createBackup('autosave', false);
+}
 
-    if (!autosaveData) {
-        console.log('[Backup] No autosave found to backup');
+/**
+ * Create a backup of any save type (autosave or quicksave)
+ * @param {string} saveType - Type of save ('autosave' or 'quicksave')
+ * @param {boolean} exemptFromLimit - If true, this backup won't count toward the max limit
+ * @returns {Promise<boolean>} Success/failure
+ */
+export async function createBackup(saveType, exemptFromLimit = false) {
+    if (!state.currentGameName) {
+        return false;
+    }
+
+    const gameId = state.currentGameName.replace(/\.[^.]+$/, '').toLowerCase();
+
+    // Get current save
+    const saveKey = `iftalk_${saveType}_${gameId}`;
+    const saveData = getJSON(saveKey);
+
+    if (!saveData) {
+        console.log(`[Backup] No ${saveType} found to backup`);
         return false;
     }
 
     // Create timestamped backup
     const timestamp = Date.now();
-    const backupKey = `iftalk_backup_autosave_${state.currentGameName}_${timestamp}`;
+    const backupKey = exemptFromLimit
+        ? `iftalk_backup_${saveType}_${gameId}_${timestamp}_exempt`
+        : `iftalk_backup_${saveType}_${gameId}_${timestamp}`;
 
-    setJSON(backupKey, autosaveData);
-    console.log(`[Backup] Created autosave backup: ${backupKey}`);
+    setJSON(backupKey, saveData);
+    console.log(`[Backup] Created ${saveType} backup: ${backupKey}`);
 
-    // Clean up old backups (keep max 5)
-    cleanupOldBackups(state.currentGameName);
+    // Clean up old backups (unless this is exempt)
+    if (!exemptFromLimit) {
+        cleanupOldBackups(gameId, saveType);
+    }
 
     return true;
 }
 
 /**
- * Clean up old backups, keeping only the most recent MAX_BACKUPS_PER_GAME
- * @param {string} gameName - Game name to clean up backups for
+ * Clean up old backups, keeping only the most recent backups per save type
+ * @param {string} gameId - Game ID to clean up backups for
+ * @param {string} saveType - Save type ('autosave', 'quicksave', 'customsave')
  */
-function cleanupOldBackups(gameName) {
-    const prefix = `iftalk_backup_autosave_${gameName}_`;
+function cleanupOldBackups(gameId, saveType = 'autosave') {
+    const prefix = `iftalk_backup_${saveType}_${gameId}_`;
 
-    // Find all backup keys for this game
+    // Find all backup keys for this game and save type (exclude exempt backups)
     const backupKeys = [];
     for (let i = 0; i < localStorage.length; i++) {
         const key = localStorage.key(i);
-        if (key && key.startsWith(prefix)) {
+        if (key && key.startsWith(prefix) && !key.endsWith('_exempt')) {
             // Extract timestamp from key
-            const timestamp = parseInt(key.substring(prefix.length));
+            const parts = key.substring(prefix.length).split('_');
+            const timestamp = parseInt(parts[0]);
             backupKeys.push({ key, timestamp });
         }
     }
@@ -512,16 +535,20 @@ function cleanupOldBackups(gameName) {
     // Sort by timestamp (newest first)
     backupKeys.sort((a, b) => b.timestamp - a.timestamp);
 
-    // Remove old backups beyond max count
-    if (backupKeys.length > MAX_BACKUPS_PER_GAME) {
-        const toRemove = backupKeys.slice(MAX_BACKUPS_PER_GAME);
+    // Different max backups for different save types
+    // Autosaves: 5 backups (more frequent, so keep more history)
+    // Other types: 2 backups (manual saves, less frequent)
+    const maxBackups = saveType === 'autosave' ? 5 : 2;
+
+    if (backupKeys.length > maxBackups) {
+        const toRemove = backupKeys.slice(maxBackups);
         toRemove.forEach(({ key }) => {
             removeItem(key);
             console.log(`[Backup] Removed old backup: ${key}`);
         });
     }
 
-    console.log(`[Backup] Keeping ${Math.min(backupKeys.length, MAX_BACKUPS_PER_GAME)} backups for ${gameName}`);
+    console.log(`[Backup] Keeping ${Math.min(backupKeys.length, maxBackups)} ${saveType} backups for ${gameId}`);
 }
 
 /**

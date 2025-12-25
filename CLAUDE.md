@@ -350,6 +350,57 @@ For detailed technical information, see the `reference/` folder:
    - **Status**: ~300-400 lines eliminated across Phases 1-3, zero bugs introduced
    - **Remaining**: Phases 4-7 pending (see refactoring plan for details)
 
+5. **Settings Menu Reorganization** - Comprehensive UX improvements and restructuring
+   - Files: `docs/index.html`, `docs/js/ui/settings/settings-panel.js`, `docs/js/features/hints.js`, `docs/styles/settings.css`
+   - **Menu Structure Changes**:
+     - Quick Actions defaults to open (not collapsed)
+     - Accordion behavior: expanding one section collapses others (top-level only)
+     - Nested sections (like Cloud Sync submenu) toggle independently
+   - **Repositioned Items**:
+     - "Tap to Examine" moved to top of Voice & Input, description updated: "Tap words to enter them in the command input"
+     - "Sound Effects" moved below "Master Volume" in Audio section
+     - "Get ChatGPT Hint" now a button in Quick Actions (with hint type selector in modal)
+   - **Cloud Sync Submenu** - Organized under Saves & Data
+     - Auto-export toggle (triggers Google sign-in)
+     - Sign in with Google section
+     - Sync to Drive / Sync from Drive buttons
+     - Sign Out button
+   - **Button Grouping** - Background panels for visual hierarchy
+     - Quick Save/Restore grouped with subtle background panel
+     - Export File/Import File grouped (stacked vertically, not side-by-side)
+     - 2px gap between grouped buttons, 8px padding around group
+     - Max width 180px for alignment
+   - **View Backup Saves** - New backup management dialog
+     - Shows up to 5 autosave backups, 2 quicksave backups
+     - Displays timestamp for each backup
+     - Restore button reloads page with selected backup
+     - Creates safety backup before restoring (exempt from limit)
+   - **Removed Items**:
+     - "Sync from GitHub (coming soon)" - already implemented
+     - "Auto-export (coming soon)" - moved to Cloud Sync submenu
+   - **Bug Fixes**:
+     - Fixed buttons showing `display: block` instead of `display: flex`
+     - JavaScript now preserves flex display for buttons when toggling visibility
+     - Submenu clicks no longer collapse parent sections
+
+6. **Backup System Improvements** - Hierarchical backup limits and triggers
+   - Files: `docs/js/game/save-manager.js`, `docs/js/utils/gdrive/gdrive-sync.js`
+   - **Backup Limits by Type**:
+     - Autosaves: 5 backups (more frequent usage)
+     - Quicksave/Customsave: 2 backups each
+   - **Backup Triggers**:
+     - **All save types**: When overwritten from Google Drive sync
+     - **Autosaves only**:
+       - Every 2 minutes during gameplay (automatic timer)
+       - When user restores an existing backup (safety backup)
+       - When overwritten from Drive sync
+   - **Safety Backups**: Exempt from limits when created during restore operations
+   - **Implementation**:
+     - `createBackup(saveType, exemptFromLimit)` - Unified backup creation
+     - `cleanupOldBackups(gameId, saveType)` - Type-aware cleanup (5 or 2 backups)
+     - `createConflictBackup()` updated for Google Drive sync conflicts
+     - Automatic 2-minute timer creates autosave backups continuously
+
 ### December 23, 2024 - Tooltip System, Tap-to-Examine Improvements & Input Clearing
 1. **Unified Tooltip System** - Consolidated all tooltip behavior into single function
    - Files: `docs/js/app.js`, `docs/styles.css`

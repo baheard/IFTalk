@@ -1,0 +1,678 @@
+/* Welcome Screen - Game Cards, Game Selection */
+
+/* Welcome Screen */
+.welcome {
+  position: relative;
+  text-align: center;
+  padding: 50px 30px;
+  max-width: 860px;
+  width: 100%;
+  margin: 0 auto;
+}
+
+.welcome-settings-btn {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 8px;
+  border-radius: 50%;
+  transition: color 0.2s, background 0.2s;
+}
+
+.welcome-settings-btn:hover {
+  color: var(--text-primary);
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.welcome-settings-btn .material-icons {
+  font-size: 24px;
+}
+
+.welcome h2 {
+  font-family: var(--font-serif);
+  font-size: 36px;
+  font-weight: 600;
+  margin-bottom: 16px;
+  color: var(--text-primary);
+  letter-spacing: -0.01em;
+}
+
+.welcome > p {
+  font-family: var(--font-serif);
+  font-size: 16px;
+  font-style: italic;
+  color: var(--text-muted);
+  margin-bottom: 40px;
+  line-height: 1.6;
+}
+
+.game-list {
+  display: flex;
+  flex-direction: column;
+  gap: 40px;
+  margin-top: 30px;
+}
+
+.game-category {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.category-title {
+  font-family: var(--font-serif);
+  color: var(--accent-warm);
+  font-size: var(--font-l);
+  font-weight: 600;
+  margin: 0;
+  letter-spacing: 0.02em;
+}
+
+.category-desc {
+  font-family: var(--font-sans);
+  color: var(--text-muted);
+  font-size: var(--font-s);
+  margin: -8px 0 0 0;
+}
+
+.game-category-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 12px;
+}
+
+.game-card {
+  position: relative;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: 10px;
+  padding: 20px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  text-align: left;
+}
+
+/* Only apply hover effects on devices with real hover (mouse/trackpad).
+   Touch devices get sticky :hover states which look broken. */
+@media (hover: hover) {
+  .game-card:hover {
+    background: var(--bg-elevated);
+    border-color: var(--accent-muted);
+    transform: translateY(-3px);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+  }
+}
+
+/* Save badge - inline next to title */
+.save-badge {
+  display: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--accent-warm);
+  flex-shrink: 0;
+}
+
+.save-badge.has-save {
+  display: inline-block;
+  box-shadow: 0 0 8px rgba(196, 163, 90, 0.6);
+}
+
+/* Classics Expander */
+.classics-expander {
+  margin-top: 10px;
+}
+
+.classics-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  padding: 12px 20px;
+  background: transparent;
+  border: 1px solid var(--border-subtle);
+  border-radius: 8px;
+  color: var(--text-muted);
+  font-family: var(--font-sans);
+  font-size: var(--font-s);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.classics-toggle:hover {
+  border-color: var(--accent-muted);
+  color: var(--text-secondary);
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.classics-toggle .toggle-arrow {
+  font-size: 12px;
+  transition: transform 0.3s ease;
+}
+
+.classics-expander.expanded .classics-toggle .toggle-arrow {
+  transform: rotate(180deg);
+}
+
+.classics-content {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 12px;
+  max-height: 0;
+  overflow: hidden;
+  opacity: 0;
+  transition: max-height 0.4s ease, opacity 0.3s ease, margin 0.3s ease;
+  margin-top: 0;
+}
+
+.classics-expander.expanded .classics-content {
+  max-height: 2000px;
+  opacity: 1;
+  margin-top: 16px;
+  overflow: visible;
+}
+
+.classics-content .game-card {
+  padding: 16px;
+}
+
+.classics-content .game-title {
+  font-size: var(--font-m);
+}
+
+.classics-content .game-desc {
+  font-size: var(--font-s);
+}
+
+/* IF Database section */
+.if-database-section {
+  text-align: center;
+  padding: 30px 20px;
+  border-top: 1px solid var(--border-subtle);
+  margin-top: 20px;
+}
+
+.if-database-section > p {
+  font-family: var(--font-sans);
+  font-size: 16px;
+  color: var(--text-secondary);
+  margin: 0 0 20px 0;
+}
+
+.if-database-section a {
+  color: var(--accent-primary);
+  text-decoration: none;
+  font-weight: 500;
+  transition: color 0.2s ease;
+}
+
+.if-database-section a:hover {
+  color: var(--accent-warm);
+  text-decoration: underline;
+}
+
+/* Custom URL Input */
+.custom-url-section {
+  text-align: center;
+  padding: 0;
+}
+
+.custom-url-section h4 {
+  font-family: var(--font-serif);
+  font-size: 16px;
+  color: var(--text-secondary);
+  margin: 0 0 12px 0;
+}
+
+.custom-url-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  max-width: 650px;
+  margin: 0 auto;
+}
+
+.custom-url-input {
+  flex: 1;
+  padding: 10px 14px;
+  border: 1px solid var(--border-subtle);
+  border-radius: 6px;
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  font-size: 14px;
+}
+
+.custom-url-input:focus {
+  outline: none;
+  border-color: var(--accent-primary);
+}
+
+.custom-url-input::placeholder {
+  color: var(--text-muted);
+}
+
+.custom-url-btn {
+  padding: 10px 20px;
+  border: none;
+  border-radius: 6px;
+  background: var(--accent-primary);
+  color: var(--bg-primary);
+  font-family: var(--font-sans);
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.custom-url-btn:hover {
+  background: var(--accent-warm);
+}
+
+.custom-url-btn .material-icons {
+  font-size: 18px;
+}
+
+/* Resume Dialog */
+.resume-dialog-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  animation: fadeIn 0.2s ease;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.resume-dialog {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: 12px;
+  padding: 30px;
+  max-width: 400px;
+  width: 90%;
+  position: relative;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+  animation: perspectiveSlide 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes perspectiveSlide {
+  from {
+    opacity: 0;
+    transform: perspective(1000px) rotateX(-10deg) translateY(40px);
+  }
+  to {
+    opacity: 1;
+    transform: perspective(1000px) rotateX(0deg) translateY(0);
+  }
+}
+
+.resume-dialog h3 {
+  font-family: var(--font-serif);
+  font-size: 24px;
+  color: var(--text-primary);
+  margin: 0 0 10px 0;
+  text-align: center;
+}
+
+.resume-dialog p {
+  font-family: var(--font-sans);
+  font-size: 16px;
+  color: var(--text-secondary);
+  margin: 0 0 24px 0;
+  text-align: center;
+}
+
+.resume-dialog-buttons {
+  display: flex;
+  flex-direction: row;
+  gap: 12px;
+}
+
+.resume-dialog-buttons .btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 14px 20px;
+  font-size: 16px;
+  border-radius: 8px;
+  flex: 1;
+}
+
+.btn-compact-dialog {
+  padding: 10px 16px !important;
+  font-size: 14px !important;
+}
+
+.resume-dialog-buttons .resume-btn {
+  border: 1px solid rgba(196, 163, 90, 0.3);
+  background: rgba(196, 163, 90, 0.05);
+  backdrop-filter: blur(10px);
+  color: var(--accent-warm);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+.resume-dialog-buttons .resume-btn:hover {
+  background: rgba(196, 163, 90, 0.12);
+  border-color: var(--accent-warm);
+}
+
+.resume-dialog-buttons .restart-btn {
+  background: transparent;
+  border: 1px solid var(--border-subtle);
+  color: var(--text-secondary);
+}
+
+.resume-dialog-buttons .restart-btn:hover {
+  border-color: var(--text-muted);
+  color: var(--text-primary);
+}
+
+.resume-dialog-cancel {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  width: 30px;
+  height: 30px;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 24px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  transition: all 0.2s ease;
+}
+
+.resume-dialog-cancel:hover {
+  background: var(--bg-elevated);
+  color: var(--text-primary);
+}
+
+/* Lock Screen Overlay */
+.lock-screen-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.9); /* 90% black for dimming (battery savings on OLED) */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10000; /* Above everything else */
+  pointer-events: all; /* Block all touch events */
+  opacity: 1;
+  transition: opacity 0.3s ease;
+}
+
+.lock-screen-overlay.hidden {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.lock-screen-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 24px;
+  padding: 40px;
+  max-width: 400px;
+  text-align: center;
+}
+
+.lock-screen-icon {
+  font-size: 80px;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.lock-screen-icon .material-icons {
+  font-size: 80px;
+}
+
+.lock-screen-listening-indicator {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--font-sans);
+  font-size: 16px;
+  color: var(--accent-primary);
+  margin-bottom: 8px;
+}
+
+.lock-screen-listening-indicator.hidden {
+  display: none;
+}
+
+.lock-screen-listening-indicator .mic-pulse {
+  font-size: 24px;
+  animation: pulse-mic 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse-mic {
+  0%, 100% {
+    opacity: 0.6;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.1);
+  }
+}
+
+.lock-screen-muted-indicator {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--font-sans);
+  font-size: 16px;
+  color: #ff6b6b;
+  margin-bottom: 8px;
+}
+
+.lock-screen-muted-indicator.hidden {
+  display: none;
+}
+
+.lock-screen-muted-indicator .material-icons {
+  font-size: 24px;
+}
+
+.lock-screen-instructions {
+  font-family: var(--font-sans);
+  font-size: 18px;
+  color: rgba(255, 255, 255, 0.8);
+  margin-bottom: 8px;
+}
+
+.lock-screen-transcript {
+  font-family: var(--font-mono);
+  font-size: 20px;
+  color: rgba(255, 255, 255, 0.95);
+  padding: 12px 24px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  min-height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  max-width: 300px;
+  word-break: break-word;
+  margin: 8px 0;
+}
+
+.lock-screen-transcript.hidden {
+  display: none;
+}
+
+/* Unlock Button */
+.unlock-button {
+  position: relative;
+  width: 180px;
+  height: 180px;
+  border-radius: 50%;
+  border: 3px solid rgba(255, 255, 255, 0.3);
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(10px);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  overflow: hidden;
+  -webkit-tap-highlight-color: transparent; /* Remove tap highlight on mobile */
+}
+
+.unlock-button:active {
+  transform: scale(0.95);
+  border-color: rgba(255, 255, 255, 0.5);
+}
+
+.unlock-button-inner {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  gap: 8px;
+}
+
+.unlock-button-inner .material-icons {
+  font-size: 48px;
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.unlock-text {
+  font-family: var(--font-sans);
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.8);
+  font-weight: 500;
+}
+
+/* Unlock Progress Indicator (Bottom-to-Top Fill) */
+.unlock-progress {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 0%;
+  background: rgba(196, 163, 90, 0.4); /* Accent warm with transparency */
+  z-index: 1;
+  transition: height 0.05s linear;
+  border-radius: 0 0 50% 50%;
+}
+
+.unlock-button.unlocking .unlock-progress {
+  transition: height 2s linear; /* 2-second fill animation */
+  height: 100%;
+}
+
+.unlock-button.unlocking {
+  border-color: var(--accent-warm);
+}
+
+/* Prevent text selection during hold */
+.lock-screen-overlay * {
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.game-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--font-serif);
+  font-size: 22px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 10px;
+  letter-spacing: -0.01em;
+}
+
+.game-meta {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  font-size: 18px;
+  color: var(--text-muted);
+  opacity: 0.5;
+  cursor: help;
+  transition: opacity 0.15s;
+  padding: 4px;
+}
+
+@media (hover: hover) {
+  .game-meta:hover {
+    opacity: 1;
+  }
+}
+
+.game-meta.active {
+  opacity: 1;
+}
+
+.game-meta::after {
+  content: attr(data-title) "\A" "Difficulty: " attr(data-difficulty) "\A" "Length: " attr(data-length) "\A" "Author: " attr(data-author) "\A" "Year: " attr(data-year);
+  white-space: pre;
+  position: absolute;
+  bottom: calc(100%);
+  right: 0;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-accent);
+  border-radius: 6px;
+  padding: 8px 12px;
+  font-size: 13px;
+  font-family: var(--font-sans);
+  font-weight: 400;
+  color: var(--text-primary);
+  line-height: 1.5;
+  box-shadow: 4px 4px 4px rgba(0,0,0,.5);
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition: opacity 0.15s, visibility 0.15s;
+  z-index: 100;
+  min-width: 160px;
+  text-align: left;
+}
+
+/* Hover tooltip for desktop; touch devices use .active class via JS toggle */
+@media (hover: hover) {
+  .game-meta:hover::after {
+    opacity: 1;
+    visibility: visible;
+  }
+}
+
+/* Click/tap toggle for touch devices (and works on desktop too) */
+.game-meta.active::after {
+  opacity: 1;
+  visibility: visible;
+}
+
+.game-desc {
+  font-family: var(--font-serif);
+  font-size: var(--font-s);
+  color: var(--text-muted);
+  line-height: 1.5;
+  font-style: italic;
+}
+

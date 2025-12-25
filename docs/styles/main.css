@@ -1,0 +1,30 @@
+/* IFTalk Main Stylesheet - Modular CSS Architecture */
+
+/* Import order matters: variables first, base styles, components, then mobile overrides */
+
+/* 1. CSS Custom Properties (Variables) */
+@import url('variables.css');
+
+/* 2. Base Styles (reset, body, html, typography, utilities, buttons, animations) */
+@import url('base.css');
+
+/* 3. Settings Panel */
+@import url('settings.css');
+
+/* 4. Game Output (gameport, windows, text, highlighting, status bar) */
+@import url('game-output.css');
+
+/* 5. Controls (navigation buttons, input controls, message row, char panel) */
+@import url('controls.css');
+
+/* 6. Welcome Screen (game cards, game selection) */
+@import url('welcome.css');
+
+/* 7. Lock Screen */
+@import url('lock-screen.css');
+
+/* 8. Modals (confirm dialog, resume dialog, backup modal) */
+@import url('modals.css');
+
+/* 9. Mobile Responsive Styles (must be last to override desktop styles) */
+@import url('mobile.css');

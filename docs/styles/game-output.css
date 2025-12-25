@@ -1,0 +1,545 @@
+/* Game Output - Gameport, Windows, Text, Highlighting, Status Bar */
+
+/* Game Output */
+.game-output {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  max-width: 800px;
+  width: 100%;
+  height: 100%;
+  margin: 0 auto;
+  font-family: var(--font-mono);
+  background: var(--bg-surface);
+  overflow-y: auto; /* Scroll when content exceeds viewport height */
+}
+
+.game-output-inner {
+  width: 100%;
+}
+
+/* Soft breaks: show as line breaks at 70ch+ width, collapse at narrower */
+.soft-break {
+  display: none;
+}
+
+/* Centered text - center on narrow screens where text reflows */
+.game-text .centered {
+  display: inline-block;
+  width: 100%;
+  text-align: center;
+}
+
+@container (min-width: 70ch) {
+  .soft-break {
+    display: inline;
+  }
+  .soft-break::before {
+    content: '\A';
+    white-space: pre;
+  }
+  /* Wide screens: preserve original Frotz formatting with leading spaces */
+  .game-text .centered {
+    display: inline;
+    width: auto;
+    text-align: left;
+    white-space: pre;
+  }
+}
+
+.game-text {
+  font-family: var(--font-sans);
+  white-space: normal;
+  word-wrap: break-word;
+  text-align: left;
+  color: var(--color-game-text);
+  letter-spacing: 0.01em;
+  cursor: text; /* Default to text cursor for selection */
+}
+
+/* When tap-to-examine is enabled, use default cursor */
+body.tap-to-examine-enabled .game-text {
+  cursor: default;
+}
+
+/* System/app messages - distinct from game text */
+.system-message {
+  font-family: var(--font-mono);
+  color: var(--color-app-system);
+  background: rgba(45, 212, 191, 0.05);
+  padding: 8px 12px;
+  border-left: 2px solid var(--color-app-system);
+  margin: 4px 0;
+  border-radius: 4px;
+}
+
+/* Game system messages (parser errors, etc) */
+.game-system-message {
+  color: var(--color-game-system);
+}
+
+/* Blank line spacer for vertical spacing between paragraphs */
+.blank-line-spacer {
+  height: 16px;
+}
+
+/* CSS Custom Highlight API for TTS text highlighting (no DOM modification) */
+::highlight(speaking) {
+  background-color: rgba(196, 163, 90, 0.35);  /* Warm gold highlight */
+  color: inherit;
+}
+
+/* Force repaint class for iOS WebKit (toggled to clear stale highlights) */
+.highlight-refresh {
+  transform: translateZ(0);
+}
+
+.user-command {
+  color: var(--color-user-typed);
+  font-weight: normal;
+  margin-bottom: 0;
+  padding: 0;
+  font-family: var(--font-mono);
+}
+
+/* Voice command styling - purple for spoken commands */
+.user-command.voice-command {
+  color: var(--color-user-spoken);
+}
+
+/* Ensure command text inside user-command inherits the color */
+.user-command .command-text {
+  color: inherit;
+  font-weight: inherit;
+}
+
+/* App/navigation commands - system accent color, monospace */
+.user-command.app-command {
+  color: var(--color-app-system);
+  font-family: var(--font-mono);
+}
+
+.user-command.app-command .command-text {
+  font-family: var(--font-mono);
+  text-transform: lowercase;
+}
+
+.user-command.app-command .command-label {
+  color: var(--accent-primary);
+}
+
+/* Low confidence commands - red like blocked, but no info message */
+.user-command.low-confidence {
+  color: #ef4444;
+  opacity: 0.8;
+}
+
+/* Voice indicator mic icon in user commands */
+.user-command .voice-indicator {
+  display: inline;
+  font-size: 14px;
+  vertical-align: middle;
+  margin-left: 4px;
+  opacity: 0.7;
+  animation: none;
+}
+
+/* Blocked commands (game commands during narration) */
+.user-command.blocked-command {
+  color: #ef4444;
+  opacity: 0.7;
+}
+
+.user-command.blocked-command .blocked-message {
+  font-size: 0.85em;
+  color: #9ca3af;
+  font-style: italic;
+}
+
+/* Command label (>) inherits color from parent */
+.command-label {
+  font-weight: normal;
+  margin-right: 0;
+}
+
+/* Glk Text Styles (from Z-machine/Glk specification) */
+.glk-normal {
+  /* Default - inherits from .game-text */
+}
+
+.glk-emphasized {
+  font-style: italic;
+}
+
+.glk-preformatted {
+  font-family: var(--font-mono);
+  white-space: pre;
+  display: inline-block;
+}
+
+.glk-header {
+  font-family: var(--font-serif);
+  font-weight: 700;
+  font-size: 1.4rem;
+  display: block;
+}
+
+.glk-subheader {
+  font-family: var(--font-serif);
+  font-weight: 700;
+  font-size: 1.2rem;
+  margin-bottom: 4px;
+}
+
+.glk-alert {
+  font-weight: 700;
+  color: var(--color-game-system);
+}
+
+.glk-note {
+  font-style: italic;
+  color: var(--text-secondary);
+}
+
+.glk-block-quote {
+  font-style: italic;
+  margin-left: 2em;
+  display: block;
+}
+
+.glk-input {
+  font-weight: 700;
+  color: var(--color-user-typed);
+  font-family: var(--font-mono);
+  font-size: var(--font-m);
+}
+
+.glk-input::before {
+  content: ">";
+  padding-right: 2px;
+}
+
+.glk-user1 {
+  font-weight: 700;
+  font-family: var(--font-mono);
+}
+
+.glk-user2 {
+  font-style: italic;
+}
+
+/* Grid window style overrides (status bar and upper window) */
+#statusBar .glk-user1,
+#upperWindow .glk-user1 {
+  font-weight: 700;
+  font-style: normal;
+}
+
+#statusBar .glk-emphasized,
+#upperWindow .glk-emphasized {
+  font-style: italic;
+  font-weight: normal;
+}
+
+#statusBar .glk-note,
+#upperWindow .glk-note {
+  font-weight: 700;
+  font-style: italic;
+}
+
+/* Three-primitive Z-machine window model */
+
+/* Status bar - exactly 1 line, VM-owned (location/score) */
+#statusBar {
+  font-family: var(--font-serif);
+  font-size: var(--font-m);
+  color: var(--color-game-system);
+  line-height: 1.4;
+  width: 100%;
+  flex-shrink: 0; /* Don't shrink when space is tight */
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: var(--bg-surface);
+}
+
+/* Simple status bar layout - left and right aligned text */
+.status-bar-line {
+  display: flex;
+  justify-content: space-between;
+  background: linear-gradient(135deg, #1a1a1a 0%, #2a2a2a 100%);
+  padding: 8px 11px;
+  width: 100%;
+  font-weight: 600;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+  border-left: 4px solid var(--accent-muted, #666);
+}
+
+/* Hide chunk delimiters (used only for TTS chunking) */
+.chunk-delimiter {
+  display: none;
+}
+
+.status-left {
+  text-align: left;
+}
+
+.status-center {
+  text-align: center;
+}
+
+.status-right {
+  text-align: right;
+}
+
+/* Upper window - fixed, non-scrolling, arbitrary height (quotes, maps, etc.) */
+#upperWindow {
+  font-family: var(--font-mono);
+  font-size: var(--font-m);
+  color: var(--text-primary);
+  line-height: 1.4;
+  flex-shrink: 0; /* Don't shrink when space is tight */
+  /* Container will be styled by .grid-status.multiline */
+}
+
+/* Lower window - scrolling main story text */
+#lowerWindow {
+  width: 100%;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  flex: 1; /* Take remaining space */
+  overflow-y: visible; /* Don't scroll - let parent (game-output) handle scrolling */
+  padding: 16px 24px;
+  display: flex;
+  flex-direction: column;
+  cursor: text; /* Default to text cursor for selection */
+}
+
+/* When tap-to-examine is enabled, use default cursor */
+body.tap-to-examine-enabled #lowerWindow {
+  cursor: default;
+}
+
+/* Game output scrollbar styling */
+.game-output::-webkit-scrollbar {
+  width: 8px;
+}
+
+.game-output::-webkit-scrollbar-track {
+  background: var(--bg-secondary);
+}
+
+.game-output::-webkit-scrollbar-thumb {
+  background: var(--text-secondary);  /* More visible on dark background */
+  border-radius: 4px;
+}
+
+.game-output::-webkit-scrollbar-thumb:hover {
+  background: var(--accent-primary);
+}
+
+/* Inline command input */
+.command-line {
+  color: var(--text-primary);
+  display: none; /* Hidden by default, shown only when game requests line input */
+  align-items: flex-start;
+  background: transparent;
+  flex-shrink: 0;
+  min-height: 1.4rem;
+  position: relative;
+}
+
+.command-line.visible {
+  display: flex;
+}
+
+.command-prompt {
+  color: var(--text-primary);
+  font-size: var(--font-m);
+  position: absolute;
+  left: 0;
+  top: 0;
+  pointer-events: none;
+}
+
+.command-text {
+  font-weight: 700;
+  color: var(--accent-primary);
+  font-family: var(--font-mono);
+  font-size: var(--font-m);
+  height: 100%;
+  border: none;
+  outline: none;
+  background: transparent;
+  margin: 0;
+  width: 100%;
+  flex: 1;
+  padding-left: .75rem;
+}
+
+/* System input styling (when responding to meta-commands) */
+.command-line.system-input {
+  background: rgba(45, 212, 191, 0.08);
+  border-left: 3px solid var(--color-app-system);
+  padding-left: 4px;
+}
+
+.command-prompt.system-input {
+  color: var(--color-app-system);
+}
+
+.command-text.system-input {
+  color: var(--color-app-system);
+  caret-color: var(--color-app-system);
+  font-weight: 500;
+  animation: blink-caret 1s step-end infinite;
+}
+
+/* Animated blinking cursor for system input */
+@keyframes blink-caret {
+  0%, 49% { caret-color: var(--color-app-system); }
+  50%, 100% { caret-color: transparent; }
+}
+
+.voice-indicator {
+  display: none;
+  align-items: center;
+  color: var(--accent-warm);
+  font-size: 16px;
+  margin-left: 8px;
+  opacity: 0.7;
+  animation: pulse 2s ease-in-out infinite;
+}
+
+.voice-indicator.active {
+  display: flex;
+}
+
+/* CSS Grid-based status line renderer */
+.grid-status {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.grid-status .grid-line {
+  display: grid;
+  grid-template-columns: repeat(100, 1ch); /* 100 character columns */
+  min-height: 1.4em;
+  position: relative;
+}
+
+/* Empty lines (only whitespace) - reduce height */
+.grid-status .grid-line.empty-line {
+  font-size: 4px;
+}
+
+.grid-status .grid-line span {
+  white-space: pre;
+  grid-row: 1;
+}
+
+/* Single-line status bar: flush top, full width, reverse video */
+.grid-status.single-line {
+  background: transparent;
+  padding: 0;
+  margin: 0;
+}
+
+.grid-status.single-line .grid-line {
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  padding: 6px 10px;
+}
+
+/* Multi-line quote boxes: centered, padded */
+.grid-status.multiline {
+  padding: 20px 0;
+  max-width: 800px;
+  margin: 0 auto;
+  background: transparent;
+}
+
+.grid-status.multiline .grid-line {
+  background: transparent;
+}
+
+
+/* #mainWindow styles removed - VoxGlk now uses #lowerWindow with frotz styling */
+
+/* Mobile styles via class - applies same styles as media query */
+body.force-mobile .game-output {
+  overflow-y: auto !important;
+  overflow-x: hidden;
+}
+
+body.force-mobile #statusBar {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: var(--bg-primary);
+  white-space: normal !important;
+  text-align: center;
+  word-wrap: break-word;
+  padding: 8px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+body.force-mobile #upperWindow {
+  white-space: normal !important;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  padding: 16px 8px;
+}
+
+body.force-mobile #lowerWindow {
+  overflow-y: visible !important;
+  flex: none !important;
+  padding: 0 8px 16px;
+}
+
+body.force-mobile .grid-status.multiline {
+  display: block !important;
+  text-align: left;
+  word-wrap: break-word;
+}
+
+body.force-mobile .grid-status .grid-line {
+  display: block !important;
+  text-align: left;
+  margin: 0;
+  line-height: 1.4;
+  word-spacing: normal !important;
+}
+
+body.force-mobile .grid-status .grid-line.empty-line-single {
+  display: none !important;
+}
+
+body.force-mobile .grid-status .grid-line.empty-line-continuation {
+  display: none !important;
+}
+
+body.force-mobile .grid-status .grid-line.empty-line-first {
+  display: block !important;
+  height: 1em;
+  line-height: 1em;
+}
+
+body.force-mobile .grid-status span[style*="grid-column"] {
+  display: inline !important;
+  grid-column: unset !important;
+  white-space: normal !important;
+}
+
+body.force-mobile .grid-status span.whitespace-only {
+  display: none !important;
+}
+
+body.force-mobile #lowerWindow .blank-line-spacer + .blank-line-spacer {
+  display: none !important;
+}
+
+/* Tap-to-Examine Feature Styles */
+/* Cursor handled by JavaScript - shows pointer only over words */

@@ -68,78 +68,87 @@ export function initGDriveUI() {
     });
   }
 
-  // Sync now button
-  const gdriveSyncNowBtn = document.getElementById('gdriveSyncNowBtn');
-  if (gdriveSyncNowBtn) {
-    const btnIcon = gdriveSyncNowBtn.querySelector('.material-icons');
-    const btnText = gdriveSyncNowBtn.childNodes[2]; // Text node after icon
-
-    gdriveSyncNowBtn.addEventListener('click', async () => {
-      // Disable button and show syncing state
-      gdriveSyncNowBtn.disabled = true;
-      btnIcon.textContent = 'autorenew';
-      btnIcon.classList.add('spinning');
-      btnText.textContent = ' Syncing...';
+  // Sync to Drive button
+  const gdriveSyncToBtn = document.getElementById('gdriveSyncToBtn');
+  if (gdriveSyncToBtn) {
+    gdriveSyncToBtn.addEventListener('click', async () => {
+      gdriveSyncToBtn.disabled = true;
+      updateStatus('Uploading saves to Google Drive...', 'processing');
 
       try {
         const { syncAllNow } = await import('../../utils/gdrive/index.js');
-        updateStatus('Syncing saves to Google Drive...', 'processing');
-
-        // Sync only the current game's saves
         const count = await syncAllNow(state.currentGameName);
 
         if (count > 0) {
-          // Success state
-          btnIcon.classList.remove('spinning');
-          btnIcon.textContent = 'check';
-          btnText.textContent = ` Synced ${count} file(s)`;
           updateGDriveUI();
-          updateStatus(`Synced ${count} file(s) to Google Drive`, 'success');
-
-          // Reset to ready state after 2 seconds
-          setTimeout(() => {
-            btnIcon.textContent = 'sync';
-            btnText.textContent = ' Sync Now';
-            gdriveSyncNowBtn.disabled = false;
-          }, 2000);
+          updateStatus(`✓ Uploaded ${count} save(s) to Google Drive`, 'success');
         } else {
-          // No files synced (user cancelled auth)
-          btnIcon.classList.remove('spinning');
-          btnIcon.textContent = 'sync';
-          btnText.textContent = ' Sync Now';
-          gdriveSyncNowBtn.disabled = false;
+          updateStatus('No saves to upload');
         }
       } catch (error) {
-        // Error state
-        console.error('[Settings] Sync failed:', error);
-        btnIcon.classList.remove('spinning');
-        btnIcon.textContent = 'error';
-        btnText.textContent = ' Sync Failed';
-        updateStatus('Sync failed: ' + error.message, 'error');
-
-        // Reset to ready state after 3 seconds
-        setTimeout(() => {
-          btnIcon.textContent = 'sync';
-          btnText.textContent = ' Sync Now';
-          gdriveSyncNowBtn.disabled = false;
-        }, 3000);
+        console.error('[Settings] Upload failed:', error);
+        updateStatus('Upload failed: ' + error.message, 'error');
+      } finally {
+        gdriveSyncToBtn.disabled = false;
       }
     });
   }
 
-  // Auto-Sync toggle
-  const autoSyncToggle = document.getElementById('autoSyncToggle');
-  if (autoSyncToggle) {
+  // Sync from Drive button
+  const gdriveSyncFromBtn = document.getElementById('gdriveSyncFromBtn');
+  if (gdriveSyncFromBtn) {
+    gdriveSyncFromBtn.addEventListener('click', async () => {
+      gdriveSyncFromBtn.disabled = true;
+      updateStatus('Downloading saves from Google Drive...', 'processing');
+
+      try {
+        const { syncAllNow } = await import('../../utils/gdrive/index.js');
+        const count = await syncAllNow(state.currentGameName);
+
+        if (count > 0) {
+          updateGDriveUI();
+          updateStatus(`✓ Downloaded ${count} save(s) from Google Drive`, 'success');
+        } else {
+          updateStatus('No saves to download');
+        }
+      } catch (error) {
+        console.error('[Settings] Download failed:', error);
+        updateStatus('Download failed: ' + error.message, 'error');
+      } finally {
+        gdriveSyncFromBtn.disabled = false;
+      }
+    });
+  }
+
+  // Auto-export toggle (renamed from auto-sync)
+  const autoexportToggle = document.getElementById('autoexportToggle');
+  if (autoexportToggle) {
     // Load saved preference
     const enabled = localStorage.getItem('iftalk_autoSyncEnabled') === 'true';
-    autoSyncToggle.checked = enabled;
+    autoexportToggle.checked = enabled;
     state.gdriveSyncEnabled = enabled;
 
-    autoSyncToggle.addEventListener('change', (e) => {
+    autoexportToggle.addEventListener('change', async (e) => {
       const enabled = e.target.checked;
+
+      // If enabling, ensure user is signed in first
+      if (enabled && !state.gdriveSignedIn) {
+        // Trigger sign-in
+        try {
+          const { signIn } = await import('../../utils/gdrive/index.js');
+          await signIn();
+          updateGDriveUI();
+        } catch (error) {
+          // Sign-in failed, disable toggle
+          autoexportToggle.checked = false;
+          updateStatus('Sign-in required for auto-export');
+          return;
+        }
+      }
+
       state.gdriveSyncEnabled = enabled;
       localStorage.setItem('iftalk_autoSyncEnabled', enabled);
-      updateStatus(enabled ? 'Auto-sync enabled' : 'Auto-sync disabled');
+      updateStatus(enabled ? '✓ Auto-export enabled' : '✗ Auto-export disabled');
     });
   }
 

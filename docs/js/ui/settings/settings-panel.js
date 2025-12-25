@@ -72,7 +72,14 @@ export function updateSettingsContext() {
   // Show/hide game-specific items (exclude currentGameDisplay, it's handled separately)
   const gameItems = document.querySelectorAll('.game-section-item:not(#currentGameDisplay)');
   gameItems.forEach(item => {
-    item.style.display = isWelcome ? 'none' : 'block';
+    if (isWelcome) {
+      item.style.display = 'none';
+    } else {
+      // Preserve original display type (flex for buttons, block for divs)
+      const computedDisplay = window.getComputedStyle(item).display;
+      const isFlexButton = item.classList.contains('compact-btn') || item.tagName === 'BUTTON';
+      item.style.display = isFlexButton ? 'flex' : 'block';
+    }
   });
 
   // Show/hide welcome-specific items
@@ -160,6 +167,165 @@ function injectSyncButton() {
 }
 
 /**
+ * Show backup saves dialog
+ */
+function showBackupSavesDialog() {
+  if (!state.currentGameName) {
+    updateStatus('No game loaded');
+    return;
+  }
+
+  // Get all backup saves from localStorage
+  const backups = [];
+  const gameId = state.currentGameName.replace(/\.[^.]+$/, '').toLowerCase();
+
+  // Scan localStorage for backup keys (exclude exempt backups)
+  for (let i = 0; i < localStorage.length; i++) {
+    const key = localStorage.key(i);
+    if (key && key.startsWith('iftalk_backup_') && key.includes(`_${gameId}_`) && !key.endsWith('_exempt')) {
+      const value = localStorage.getItem(key);
+      if (value) {
+        try {
+          const data = JSON.parse(value);
+          const match = key.match(/iftalk_backup_(autosave|quicksave)_[^_]+_(\d+)/);
+          if (match) {
+            backups.push({
+              key,
+              type: match[1],
+              timestamp: parseInt(match[2]),
+              data
+            });
+          }
+        } catch (e) {
+          // Skip invalid backups
+        }
+      }
+    }
+  }
+
+  // Sort by timestamp (newest first)
+  backups.sort((a, b) => b.timestamp - a.timestamp);
+
+  // Create modal
+  const overlay = document.createElement('div');
+  overlay.className = 'backup-saves-overlay';
+  overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.85);z-index:10000;display:flex;align-items:center;justify-content:center;padding:20px;';
+
+  const dialog = document.createElement('div');
+  dialog.className = 'backup-saves-dialog';
+  dialog.style.cssText = 'background:var(--bg-elevated,#2a2a2a);color:var(--text-primary,#e0e0e0);padding:0;border-radius:12px;max-width:600px;width:100%;max-height:85vh;display:flex;flex-direction:column;box-shadow:0 8px 32px rgba(0,0,0,0.4);';
+
+  let backupListHTML = '';
+  if (backups.length === 0) {
+    backupListHTML = '<p style="padding:20px;text-align:center;color:var(--text-secondary,#999);">No backup saves found for this game.</p>';
+  } else {
+    backups.forEach(backup => {
+      const date = new Date(backup.timestamp);
+      const formattedDate = date.toLocaleString();
+      const saveType = backup.type === 'autosave' ? 'Auto-save' : 'Quick Save';
+
+      backupListHTML += `
+        <div class="backup-item" style="padding:15px;border-bottom:1px solid var(--border-subtle,#3a3a3a);display:flex;justify-content:space-between;align-items:center;">
+          <div style="flex:1;">
+            <div style="font-weight:600;margin-bottom:4px;">${saveType} Backup</div>
+            <div style="font-size:13px;color:var(--text-secondary,#999);">${formattedDate}</div>
+          </div>
+          <button class="restore-backup-btn" data-backup-key="${backup.key}" style="padding:8px 16px;background:var(--accent-primary,#4CAF50);color:white;border:none;border-radius:6px;cursor:pointer;font-size:14px;">
+            Restore
+          </button>
+        </div>
+      `;
+    });
+  }
+
+  dialog.innerHTML = `
+    <div class="backup-dialog-header" style="padding:20px;border-bottom:1px solid var(--border-subtle,#3a3a3a);display:flex;justify-content:space-between;align-items:center;">
+      <h3 style="margin:0;font-size:18px;font-weight:600;">
+        <span class="material-icons" style="vertical-align:middle;margin-right:8px;color:var(--accent-primary,#4CAF50);">history</span>
+        Backup Saves
+      </h3>
+      <button class="close-backup-dialog-btn" style="background:none;border:none;color:var(--text-secondary,#999);font-size:24px;cursor:pointer;padding:0;width:32px;height:32px;display:flex;align-items:center;justify-content:center;border-radius:4px;">✕</button>
+    </div>
+    <div class="backup-dialog-body" style="flex:1;overflow:auto;">
+      ${backupListHTML}
+    </div>
+    <div class="backup-dialog-footer" style="padding:20px;border-top:1px solid var(--border-subtle,#3a3a3a);">
+      <p style="margin:0;font-size:13px;color:var(--text-secondary,#999);">
+        Restoring a backup will create a new backup of your current state first.
+      </p>
+    </div>
+  `;
+
+  overlay.appendChild(dialog);
+  document.body.appendChild(overlay);
+
+  // Close button
+  const closeDialog = () => {
+    document.body.removeChild(overlay);
+  };
+
+  dialog.querySelector('.close-backup-dialog-btn').onclick = closeDialog;
+  overlay.onclick = (e) => {
+    if (e.target === overlay) closeDialog();
+  };
+
+  // Restore backup buttons
+  dialog.querySelectorAll('.restore-backup-btn').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const backupKey = btn.getAttribute('data-backup-key');
+      await restoreBackup(backupKey);
+      closeDialog();
+    });
+  });
+}
+
+/**
+ * Restore a backup save
+ * @param {string} backupKey - localStorage key of the backup
+ */
+async function restoreBackup(backupKey) {
+  try {
+    // Get the backup data
+    const backupData = localStorage.getItem(backupKey);
+    if (!backupData) {
+      updateStatus('Backup not found');
+      return;
+    }
+
+    // Determine save type (autosave or quicksave)
+    const saveType = backupKey.includes('_autosave_') ? 'autosave' : 'quicksave';
+    const gameId = state.currentGameName.replace(/\.[^.]+$/, '').toLowerCase();
+
+    // Check if there's a current save to backup
+    const currentSaveKey = `iftalk_${saveType}_${gameId}`;
+    const currentSave = localStorage.getItem(currentSaveKey);
+
+    // Create a backup of current state FIRST (extra backup, exempt from limit)
+    // Only if there's actually a current save to backup
+    if (currentSave) {
+      const { createBackup } = await import('../../game/save-manager.js');
+      await createBackup(saveType, true); // true = exempt from limit
+      console.log(`[Backup Restore] Created safety backup before restoring`);
+    } else {
+      console.log(`[Backup Restore] No current ${saveType} to backup`);
+    }
+
+    // Restore the backup by setting it as the current save
+    const saveKey = `iftalk_${saveType}_${gameId}`;
+    localStorage.setItem(saveKey, backupData);
+
+    // Reload the page to restore from the backup
+    // (This is the same approach used by quickRestore button)
+    updateStatus(`Restoring ${saveType} from backup...`);
+    window.location.reload();
+
+  } catch (err) {
+    console.error('[Backup] Restore failed:', err);
+    updateStatus(`Error restoring backup: ${err.message}`);
+  }
+}
+
+/**
  * Reload settings for current game (called when game changes)
  * NOTE: Settings are now global, so this mainly handles UI updates
  */
@@ -209,38 +375,53 @@ export function initSettings() {
     });
   }
 
-  // Get Hint Section
-  const hintSection = document.getElementById('hintSection');
-  if (hintSection) {
-    // Load hint type preference from global localStorage
-    const hintTypeSelect = document.getElementById('hintTypeSelect');
-    if (hintTypeSelect) {
-      const savedHintType = localStorage.getItem('iftalk_hintType') || 'general';
-      hintTypeSelect.value = savedHintType;
-
-      // Save preference when changed
-      hintTypeSelect.addEventListener('change', (e) => {
-        localStorage.setItem('iftalk_hintType', e.target.value);
-      });
-    }
-
-    // Get Hint button
-    const getHintBtn = document.getElementById('getHintBtn');
-    if (getHintBtn) {
-      getHintBtn.addEventListener('click', async () => {
-        const { getHint } = await import('../../features/hints.js');
-        const hintType = hintTypeSelect?.value || 'general';
-        getHint(hintType);
-      });
-    }
+  // Get Hint button (now in Quick Actions)
+  const getHintBtn = document.getElementById('getHintBtn');
+  if (getHintBtn) {
+    getHintBtn.addEventListener('click', async () => {
+      const { getHint } = await import('../../features/hints.js');
+      // Hint type will be selectable in the modal dialog
+      getHint('general');
+    });
   }
 
-  // Collapsible sections
-  const collapsibleSections = document.querySelectorAll('.settings-section.collapsible');
-  collapsibleSections.forEach(section => {
+  // View Backup Saves button
+  const viewBackupSavesBtn = document.getElementById('viewBackupSavesBtn');
+  if (viewBackupSavesBtn) {
+    viewBackupSavesBtn.addEventListener('click', () => {
+      showBackupSavesDialog();
+    });
+  }
+
+  // Collapsible sections with accordion behavior (only top-level sections)
+  const topLevelSections = document.querySelectorAll('.settings-content > .settings-section.collapsible');
+  topLevelSections.forEach(section => {
     const header = section.querySelector('.section-header');
     if (header) {
       header.addEventListener('click', () => {
+        const wasCollapsed = section.classList.contains('collapsed');
+
+        // Collapse all top-level sections (accordion behavior)
+        topLevelSections.forEach(s => {
+          s.classList.add('collapsed');
+        });
+
+        // If this section was collapsed, expand it
+        if (wasCollapsed) {
+          section.classList.remove('collapsed');
+        }
+      });
+    }
+  });
+
+  // Nested collapsible sections (inside top-level sections) - toggle independently
+  const nestedSections = document.querySelectorAll('.settings-section.collapsible .settings-section.collapsible');
+  nestedSections.forEach(section => {
+    const header = section.querySelector('.section-header');
+    if (header) {
+      header.addEventListener('click', (e) => {
+        // Stop propagation to prevent parent section from collapsing
+        e.stopPropagation();
         section.classList.toggle('collapsed');
       });
     }
