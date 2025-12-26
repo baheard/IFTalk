@@ -1,0 +1,1150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>VoxiDesign - IFTalk Design System</title>
+  <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Crimson+Pro:ital,wght@0,400;0,600;1,400&family=IBM+Plex+Mono:wght@400;500&family=Inter:wght@400;500;600&family=Literata:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles/main.css">
+  <style>
+    /* Override main.css body styles for design system page */
+    body {
+      overflow-y: auto !important;
+      height: auto !important;
+    }
+
+    /* Design System Specific Styles */
+    .ds-container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 40px 20px;
+    }
+
+    .ds-header {
+      text-align: center;
+      margin-bottom: 60px;
+      border-bottom: 2px solid var(--accent-warm);
+      padding-bottom: 30px;
+    }
+
+    .ds-header h1 {
+      font-family: var(--font-serif);
+      font-size: 48px;
+      color: var(--accent-warm);
+      margin-bottom: 12px;
+      letter-spacing: -0.02em;
+    }
+
+    .ds-header .subtitle {
+      font-family: var(--font-serif);
+      font-size: 18px;
+      color: var(--text-muted);
+      font-style: italic;
+    }
+
+    .ds-section {
+      margin-bottom: 80px;
+    }
+
+    .ds-section-title {
+      font-family: var(--font-serif);
+      font-size: 32px;
+      color: var(--text-primary);
+      margin-bottom: 8px;
+      border-bottom: 1px solid var(--border-subtle);
+      padding-bottom: 12px;
+    }
+
+    .ds-section-desc {
+      font-family: var(--font-sans);
+      font-size: 14px;
+      color: var(--text-secondary);
+      margin-bottom: 30px;
+    }
+
+    .ds-subsection {
+      margin-bottom: 40px;
+    }
+
+    .ds-subsection-title {
+      font-family: var(--font-sans);
+      font-size: 20px;
+      font-weight: 600;
+      color: var(--accent-primary);
+      margin-bottom: 16px;
+    }
+
+    /* Color Swatches */
+    .color-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: 16px;
+      margin-bottom: 30px;
+    }
+
+    .color-swatch {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      border-radius: 8px;
+      overflow: hidden;
+      transition: transform 0.2s ease;
+    }
+
+    .color-swatch:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    }
+
+    .color-preview {
+      height: 80px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: var(--font-mono);
+      font-size: 12px;
+      font-weight: 500;
+    }
+
+    .color-info {
+      padding: 12px;
+      background: var(--bg-elevated);
+    }
+
+    .color-name {
+      font-family: var(--font-mono);
+      font-size: 13px;
+      color: var(--text-primary);
+      margin-bottom: 4px;
+      font-weight: 500;
+    }
+
+    .color-value {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    /* Typography Specimens */
+    .type-specimen {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      border-radius: 8px;
+      padding: 20px;
+      margin-bottom: 16px;
+    }
+
+    .type-specimen-label {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--text-muted);
+      margin-bottom: 8px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .type-specimen-text {
+      color: var(--text-primary);
+    }
+
+    /* Button Grid */
+    .button-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+      gap: 16px;
+      margin-bottom: 30px;
+    }
+
+    .button-demo {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      background: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      border-radius: 8px;
+      padding: 20px;
+    }
+
+    .button-demo-label {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--accent-warm);
+      margin-bottom: 4px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    /* Component Showcase */
+    .component-showcase {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      border-radius: 12px;
+      padding: 30px;
+      margin-bottom: 20px;
+    }
+
+    .component-showcase-title {
+      font-family: var(--font-sans);
+      font-size: 16px;
+      font-weight: 600;
+      color: var(--accent-warm);
+      margin-bottom: 20px;
+    }
+
+    /* Demo Game Card */
+    .demo-game-card {
+      max-width: 300px;
+    }
+
+    /* Demo Modal */
+    .demo-modal-trigger {
+      margin-bottom: 20px;
+    }
+
+    /* Icon Button Grid */
+    .icon-button-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+      gap: 20px;
+      margin-bottom: 30px;
+    }
+
+    .icon-button-demo {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      background: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      border-radius: 8px;
+      padding: 20px;
+      align-items: center;
+    }
+
+    /* Form Controls Grid */
+    .form-controls-grid {
+      display: grid;
+      gap: 30px;
+    }
+
+    .form-control-demo {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      border-radius: 8px;
+      padding: 20px;
+    }
+
+    .code-block {
+      background: var(--bg-elevated);
+      border: 1px solid var(--border-subtle);
+      border-radius: 6px;
+      padding: 12px 16px;
+      font-family: var(--font-mono);
+      font-size: 12px;
+      color: var(--accent-primary);
+      overflow-x: auto;
+      margin-top: 12px;
+    }
+
+    /* Table of Contents */
+    .ds-toc {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      border-radius: 12px;
+      padding: 30px;
+      margin-bottom: 60px;
+    }
+
+    .ds-toc-title {
+      font-family: var(--font-serif);
+      font-size: 24px;
+      color: var(--accent-warm);
+      margin-bottom: 20px;
+      text-align: center;
+    }
+
+    .ds-toc-list {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 12px;
+    }
+
+    .ds-toc-list li {
+      margin: 0;
+    }
+
+    .ds-toc-list a {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 12px 16px;
+      background: var(--bg-elevated);
+      border: 1px solid var(--border-subtle);
+      border-radius: 8px;
+      color: var(--text-primary);
+      text-decoration: none;
+      font-family: var(--font-sans);
+      font-size: 14px;
+      font-weight: 500;
+      transition: all 0.2s ease;
+    }
+
+    .ds-toc-list a:hover {
+      background: var(--highlight-active);
+      border-color: var(--accent-primary);
+      transform: translateX(4px);
+    }
+
+    .ds-toc-list a .material-icons {
+      font-size: 18px;
+      color: var(--accent-warm);
+    }
+
+    /* Jump to Top Button */
+    .jump-to-top {
+      position: fixed;
+      bottom: 30px;
+      right: 30px;
+      width: 56px;
+      height: 56px;
+      border-radius: 50%;
+      background: var(--accent-primary);
+      color: white;
+      border: none;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+      opacity: 0;
+      visibility: hidden;
+      transition: all 0.3s ease;
+      z-index: 1000;
+    }
+
+    .jump-to-top.visible {
+      opacity: 1;
+      visibility: visible;
+    }
+
+    .jump-to-top:hover {
+      transform: translateY(-4px) scale(1.05);
+      box-shadow: 0 8px 24px rgba(58, 100, 190, 0.5);
+    }
+
+    .jump-to-top .material-icons {
+      font-size: 28px;
+    }
+  </style>
+</head>
+<body>
+  <div class="ds-container">
+    <!-- Header -->
+    <div class="ds-header" id="top">
+      <h1>VoxiDesign</h1>
+      <p class="subtitle">The IFTalk Design System – Elegant, Literary, Interactive</p>
+    </div>
+
+    <!-- Table of Contents -->
+    <nav class="ds-toc">
+      <h2 class="ds-toc-title">Table of Contents</h2>
+      <ul class="ds-toc-list">
+        <li>
+          <a href="#color-palette">
+            <span class="material-icons">palette</span>
+            Color Palette
+          </a>
+        </li>
+        <li>
+          <a href="#typography">
+            <span class="material-icons">text_fields</span>
+            Typography
+          </a>
+        </li>
+        <li>
+          <a href="#buttons">
+            <span class="material-icons">smart_button</span>
+            Buttons
+          </a>
+        </li>
+        <li>
+          <a href="#icon-buttons">
+            <span class="material-icons">radio_button_checked</span>
+            Icon Buttons
+          </a>
+        </li>
+        <li>
+          <a href="#form-controls">
+            <span class="material-icons">tune</span>
+            Form Controls
+          </a>
+        </li>
+        <li>
+          <a href="#modals">
+            <span class="material-icons">window</span>
+            Modals & Dialogs
+          </a>
+        </li>
+        <li>
+          <a href="#components">
+            <span class="material-icons">widgets</span>
+            Main Components
+          </a>
+        </li>
+        <li>
+          <a href="#animations">
+            <span class="material-icons">animation</span>
+            Animations
+          </a>
+        </li>
+      </ul>
+    </nav>
+
+    <!-- Color Palette Section -->
+    <section class="ds-section" id="color-palette">
+      <h2 class="ds-section-title">Color Palette</h2>
+      <p class="ds-section-desc">Our refined dark theme with elegant, literary aesthetics</p>
+
+      <div class="ds-subsection">
+        <h3 class="ds-subsection-title">Backgrounds</h3>
+        <div class="color-grid">
+          <div class="color-swatch">
+            <div class="color-preview" style="background: #0d0f12; color: #e6e4e0;">Primary</div>
+            <div class="color-info">
+              <div class="color-name">--bg-primary</div>
+              <div class="color-value">#0d0f12</div>
+            </div>
+          </div>
+          <div class="color-swatch">
+            <div class="color-preview" style="background: #14171c; color: #e6e4e0;">Secondary</div>
+            <div class="color-info">
+              <div class="color-name">--bg-secondary</div>
+              <div class="color-value">#14171c</div>
+            </div>
+          </div>
+          <div class="color-swatch">
+            <div class="color-preview" style="background: #1a1e24; color: #e6e4e0;">Surface</div>
+            <div class="color-info">
+              <div class="color-name">--bg-surface</div>
+              <div class="color-value">#1a1e24</div>
+            </div>
+          </div>
+          <div class="color-swatch">
+            <div class="color-preview" style="background: #22272e; color: #e6e4e0;">Elevated</div>
+            <div class="color-info">
+              <div class="color-name">--bg-elevated</div>
+              <div class="color-value">#22272e</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="ds-subsection">
+        <h3 class="ds-subsection-title">Accent Colors</h3>
+        <div class="color-grid">
+          <div class="color-swatch">
+            <div class="color-preview" style="background: #3a64be; color: white;">Primary</div>
+            <div class="color-info">
+              <div class="color-name">--accent-primary</div>
+              <div class="color-value">#3a64be</div>
+            </div>
+          </div>
+          <div class="color-swatch">
+            <div class="color-preview" style="background: #c4a35a; color: #0d0f12;">Warm (Gold)</div>
+            <div class="color-info">
+              <div class="color-name">--accent-warm</div>
+              <div class="color-value">#c4a35a</div>
+            </div>
+          </div>
+          <div class="color-swatch">
+            <div class="color-preview" style="background: #5c6370; color: #e6e4e0;">Muted</div>
+            <div class="color-info">
+              <div class="color-name">--accent-muted</div>
+              <div class="color-value">#5c6370</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="ds-subsection">
+        <h3 class="ds-subsection-title">Text Colors</h3>
+        <div class="color-grid">
+          <div class="color-swatch">
+            <div class="color-preview" style="background: #0d0f12; color: #e6e4e0;">Primary</div>
+            <div class="color-info">
+              <div class="color-name">--text-primary</div>
+              <div class="color-value">#e6e4e0</div>
+            </div>
+          </div>
+          <div class="color-swatch">
+            <div class="color-preview" style="background: #0d0f12; color: #a8a5a0;">Secondary</div>
+            <div class="color-info">
+              <div class="color-name">--text-secondary</div>
+              <div class="color-value">#a8a5a0</div>
+            </div>
+          </div>
+          <div class="color-swatch">
+            <div class="color-preview" style="background: #0d0f12; color: #bbb;">Muted</div>
+            <div class="color-info">
+              <div class="color-name">--text-muted</div>
+              <div class="color-value">#bbb</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="ds-subsection">
+        <h3 class="ds-subsection-title">Semantic Colors</h3>
+        <div class="color-grid">
+          <div class="color-swatch">
+            <div class="color-preview" style="background: #0d0f12; color: #60a5fa;">User Typed</div>
+            <div class="color-info">
+              <div class="color-name">--color-user-typed</div>
+              <div class="color-value">#60a5fa (Blue)</div>
+            </div>
+          </div>
+          <div class="color-swatch">
+            <div class="color-preview" style="background: #0d0f12; color: #a78bfa;">User Spoken</div>
+            <div class="color-info">
+              <div class="color-name">--color-user-spoken</div>
+              <div class="color-value">#a78bfa (Purple)</div>
+            </div>
+          </div>
+          <div class="color-swatch">
+            <div class="color-preview" style="background: #0d0f12; color: #2dd4bf;">App System</div>
+            <div class="color-info">
+              <div class="color-name">--color-app-system</div>
+              <div class="color-value">#2dd4bf (Teal)</div>
+            </div>
+          </div>
+          <div class="color-swatch">
+            <div class="color-preview" style="background: #0d0f12; color: #f5f5f5;">Game Text</div>
+            <div class="color-info">
+              <div class="color-name">--color-game-text</div>
+              <div class="color-value">#f5f5f5 (Off-white)</div>
+            </div>
+          </div>
+          <div class="color-swatch">
+            <div class="color-preview" style="background: #0d0f12; color: #fbbf24;">Game System</div>
+            <div class="color-info">
+              <div class="color-name">--color-game-system</div>
+              <div class="color-value">#fbbf24 (Amber)</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Typography Section -->
+    <section class="ds-section" id="typography">
+      <h2 class="ds-section-title">Typography</h2>
+      <p class="ds-section-desc">Three distinct font families for different purposes</p>
+
+      <div class="ds-subsection">
+        <h3 class="ds-subsection-title">Font Families</h3>
+
+        <div class="type-specimen">
+          <div class="type-specimen-label">Serif — Literata (Headings, Literary Text)</div>
+          <div class="type-specimen-text" style="font-family: var(--font-serif); font-size: 32px;">
+            The Quick Brown Fox Jumps Over the Lazy Dog
+          </div>
+          <div class="code-block">--font-serif: "Literata"</div>
+        </div>
+
+        <div class="type-specimen">
+          <div class="type-specimen-label">Sans-Serif — Inter (UI, Body Text)</div>
+          <div class="type-specimen-text" style="font-family: var(--font-sans); font-size: 16px;">
+            The Quick Brown Fox Jumps Over the Lazy Dog
+          </div>
+          <div class="code-block">--font-sans: "Inter"</div>
+        </div>
+
+        <div class="type-specimen">
+          <div class="type-specimen-label">Monospace — Iosevka (Code, Game Text)</div>
+          <div class="type-specimen-text" style="font-family: var(--font-mono); font-size: 14px;">
+            The Quick Brown Fox Jumps Over the Lazy Dog
+          </div>
+          <div class="code-block">--font-mono: "Iosevka", monospace</div>
+        </div>
+      </div>
+
+      <div class="ds-subsection">
+        <h3 class="ds-subsection-title">Font Sizes</h3>
+
+        <div class="type-specimen">
+          <div class="type-specimen-label">Extra Large (--font-xl)</div>
+          <div class="type-specimen-text" style="font-size: var(--font-xl);">1.4rem - Main Headings</div>
+        </div>
+
+        <div class="type-specimen">
+          <div class="type-specimen-label">Large (--font-l)</div>
+          <div class="type-specimen-text" style="font-size: var(--font-l);">1.2rem - Sub-headings</div>
+        </div>
+
+        <div class="type-specimen">
+          <div class="type-specimen-label">Medium (--font-m)</div>
+          <div class="type-specimen-text" style="font-size: var(--font-m);">1rem - Body Text (Default)</div>
+        </div>
+
+        <div class="type-specimen">
+          <div class="type-specimen-label">Small (--font-s)</div>
+          <div class="type-specimen-text" style="font-size: var(--font-s);">0.9rem - Secondary Text</div>
+        </div>
+
+        <div class="type-specimen">
+          <div class="type-specimen-label">Extra Small (--font-xs)</div>
+          <div class="type-specimen-text" style="font-size: var(--font-xs);">0.8rem - Captions</div>
+        </div>
+
+        <div class="type-specimen">
+          <div class="type-specimen-label">Extra Extra Small (--font-xxs)</div>
+          <div class="type-specimen-text" style="font-size: var(--font-xxs);">0.7rem - Fine Print</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Buttons Section -->
+    <section class="ds-section" id="buttons">
+      <h2 class="ds-section-title">Buttons</h2>
+      <p class="ds-section-desc">Primary, secondary, and tertiary button styles with various states</p>
+
+      <div class="ds-subsection">
+        <h3 class="ds-subsection-title">Primary Buttons</h3>
+        <div class="button-grid">
+          <div class="button-demo">
+            <div class="button-demo-label">Default</div>
+            <button class="btn btn-primary">
+              <span class="material-icons">play_arrow</span>
+              Primary Button
+            </button>
+            <div class="code-block">.btn .btn-primary</div>
+          </div>
+
+          <div class="button-demo">
+            <div class="button-demo-label">Small</div>
+            <button class="btn btn-primary btn-sm">
+              <span class="material-icons">save</span>
+              Small Button
+            </button>
+            <div class="code-block">.btn .btn-primary .btn-sm</div>
+          </div>
+
+          <div class="button-demo">
+            <div class="button-demo-label">Full Width</div>
+            <button class="btn btn-primary btn-full-width">
+              <span class="material-icons">cloud_upload</span>
+              Full Width
+            </button>
+            <div class="code-block">.btn-full-width</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="ds-subsection">
+        <h3 class="ds-subsection-title">Secondary Buttons</h3>
+        <div class="button-grid">
+          <div class="button-demo">
+            <div class="button-demo-label">Default</div>
+            <button class="btn btn-secondary">
+              <span class="material-icons">settings</span>
+              Secondary
+            </button>
+            <div class="code-block">.btn .btn-secondary</div>
+          </div>
+
+          <div class="button-demo">
+            <div class="button-demo-label">Small</div>
+            <button class="btn btn-secondary btn-sm">
+              <span class="material-icons">arrow_back</span>
+              Home
+            </button>
+            <div class="code-block">.btn .btn-secondary .btn-sm</div>
+          </div>
+
+          <div class="button-demo">
+            <div class="button-demo-label">Compact</div>
+            <button class="compact-btn">
+              <span class="material-icons">history</span>
+              View Backup Saves
+            </button>
+            <div class="code-block">.compact-btn</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="ds-subsection">
+        <h3 class="ds-subsection-title">Danger & Warning Buttons</h3>
+        <div class="button-grid">
+          <div class="button-demo">
+            <div class="button-demo-label">Danger</div>
+            <button class="btn btn-danger">
+              <span class="material-icons">delete_forever</span>
+              Delete Data
+            </button>
+            <div class="code-block">.btn .btn-danger</div>
+          </div>
+
+          <div class="button-demo">
+            <div class="button-demo-label">Danger (Alt)</div>
+            <button class="compact-btn danger-btn">
+              <span class="material-icons">delete</span>
+              Delete Game Data
+            </button>
+            <div class="code-block">.danger-btn</div>
+          </div>
+
+          <div class="button-demo">
+            <div class="button-demo-label">Warning</div>
+            <button class="btn btn-warning">
+              <span class="material-icons">warning</span>
+              Warning
+            </button>
+            <div class="code-block">.btn .btn-warning</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Icon Buttons Section -->
+    <section class="ds-section" id="icon-buttons">
+      <h2 class="ds-section-title">Icon Buttons</h2>
+      <p class="ds-section-desc">Navigation controls and action buttons with icons</p>
+
+      <div class="ds-subsection">
+        <h3 class="ds-subsection-title">Navigation Buttons</h3>
+        <div class="icon-button-grid">
+          <div class="icon-button-demo">
+            <div class="button-demo-label">Default</div>
+            <button class="btn-nav" title="Skip Previous">
+              <span class="material-icons">skip_previous</span>
+            </button>
+            <div class="code-block">.btn-nav</div>
+          </div>
+
+          <div class="icon-button-demo">
+            <div class="button-demo-label">Primary (Play)</div>
+            <button id="pausePlayBtn" class="btn-nav">
+              <span class="material-icons">play_arrow</span>
+            </button>
+            <div class="code-block">#pausePlayBtn</div>
+          </div>
+
+          <div class="icon-button-demo">
+            <div class="button-demo-label">Fast Rewind</div>
+            <button class="btn-nav">
+              <span class="material-icons">fast_rewind</span>
+            </button>
+            <div class="code-block">.btn-nav</div>
+          </div>
+
+          <div class="icon-button-demo">
+            <div class="button-demo-label">Fast Forward</div>
+            <button class="btn-nav">
+              <span class="material-icons">fast_forward</span>
+            </button>
+            <div class="code-block">.btn-nav</div>
+          </div>
+
+          <div class="icon-button-demo">
+            <div class="button-demo-label">Skip Next</div>
+            <button class="btn-nav">
+              <span class="material-icons">skip_next</span>
+            </button>
+            <div class="code-block">.btn-nav</div>
+          </div>
+
+          <div class="icon-button-demo">
+            <div class="button-demo-label">Send</div>
+            <button class="btn-nav">
+              <span class="material-icons">send</span>
+            </button>
+            <div class="code-block">.btn-nav</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="ds-subsection">
+        <h3 class="ds-subsection-title">Microphone Button</h3>
+        <div class="icon-button-grid">
+          <div class="icon-button-demo">
+            <div class="button-demo-label">Default</div>
+            <button class="btn-mic">
+              <span class="material-icons">mic</span>
+            </button>
+            <div class="code-block">.btn-mic</div>
+          </div>
+
+          <div class="icon-button-demo">
+            <div class="button-demo-label">Listening</div>
+            <button class="btn-mic listening">
+              <span class="material-icons">mic</span>
+            </button>
+            <div class="code-block">.btn-mic.listening</div>
+          </div>
+
+          <div class="icon-button-demo">
+            <div class="button-demo-label">Muted</div>
+            <button class="btn-mic muted">
+              <span class="material-icons">mic_off</span>
+            </button>
+            <div class="code-block">.btn-mic.muted</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="ds-subsection">
+        <h3 class="ds-subsection-title">Character Input Buttons</h3>
+        <div class="icon-button-grid">
+          <div class="icon-button-demo">
+            <div class="button-demo-label">Arrow Navigation</div>
+            <button class="btn-char-nav">
+              <span class="material-icons">arrow_upward</span>
+            </button>
+            <div class="code-block">.btn-char-nav</div>
+          </div>
+
+          <div class="icon-button-demo">
+            <div class="button-demo-label">Keyboard</div>
+            <button class="btn-char-action">
+              <span class="material-icons">keyboard</span>
+            </button>
+            <div class="code-block">.btn-char-action</div>
+          </div>
+
+          <div class="icon-button-demo">
+            <div class="button-demo-label">Escape</div>
+            <button class="btn-char-action" id="charEscBtn">
+              Esc
+            </button>
+            <div class="code-block">#charEscBtn</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Form Controls Section -->
+    <section class="ds-section" id="form-controls">
+      <h2 class="ds-section-title">Form Controls</h2>
+      <p class="ds-section-desc">Inputs, toggles, sliders, and dropdowns</p>
+
+      <div class="ds-subsection">
+        <h3 class="ds-subsection-title">Text Inputs</h3>
+        <div class="form-controls-grid">
+          <div class="form-control-demo">
+            <div class="button-demo-label">Message Input</div>
+            <div class="input-container">
+              <input type="text" class="message-input" placeholder="Type a command..." value="look around">
+              <button class="btn-clear-inline">
+                <span class="material-icons">close</span>
+              </button>
+            </div>
+            <div class="code-block">.message-input + .btn-clear-inline</div>
+          </div>
+
+          <div class="form-control-demo">
+            <div class="button-demo-label">System Entry Mode (SAVE/RESTORE)</div>
+            <input type="text" class="message-input system-entry" placeholder="Enter save name...">
+            <div class="code-block">.message-input.system-entry</div>
+          </div>
+
+          <div class="form-control-demo">
+            <div class="button-demo-label">Pronunciation Input</div>
+            <input type="text" class="pronunciation-input" placeholder="Word (e.g., Anchorhead)">
+            <div class="code-block">.pronunciation-input</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="ds-subsection">
+        <h3 class="ds-subsection-title">Toggle Switches</h3>
+        <div class="form-controls-grid">
+          <div class="form-control-demo">
+            <div class="button-demo-label">Toggle Switch (Checked)</div>
+            <label style="display: flex; align-items: center; gap: 12px;">
+              <span style="flex: 1;">Auto-save</span>
+              <input type="checkbox" class="toggle-switch" checked>
+            </label>
+            <div class="code-block">&lt;input type="checkbox" class="toggle-switch" checked&gt;</div>
+          </div>
+
+          <div class="form-control-demo">
+            <div class="button-demo-label">Toggle Switch (Unchecked)</div>
+            <label style="display: flex; align-items: center; gap: 12px;">
+              <span style="flex: 1;">Sound Effects</span>
+              <input type="checkbox" class="toggle-switch">
+            </label>
+            <div class="code-block">&lt;input type="checkbox" class="toggle-switch"&gt;</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="ds-subsection">
+        <h3 class="ds-subsection-title">Sliders</h3>
+        <div class="form-controls-grid">
+          <div class="form-control-demo">
+            <div class="button-demo-label">Speech Speed Slider</div>
+            <div class="slider-container">
+              <span class="slider-label">0.5x</span>
+              <input type="range" id="demoSpeechRate" min="0.5" max="1.5" step="0.1" value="1.0" class="slider">
+              <span class="slider-label">1.5x</span>
+              <span class="slider-value">1.0x</span>
+            </div>
+            <div class="code-block">.slider-container + .slider</div>
+          </div>
+
+          <div class="form-control-demo">
+            <div class="button-demo-label">Master Volume</div>
+            <div class="slider-container">
+              <input type="range" min="0" max="100" step="5" value="100" class="slider">
+              <span class="slider-value">100%</span>
+            </div>
+            <div class="code-block">&lt;input type="range" class="slider"&gt;</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="ds-subsection">
+        <h3 class="ds-subsection-title">Dropdowns & Selects</h3>
+        <div class="form-controls-grid">
+          <div class="form-control-demo">
+            <div class="button-demo-label">Voice Select</div>
+            <div class="voice-controls">
+              <select class="voice-select">
+                <option>Samantha (Female, English)</option>
+                <option>Karen (Female, English)</option>
+                <option>Daniel (Male, English)</option>
+              </select>
+              <button class="test-voice-btn">
+                <span class="material-icons">play_arrow</span>
+              </button>
+            </div>
+            <div class="code-block">.voice-select + .test-voice-btn</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Modals & Dialogs Section -->
+    <section class="ds-section" id="modals">
+      <h2 class="ds-section-title">Modals & Dialogs</h2>
+      <p class="ds-section-desc">Confirm dialogs, resume dialogs, and modal windows</p>
+
+      <div class="ds-subsection">
+        <h3 class="ds-subsection-title">Confirm Dialog</h3>
+        <div class="component-showcase">
+          <button class="btn btn-danger demo-modal-trigger" onclick="document.getElementById('demoConfirmDialog').classList.remove('hidden')">
+            <span class="material-icons">delete</span>
+            Show Confirm Dialog
+          </button>
+
+          <!-- Demo Confirm Dialog -->
+          <div class="confirm-dialog-overlay hidden" id="demoConfirmDialog">
+            <div class="confirm-dialog">
+              <h3 class="confirm-dialog-title">Delete Game Data?</h3>
+              <p class="confirm-dialog-message">This will permanently delete all saves and settings for this game.
+
+This action cannot be undone.</p>
+              <div class="confirm-dialog-buttons">
+                <button class="btn-confirm-cancel" onclick="document.getElementById('demoConfirmDialog').classList.add('hidden')">Cancel</button>
+                <button class="btn-confirm-ok" onclick="document.getElementById('demoConfirmDialog').classList.add('hidden')">Delete</button>
+              </div>
+            </div>
+          </div>
+          <div class="code-block">.confirm-dialog-overlay → .confirm-dialog</div>
+        </div>
+      </div>
+
+      <div class="ds-subsection">
+        <h3 class="ds-subsection-title">Resume Dialog</h3>
+        <div class="component-showcase">
+          <button class="btn btn-primary demo-modal-trigger" onclick="document.getElementById('demoResumeDialog').classList.remove('hidden')">
+            <span class="material-icons">play_arrow</span>
+            Show Resume Dialog
+          </button>
+
+          <!-- Demo Resume Dialog -->
+          <div class="resume-dialog-overlay hidden" id="demoResumeDialog" style="position: relative; height: 400px; background: rgba(0,0,0,0.7); border-radius: 12px;">
+            <div class="resume-dialog">
+              <button class="resume-dialog-cancel" onclick="document.getElementById('demoResumeDialog').classList.add('hidden')">✕</button>
+              <h3>Continue your adventure?</h3>
+              <p>You have a saved game in progress.</p>
+              <div class="resume-dialog-buttons">
+                <button class="btn resume-btn" onclick="document.getElementById('demoResumeDialog').classList.add('hidden')">
+                  <span class="material-icons">play_arrow</span>
+                  Resume
+                </button>
+                <button class="btn restart-btn" onclick="document.getElementById('demoResumeDialog').classList.add('hidden')">
+                  <span class="material-icons">refresh</span>
+                  Restart
+                </button>
+              </div>
+            </div>
+          </div>
+          <div class="code-block">.resume-dialog-overlay → .resume-dialog</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Components Section -->
+    <section class="ds-section" id="components">
+      <h2 class="ds-section-title">Main Components</h2>
+      <p class="ds-section-desc">Game cards, settings panels, and major UI components</p>
+
+      <div class="ds-subsection">
+        <h3 class="ds-subsection-title">Game Card</h3>
+        <div class="component-showcase">
+          <button class="game-card demo-game-card">
+            <div class="game-title">
+              Lost Pig
+              <span class="save-badge has-save"></span>
+              <span class="game-meta" data-year="2007" data-author="Admiral Jota" data-difficulty="Relaxed" data-length="Short (~30 min - 1.5 hrs)">ⓘ</span>
+            </div>
+            <div class="game-desc">Comedy adventure - play an orc looking for a pig</div>
+          </button>
+          <div class="code-block">.game-card → .game-title + .game-desc</div>
+        </div>
+      </div>
+
+      <div class="ds-subsection">
+        <h3 class="ds-subsection-title">Collapsible Settings Section</h3>
+        <div class="component-showcase">
+          <div class="settings-section collapsible collapsed" id="demoSettingsSection">
+            <h3 class="section-header" onclick="document.getElementById('demoSettingsSection').classList.toggle('collapsed')">
+              <span class="material-icons">volume_up</span> Audio Settings
+            </h3>
+            <div class="section-content">
+              <div class="setting-item">
+                <label>Master Volume</label>
+                <div class="slider-container">
+                  <input type="range" min="0" max="100" step="5" value="100" class="slider">
+                  <span class="slider-value">100%</span>
+                </div>
+              </div>
+              <div class="setting-item">
+                <label>
+                  Sound Effects
+                  <input type="checkbox" class="toggle-switch" checked>
+                </label>
+                <p class="setting-description">Audio feedback for commands and actions</p>
+              </div>
+            </div>
+          </div>
+          <div class="code-block">.settings-section.collapsible.collapsed</div>
+        </div>
+      </div>
+
+      <div class="ds-subsection">
+        <h3 class="ds-subsection-title">Voice Listening Indicator</h3>
+        <div class="component-showcase">
+          <div class="voice-listening-indicator">
+            <span class="voice-meter-dot"></span>
+            <span class="voice-transcript">Listening... Speak now!</span>
+          </div>
+          <br>
+          <div class="voice-listening-indicator speaking">
+            <span class="voice-meter-dot"></span>
+            <span class="voice-transcript confirmed">look around</span>
+          </div>
+          <div class="code-block">.voice-listening-indicator (+ .speaking)</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Animations Section -->
+    <section class="ds-section" id="animations">
+      <h2 class="ds-section-title">Animations & Interactions</h2>
+      <p class="ds-section-desc">Hover states, transitions, and motion design</p>
+
+      <div class="ds-subsection">
+        <h3 class="ds-subsection-title">Transitions</h3>
+        <div class="component-showcase">
+          <p style="color: var(--text-secondary); margin-bottom: 20px; line-height: 1.6;">
+            All interactive elements use smooth transitions with cubic-bezier easing for a polished feel.
+            Hover over any button or card to see the effect.
+          </p>
+          <div class="code-block">transition: all 0.3s ease;</div>
+          <div class="code-block">transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);</div>
+        </div>
+      </div>
+
+      <div class="ds-subsection">
+        <h3 class="ds-subsection-title">Keyframe Animations</h3>
+        <div class="component-showcase">
+          <div style="display: flex; gap: 20px; flex-wrap: wrap;">
+            <div style="text-align: center;">
+              <div class="spinning material-icons" style="font-size: 32px; color: var(--accent-primary);">refresh</div>
+              <div style="font-size: 12px; color: var(--text-muted); margin-top: 8px;">Spin</div>
+            </div>
+            <div style="text-align: center;">
+              <div style="font-size: 24px; animation: pulse 2s ease-in-out infinite; color: var(--accent-warm);">●</div>
+              <div style="font-size: 12px; color: var(--text-muted); margin-top: 8px;">Pulse</div>
+            </div>
+            <div style="text-align: center;">
+              <div style="font-size: 24px; color: var(--text-primary);">Hello<span class="cursor">|</span></div>
+              <div style="font-size: 12px; color: var(--text-muted); margin-top: 8px;">Blink</div>
+            </div>
+          </div>
+          <div class="code-block" style="margin-top: 20px;">@keyframes spin, pulse, blink</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Footer -->
+    <div style="text-align: center; padding: 40px 20px; border-top: 1px solid var(--border-subtle); margin-top: 60px;">
+      <p style="font-family: var(--font-serif); font-size: 14px; color: var(--text-muted); font-style: italic;">
+        VoxiDesign – The IFTalk Design System
+      </p>
+      <p style="font-family: var(--font-mono); font-size: 12px; color: var(--text-muted); margin-top: 8px;">
+        Version 1.0 – December 2024
+      </p>
+    </div>
+  </div>
+
+  <!-- Jump to Top Button -->
+  <button class="jump-to-top" id="jumpToTop" title="Jump to Contents">
+    <span class="material-icons">arrow_upward</span>
+  </button>
+
+  <script>
+    // Slider live update
+    document.getElementById('demoSpeechRate').addEventListener('input', (e) => {
+      const value = parseFloat(e.target.value).toFixed(1);
+      e.target.nextElementSibling.nextElementSibling.textContent = value + 'x';
+    });
+
+    // Jump to Top Button - Show/Hide on Scroll
+    const jumpToTopBtn = document.getElementById('jumpToTop');
+
+    window.addEventListener('scroll', () => {
+      if (window.scrollY > 400) {
+        jumpToTopBtn.classList.add('visible');
+      } else {
+        jumpToTopBtn.classList.remove('visible');
+      }
+    });
+
+    jumpToTopBtn.addEventListener('click', () => {
+      window.scrollTo({
+        top: 0,
+        behavior: 'smooth'
+      });
+    });
+
+    // Smooth scroll for TOC links
+    document.querySelectorAll('.ds-toc-list a').forEach(anchor => {
+      anchor.addEventListener('click', function(e) {
+        e.preventDefault();
+        const targetId = this.getAttribute('href').substring(1);
+        const targetElement = document.getElementById(targetId);
+        if (targetElement) {
+          const yOffset = -20; // Offset for spacing
+          const y = targetElement.getBoundingClientRect().top + window.pageYOffset + yOffset;
+          window.scrollTo({ top: y, behavior: 'smooth' });
+        }
+      });
+    });
+  </script>
+</body>
+</html>

@@ -131,10 +131,7 @@ async function performSave(storageKey, displayName = null, additionalData = {}) 
                 generation: savedGeneration,
                 inputWindowId: savedInputWindowId
             },
-            narrationState: {
-                currentChunkIndex: state.currentChunkIndex,
-                chunksLength: state.narrationChunks.length
-            },
+            // Note: narrationState removed - start fresh on each load
             ...additionalData // Merge any additional data (saveName, verification, etc.)
         };
 
@@ -237,16 +234,18 @@ async function performRestore(storageKey, displayName = null, options = {}) {
                 }
             }
 
-            // Restore narration state if requested
+            // Restore narration position from old saves (backwards compatibility)
+            // New saves don't include narrationState, so this will only apply to old saves
             if (options.restoreNarrationState && saveData.narrationState) {
-                state.currentChunkIndex = saveData.narrationState.currentChunkIndex;
+                state.currentChunkIndex = saveData.narrationState.currentChunkIndex || 0;
             }
 
             // DON'T send bootstrap here - let voxglk.js handle it
             // voxglk.js will check if generation === 1 and send bootstrap
             // Since we didn't call restore_state(), generation is still 1
 
-            // Set flag to skip narration - position at end of chunks, not beginning
+            // Set flag to position at end of chunks when created (overrides restored position)
+            // This ensures we start at the end so user can use back/rewind buttons
             state.skipNarrationAfterLoad = true;
 
             // Show system message in game area (if requested)

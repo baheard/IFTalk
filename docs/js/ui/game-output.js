@@ -54,7 +54,20 @@ export function ensureChunksReady() {
   // Get elements
   const statusEl = window.currentStatusBarElement || document.getElementById('statusBar');
   const upperEl = document.getElementById('upperWindow');
-  const mainEl = state.currentGameTextElement;
+
+  // Get main element - use currentGameTextElement if set, otherwise find last game-text element
+  // (Fallback needed after restore when currentGameTextElement is null)
+  let mainEl = state.currentGameTextElement;
+  if (!mainEl) {
+    const lowerWindow = document.getElementById('lowerWindow');
+    const gameTexts = lowerWindow?.querySelectorAll('.game-text');
+    mainEl = gameTexts && gameTexts.length > 0 ? gameTexts[gameTexts.length - 1] : null;
+
+    // Set it so future calls don't need to search
+    if (mainEl) {
+      state.currentGameTextElement = mainEl;
+    }
+  }
 
   // Get HTML
   const statusHTML = statusEl ? statusEl.innerHTML : '';

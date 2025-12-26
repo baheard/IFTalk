@@ -32,12 +32,11 @@ export async function startGame(gamePath, onOutput) {
     // Update UI for game context (refresh voice dropdowns, inject sync button)
     reloadSettingsForGame();
 
-    // Load saved autoplay state from global settings (default to false if not saved)
+    // Always start with autoplay OFF - user must click play to start narration
     state._loadingAutoplay = true;
-    const savedAutoplay = localStorage.getItem('iftalk_autoplayEnabled') === 'true';
-    state.autoplayEnabled = savedAutoplay;
+    state.autoplayEnabled = false;
     state._loadingAutoplay = false;
-    console.log(`[Game Loader] Loaded autoplayEnabled: ${savedAutoplay}`);
+    console.log(`[Game Loader] Initialized autoplayEnabled: false (always start paused)`);
 
     // Activate keep awake if enabled (requires user gesture - game click qualifies)
     activateIfEnabled();

@@ -39,7 +39,7 @@ The server will show you the URLs:
 
 ### Voice Output (Narration)
 - Click "▶️ Start Narration" when ready
-- ElevenLabs reads game text aloud
+- Browser TTS reads game text aloud
 - Click "⏹️ Stop Narration" to pause
 - Press Escape to stop anytime
 
@@ -81,10 +81,9 @@ The server will show you the URLs:
 - ✅ Server hosting (local)
 - ✅ All game files
 
-### Has Free Tier:
-- 🆓 ElevenLabs (10,000 chars/month free)
-  - After free tier: $5/month for 30,000 chars
-  - Or disable voice output (text-only)
+### Completely Free:
+- 🆓 Browser TTS (unlimited, built into your browser)
+  - No API costs or monthly fees
 
 ## Troubleshooting
 
@@ -109,8 +108,8 @@ ollama serve
 3. Make sure microphone is working
 
 ### No voice narration
-1. Check ElevenLabs API key in `config.json`
-2. Click "Start Narration" button
+1. Click "Start Narration" button
+2. Check browser has TTS voices available
 3. Check your volume/speakers
 
 ## Tips

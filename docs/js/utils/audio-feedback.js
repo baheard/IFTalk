@@ -17,15 +17,23 @@ import { getItem } from './storage/storage-api.js';
 
 let audioCtx = null;
 
-function getContext() {
+async function getContext() {
   if (!audioCtx) {
     audioCtx = new (window.AudioContext || window.webkitAudioContext)();
   }
   // Resume if suspended (browser autoplay policy)
   if (audioCtx.state === 'suspended') {
-    audioCtx.resume();
+    await audioCtx.resume();
   }
   return audioCtx;
+}
+
+/**
+ * Pre-initialize audio context on first user interaction
+ * Call this from button clicks to avoid delay on first audio feedback
+ */
+export function initAudioContext() {
+  getContext();
 }
 
 /**
@@ -49,12 +57,12 @@ function areSoundEffectsEnabled() {
 /**
  * Play tone for game command sent (Subtle Pop)
  */
-export function playCommandSent() {
+export async function playCommandSent() {
   // Don't play audio feedback when sound effects are disabled
   if (!areSoundEffectsEnabled()) return;
 
   try {
-    const ctx = getContext();
+    const ctx = await getContext();
     const osc = ctx.createOscillator();
     const gain = ctx.createGain();
     const masterVol = getMasterVolume();
@@ -80,12 +88,12 @@ export function playCommandSent() {
 /**
  * Play tone for app/navigation command (Soft Pulse)
  */
-export function playAppCommand() {
+export async function playAppCommand() {
   // Don't play audio feedback when sound effects are disabled
   if (!areSoundEffectsEnabled()) return;
 
   try {
-    const ctx = getContext();
+    const ctx = await getContext();
     const osc = ctx.createOscillator();
     const gain = ctx.createGain();
     const masterVol = getMasterVolume();
@@ -113,12 +121,12 @@ export function playAppCommand() {
 /**
  * Play tone for low confidence warning (gentle warble)
  */
-export function playLowConfidence() {
+export async function playLowConfidence() {
   // Don't play audio feedback when sound effects are disabled
   if (!areSoundEffectsEnabled()) return;
 
   try{
-    const ctx = getContext();
+    const ctx = await getContext();
     const osc = ctx.createOscillator();
     const gain = ctx.createGain();
     const lfo = ctx.createOscillator();
@@ -153,12 +161,12 @@ export const LOW_CONFIDENCE_THRESHOLD = 0.50;
 /**
  * Play tone for blocked/failed command (loud buzz - audible during narration)
  */
-export function playBlockedCommand() {
+export async function playBlockedCommand() {
   // Don't play audio feedback when sound effects are disabled
   if (!areSoundEffectsEnabled()) return;
 
   try {
-    const ctx = getContext();
+    const ctx = await getContext();
     const osc = ctx.createOscillator();
     const gain = ctx.createGain();
     const masterVol = getMasterVolume();
@@ -183,9 +191,9 @@ export function playBlockedCommand() {
 /**
  * Play tone for mute button (triple tap descending)
  */
-export function playMuteTone() {
+export async function playMuteTone() {
   try {
-    const ctx = getContext();
+    const ctx = await getContext();
     const masterVol = getMasterVolume();
     const freqs = [300, 250, 200];
     freqs.forEach((freq, i) => {
@@ -209,9 +217,9 @@ export function playMuteTone() {
 /**
  * Play tone for unmute button (ascending chime)
  */
-export function playUnmuteTone() {
+export async function playUnmuteTone() {
   try {
-    const ctx = getContext();
+    const ctx = await getContext();
     const masterVol = getMasterVolume();
     // First note (lower)
     const osc1 = ctx.createOscillator();
@@ -244,10 +252,10 @@ export function playUnmuteTone() {
  * Play tone before system messages (single clean beep)
  * @returns {Promise<void>} Resolves when beep finishes
  */
-export function playSystemBeep() {
-  return new Promise((resolve) => {
+export async function playSystemBeep() {
+  return new Promise(async (resolve) => {
     try {
-      const ctx = getContext();
+      const ctx = await getContext();
       const masterVol = getMasterVolume();
 
       const osc = ctx.createOscillator();

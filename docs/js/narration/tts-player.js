@@ -85,63 +85,6 @@ export function stopKeepAlive() {
 }
 
 /**
- * Play audio (supports both base64 audio from ElevenLabs and browser TTS)
- * @param {string} audioDataOrText - Base64 audio data or text for browser TTS
- * @returns {Promise<void>} Resolves when audio finishes
- */
-export async function playAudio(audioDataOrText) {
-  if (!audioDataOrText || !state.narrationEnabled) {
-    return;
-  }
-
-  // Stop any currently playing audio/speech
-  if ('speechSynthesis' in window) {
-    speechSynthesis.cancel();
-  }
-  if (state.currentAudio) {
-    state.currentAudio.pause();
-    state.currentAudio.currentTime = 0;
-    state.currentAudio = null;
-  }
-
-  state.isNarrating = true;
-  updateStatus('🔊 Speaking... (say "Skip" to stop)', 'speaking');
-
-  // Check if using browser TTS (plain text) or audio file (base64)
-  if (typeof audioDataOrText === 'string' && audioDataOrText.length < 1000) {
-    // Probably text for browser TTS
-    return playWithBrowserTTS(audioDataOrText);
-  }
-
-  // ElevenLabs audio (base64)
-  const audio = new Audio('data:audio/mpeg;base64,' + audioDataOrText);
-  state.currentAudio = audio;
-
-  return new Promise((resolve) => {
-    audio.onended = () => {
-      state.currentAudio = null;
-      state.isNarrating = false;
-      updateStatus('Ready');
-      resolve();
-    };
-
-    audio.onerror = () => {
-      state.currentAudio = null;
-      state.isNarrating = false;
-      updateStatus('Audio error');
-      resolve();
-    };
-
-    audio.play().catch(err => {
-      state.currentAudio = null;
-      state.isNarrating = false;
-      updateStatus('Audio playback failed');
-      resolve();
-    });
-  });
-}
-
-/**
  * Play using browser's built-in TTS
  * @param {string} text - Text to speak
  * @param {string} voiceType - Voice type: 'narrator' or 'app'
@@ -183,6 +126,15 @@ export async function playWithBrowserTTS(text, voiceType = 'narrator') {
       // Don't set isNarrating = false here - let speakTextChunked manage it
       state.ttsIsSpeaking = false;
       // Recognition stays active (no need to restart - we don't stop it anymore)
+
+      // Check if page is hidden (tab switch) - if so, mark as interrupted
+      if (document.hidden) {
+        console.log('[TTS] Speech ended while page hidden - will replay chunk on return');
+        state.chunkWasInterrupted = true;
+      } else {
+        state.chunkWasInterrupted = false;
+      }
+
       resolve();
     };
 
@@ -250,6 +202,44 @@ export async function speakTextChunked(text, startFromIndex = 0) {
   state.isPaused = false;
   state.isNarrating = true;
 
+  // Auto-unmute mic when narration starts (if not in push-to-talk mode and not manually muted)
+  if (!state.pushToTalkMode && state.isMuted && !state.manuallyMuted) {
+    state.isMuted = false;
+    state.listeningEnabled = true;
+    console.log('[TTS] Auto-unmuted mic for narration (not in push-to-talk mode, not manually muted)');
+
+    // Update UI to reflect unmuted state
+    const { playUnmuteTone } = await import('../utils/audio-feedback.js');
+    const { startVoiceMeter } = await import('../voice/voice-meter.js');
+    const { updateNavButtons } = await import('../ui/nav-buttons.js');
+
+    playUnmuteTone();
+
+    // Update mic button visual state
+    const icon = dom.muteBtn?.querySelector('.material-icons');
+    if (icon) icon.textContent = 'mic';
+    if (dom.muteBtn) dom.muteBtn.classList.remove('muted');
+
+    startVoiceMeter();
+    updateNavButtons();
+
+    // Update lock screen if active
+    try {
+      const { updateLockScreenMicStatus } = await import('../ui/lock-screen.js');
+      updateLockScreenMicStatus();
+    } catch (err) {
+      // Lock screen module may not be loaded yet
+    }
+
+    // Restart voice recognition if it was stopped
+    try {
+      const { restartRecognitionIfEnabled } = await import('../voice/recognition.js');
+      restartRecognitionIfEnabled();
+    } catch (err) {
+      console.warn('[TTS] Could not restart voice recognition:', err);
+    }
+  }
+
   // Start keep-alive for mobile background playback
   startKeepAlive();
 
@@ -297,6 +287,15 @@ export async function speakTextChunked(text, startFromIndex = 0) {
     // Mark when this chunk started playing
     state.currentChunkStartTime = Date.now();
     await playWithBrowserTTS(chunkText, voiceType);
+
+    // Check if chunk was interrupted by tab switch
+    if (state.chunkWasInterrupted) {
+      console.log('[TTS] Chunk interrupted - waiting for page to become visible again');
+      // Don't advance to next chunk - wait for visibility change to resume
+      // The loop will pause here, and visibilitychange handler will restart narration
+      state.isPaused = true;
+      break;
+    }
 
     // Check if we should still continue
     if (!state.narrationEnabled || state.isPaused) {

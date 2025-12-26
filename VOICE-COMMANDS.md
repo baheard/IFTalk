@@ -134,19 +134,21 @@ Edit `config.json` to customize:
 ```json
 {
   "voice": {
+    "enabled": true,
     "tts": {
-      "elevenlabs": {
-        "voice_id": "RexqLjNzkCjWogguKyff",        // Main narration
-        "instruction_voice_id": "pNInz6obpgDQGcFmaJgB",  // Bracket text
-        "stability": 0.5,
-        "similarity_boost": 0.75
+      "method": "browser",
+      "browser": {
+        "voice": "Google UK English Male",
+        "appVoice": "Google US English",
+        "rate": 1.1,
+        "pitch": 1.0
       }
     }
   }
 }
 ```
 
-Browse voices at: https://elevenlabs.io/voices
+Browse available voices in your browser's Settings → Accessibility → Text-to-Speech
 
 ---
 

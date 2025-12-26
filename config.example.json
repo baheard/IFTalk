@@ -14,14 +14,6 @@
         "appVoice": "Google US English",
         "rate": 1.1,
         "pitch": 1.0
-      },
-      "elevenlabs": {
-        "api_key": "YOUR_ELEVENLABS_API_KEY_HERE",
-        "voice_id": "YOUR_VOICE_ID",
-        "instruction_voice_id": "YOUR_INSTRUCTION_VOICE_ID",
-        "model_id": "eleven_turbo_v2",
-        "stability": 0.5,
-        "similarity_boost": 0.75
       }
     }
   },

@@ -4,7 +4,7 @@
 
 Play classic text adventure games using your voice and natural language! IF Talk combines:
 - 🎤 **Voice input** - Speak your commands naturally
-- 🔊 **Voice output** - ElevenLabs lifelike narration
+- 🔊 **Voice output** - Browser TTS narration
 - 🤖 **AI translation** - Natural language → game commands
 - 📱 **Mobile-friendly** - Play from your phone or tablet
 - 🌐 **Web-based** - No installation needed, works everywhere
@@ -29,12 +29,6 @@ cp config.example.json config.json
 # Copy environment variables template (optional)
 cp .env.example .env
 ```
-
-**For ElevenLabs TTS** (optional - browser TTS works without this):
-1. Get your API key from https://elevenlabs.io/
-2. Set environment variable: `ELEVENLABS_API_KEY=your_key_here`
-   - Or add it to `.env` file
-   - Or leave empty in config.json (defaults to browser TTS)
 
 **For AI providers** (optional - Ollama works locally without API key):
 - OpenAI: Set `OPENAI_API_KEY` environment variable
@@ -69,7 +63,7 @@ The server will show you the exact URL when it starts!
 - **Works perfectly in Chrome/Edge/Safari**
 
 ### 🔊 Voice Output
-- Browser TTS (free) or ElevenLabs (premium)
+- Browser TTS (free)
 - Manual control - start/stop when you want
 - Fast response time
 
@@ -98,7 +92,6 @@ Set API keys via environment variables:
 
 ```bash
 # In .env file or system environment
-ELEVENLABS_API_KEY=your_elevenlabs_key_here
 OPENAI_API_KEY=your_openai_key_here
 ANTHROPIC_API_KEY=your_anthropic_key_here
 ```
@@ -115,15 +108,11 @@ Edit `config.json` to customize:
   "voice": {
     "enabled": true,
     "tts": {
-      "method": "browser",  // "browser" (free) or "elevenlabs" (paid)
+      "method": "browser",
       "browser": {
         "voice": "Microsoft David Desktop",
         "rate": 1.1,
         "pitch": 1.0
-      },
-      "elevenlabs": {
-        "api_key": "",  // Leave empty to use ELEVENLABS_API_KEY env var
-        "voice_id": "YOUR_VOICE_ID"
       }
     }
   }
@@ -186,7 +175,7 @@ You'll get a public URL like `https://abc-123.trycloudflare.com`
 - **glkapi.js**: Bridge between VM and display layer
 - **Express Server**: Static file serving ONLY (no game logic)
 - **AI Services** (Optional): Ollama/OpenAI/Claude for natural language translation
-- **Voice**: Web Speech API (recognition) + Browser TTS or ElevenLabs (narration)
+- **Voice**: Web Speech API (recognition) + Browser TTS (narration)
 
 **Why Browser-Based?**
 - ✅ Free static hosting (GitHub Pages, Netlify, Vercel)
@@ -207,7 +196,6 @@ The web app uses **Web Speech API** (built into browsers):
 
 - **Node.js** 18+ (for server)
 - **Ollama** (for free AI) or API key for OpenAI/Claude
-- **ElevenLabs** API key (free tier available)
 - **Modern browser** with microphone support
 
 ## Adding More Games
@@ -241,8 +229,8 @@ Make sure server is running: `npm start`
 3. Check microphone is connected
 
 ### "No voice narration"
-1. Check ElevenLabs API key in `config.json`
-2. Click "Start Narration" button
+1. Click "Start Narration" button
+2. Check browser has TTS voices available
 3. Check browser console for errors
 
 ### "Games not loading"
@@ -275,7 +263,7 @@ Edit files in `public/`:
 1. **Real IF engines** - Not AI simulation, actual game logic
 2. **Voice control** - Natural language interface
 3. **Mobile-friendly** - Play anywhere
-4. **Mostly free** - Only ElevenLabs costs (free tier available)
+4. **Completely free** - No API costs for TTS (browser-based)
 5. **Local-first** - Everything runs on your PC
 6. **Shareable** - Anyone on your network can play
 
@@ -300,7 +288,6 @@ Built with:
 - **Web Speech API** - Voice recognition (built into browsers)
 - **Browser TTS** - Text-to-speech (built into browsers)
 - **Ollama/OpenAI/Claude** - AI command translation (optional)
-- **ElevenLabs** - Premium voice synthesis (optional)
 
 ## Current Status
 

@@ -134,9 +134,9 @@
    - Good voice quality, integrates with AWS
    - Would need AWS account
 
-3. **ElevenLabs** (Premium)
-   - Pricing: ~$5-22/month subscription
-   - Extremely natural voices
+3. **Cloud TTS Providers** (Not currently supported)
+   - Could add Google Cloud TTS, Azure TTS, etc. if needed
+   - Currently using browser TTS only
    - Best quality but most expensive
    - Good for premium features
 

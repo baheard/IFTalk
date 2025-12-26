@@ -144,6 +144,7 @@ export const voiceCommandHandlers = {
   unmute: () => {
     playUnmuteTone();
     state.isMuted = false;
+    state.manuallyMuted = false;  // Clear manual mute flag
     state.listeningEnabled = true;
     const icon = dom.muteBtn?.querySelector('.material-icons');
     if (icon) icon.textContent = 'mic';
@@ -172,6 +173,7 @@ export const voiceCommandHandlers = {
   mute: () => {
     playMuteTone();
     state.isMuted = true;
+    state.manuallyMuted = true;  // Mark as manually muted by user
     // Keep listeningEnabled = true so recognition keeps running for "unmute"
     // state.listeningEnabled = false; // DON'T disable - need to hear "unmute"
     const icon = dom.muteBtn?.querySelector('.material-icons');
@@ -230,6 +232,10 @@ function handleGameOutput(text) {
 
 // Initialize app
 async function initApp() {
+  // Pre-initialize audio context to avoid delays on first sound
+  const { initAudioContext } = await import('./utils/audio-feedback.js');
+  initAudioContext();
+
   // Fix mobile viewport height for browser chrome
   function setMobileViewportHeight() {
     const vh = window.innerHeight * 0.01;
@@ -665,10 +671,9 @@ async function initApp() {
   // Handle visibility change (tab switch, minimize, lock screen, etc.)
   document.addEventListener('visibilitychange', () => {
     if (document.hidden) {
-      // Page hidden: cancel speech
-      if ('speechSynthesis' in window) {
-        speechSynthesis.cancel();
-      }
+      // Page hidden: speech will be canceled automatically by browser
+      // The onend handler will detect page is hidden and mark chunk as interrupted
+      console.log('[App] Page hidden - speech will be interrupted');
     } else {
       // Page visible again: restart voice recognition if it should be running
       if (state.listeningEnabled && state.recognition && !state.isRecognitionActive) {
@@ -679,6 +684,15 @@ async function initApp() {
           // Ignore if already running
           console.log('[App] Voice recognition already active or failed to restart:', err.message);
         }
+      }
+
+      // Auto-resume narration from interrupted chunk
+      if (state.chunkWasInterrupted && state.isPaused) {
+        console.log('[App] Page visible - resuming narration from interrupted chunk');
+        state.chunkWasInterrupted = false;
+        state.isPaused = false;
+        // Resume from current chunk (don't advance)
+        speakTextChunked(null, state.currentChunkIndex);
       }
     }
   });

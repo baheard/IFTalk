@@ -22,6 +22,7 @@ const _state = {
   listeningEnabled: false,
   isRecognitionActive: false,
   isMuted: true,  // Start with microphone muted by default
+  manuallyMuted: false,  // Tracks if user explicitly muted (vs auto-muted by system)
   hasProcessedResult: false,
   hasManualTyping: false,
   pushToTalkMode: false,  // When true, mic only activates while button is held (for car Bluetooth)
@@ -97,15 +98,7 @@ Object.defineProperty(_state, 'autoplayEnabled', {
   set(value) {
     if (this._autoplayEnabled !== value) {
       console.log(`[State] autoplayEnabled changed: ${this._autoplayEnabled} → ${value}`);
-
-      // Save to global settings (skip during initial load to prevent double-save)
-      if (!this._loadingAutoplay) {
-        try {
-          localStorage.setItem('iftalk_autoplayEnabled', value.toString());
-        } catch (err) {
-          console.warn('[State] Failed to save autoplayEnabled (private browsing?):', err);
-        }
-      }
+      // Note: No longer persisting autoplay state - always start paused
     }
     this._autoplayEnabled = value;
   },

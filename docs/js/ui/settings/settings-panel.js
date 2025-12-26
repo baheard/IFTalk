@@ -75,10 +75,11 @@ export function updateSettingsContext() {
     if (isWelcome) {
       item.style.display = 'none';
     } else {
-      // Preserve original display type (flex for buttons, block for divs)
-      const computedDisplay = window.getComputedStyle(item).display;
-      const isFlexButton = item.classList.contains('compact-btn') || item.tagName === 'BUTTON';
-      item.style.display = isFlexButton ? 'flex' : 'block';
+      // Preserve original display type (flex for buttons and danger-zone containers)
+      const isFlexElement = item.classList.contains('compact-btn') ||
+                            item.tagName === 'BUTTON' ||
+                            item.classList.contains('danger-zone');
+      item.style.display = isFlexElement ? 'flex' : 'block';
     }
   });
 

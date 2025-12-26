@@ -231,10 +231,12 @@
     font-size: var(--font-m);
   }
 
+  /* Send button - match other nav buttons for consistent sizing */
   #sendBtn {
-    padding: 10px 16px;
+    padding: 6px 8px;
     font-size: 14px;
-    min-height: 40px;
+    min-width: 36px;
+    min-height: 36px;
   }
 
   /* Mode switch */

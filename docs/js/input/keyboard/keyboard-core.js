@@ -30,6 +30,17 @@ let charEscBtnEl = null;
 let charKeyboardBtnEl = null;
 let hiddenKeyInputEl = null;
 
+// Tap-to-examine state (track when word was just populated)
+let wordJustPopulated = false;
+let populatedWordLength = 0;
+
+// Track input focus state (before blur from clicking buttons)
+let inputWasFocused = false;
+
+// Track keyboard state based on viewport resize events
+let keyboardIsOpen = false;
+let baselineViewportHeight = null;
+
 // Cached media queries for keyboard detection (performance optimization)
 const mqCoarse = window.matchMedia('(pointer: coarse)');
 const mqHover = window.matchMedia('(hover: hover)');
@@ -98,11 +109,39 @@ export function initKeyboardInput() {
     // Show/hide inline clear button based on input content
     messageInputEl.addEventListener('input', () => {
       updateClearButtonVisibility();
+      // Clear flag when user types (manual editing)
+      wordJustPopulated = false;
     });
 
-    // Also update on focus/blur
+    // On focus, select populated word for easy replacement (mobile only)
     messageInputEl.addEventListener('focus', () => {
+      inputWasFocused = true; // Track focus state
       updateClearButtonVisibility();
+
+      // If word was just populated and we're on mobile, select it
+      if (wordJustPopulated && !hasPhysicalKeyboard()) {
+        // Small delay to ensure keyboard is shown and cursor positioned
+        setTimeout(() => {
+          if (messageInputEl && wordJustPopulated) {
+            // Select the first word/prefix for easy command override
+            const value = messageInputEl.value;
+            const firstSpaceIndex = value.indexOf(' ');
+            if (firstSpaceIndex > 0) {
+              // Has space - select first word (e.g., "x" or "go")
+              messageInputEl.setSelectionRange(0, firstSpaceIndex);
+            } else {
+              // No space - select all (single verb command)
+              messageInputEl.select();
+            }
+            console.log('[Keyboard] Selected first word on focus for easy override');
+          }
+        }, 100);
+      }
+    });
+
+    // On blur, track that focus was lost
+    messageInputEl.addEventListener('blur', () => {
+      inputWasFocused = false;
     });
   }
 
@@ -115,19 +154,41 @@ export function initKeyboardInput() {
 
   // Clear button - clears the input and cancels system mode if active
   if (clearInputBtnEl) {
+    // Capture keyboard state on mousedown/touchstart (before blur happens)
+    let clearBtnKeyboardCapture = false;
+    const captureKeyboardState = () => {
+      const inputFocused = document.activeElement === messageInputEl;
+
+      // Restore focus if:
+      // - Input is focused AND keyboard is visible (mobile with keyboard up)
+      // - OR input is focused and no visualViewport API (desktop)
+      const shouldKeepFocus = inputFocused && (keyboardIsOpen || !window.visualViewport);
+
+      clearBtnKeyboardCapture = shouldKeepFocus;
+      console.log(`[Keyboard] Clear button pressed - input focused: ${inputFocused}, keyboard open: ${keyboardIsOpen}, will keep focus: ${shouldKeepFocus}`);
+    };
+    clearInputBtnEl.addEventListener('mousedown', captureKeyboardState);
+    clearInputBtnEl.addEventListener('touchstart', captureKeyboardState, { passive: true });
+
     clearInputBtnEl.addEventListener('click', async () => {
+      // Use captured keyboard visibility from mousedown/touchstart
+      const shouldRestoreFocus = clearBtnKeyboardCapture;
+
       // In system mode: clear text first, then cancel if already empty
       if (isSystemEntryMode()) {
         if (messageInputEl && messageInputEl.value.trim().length > 0) {
           // Has text - clear it first
           messageInputEl.value = '';
-          messageInputEl.focus();
+          // Only restore focus if it was focused before (prevents keyboard jump)
+          if (shouldRestoreFocus) {
+            messageInputEl.focus();
+          }
         } else {
           // No text - cancel system mode
           const { cancelMetaInput } = await import('../../game/commands/index.js');
           cancelMetaInput();
-          // Keep focus in input after canceling (prevents keyboard from closing on mobile)
-          if (messageInputEl) {
+          // Only restore focus if it was focused before (prevents keyboard jump)
+          if (shouldRestoreFocus && messageInputEl) {
             messageInputEl.focus();
           }
         }
@@ -137,7 +198,10 @@ export function initKeyboardInput() {
       // Otherwise just clear the input
       if (messageInputEl) {
         messageInputEl.value = '';
-        messageInputEl.focus();
+        // Only restore focus if it was focused before (prevents keyboard jump)
+        if (shouldRestoreFocus) {
+          messageInputEl.focus();
+        }
       }
     });
   }
@@ -218,6 +282,9 @@ export function initKeyboardInput() {
         if (hasPhysicalKeyboard() || document.activeElement === messageInputEl) {
           messageInputEl.setSelectionRange(messageInputEl.value.length, messageInputEl.value.length);
         }
+        // Track populated word for mobile focus selection
+        wordJustPopulated = true;
+        populatedWordLength = word.length;
       } else {
         // Regular word or direction - add prefix
         const prefix = isDirection ? 'go' : 'x';
@@ -226,6 +293,9 @@ export function initKeyboardInput() {
         if (hasPhysicalKeyboard() || document.activeElement === messageInputEl) {
           messageInputEl.setSelectionRange(0, prefix.length);
         }
+        // Track populated word for mobile focus selection
+        wordJustPopulated = true;
+        populatedWordLength = word.length;
       }
     } else {
       // Input has content - check if word is already the last word
@@ -257,6 +327,10 @@ export function initKeyboardInput() {
       if (prefixLength > 0 && (hasPhysicalKeyboard() || document.activeElement === messageInputEl)) {
         messageInputEl.setSelectionRange(0, prefixLength);
       }
+
+      // Track populated word for mobile focus selection
+      wordJustPopulated = true;
+      populatedWordLength = word.length;
     }
 
     // Focus on desktop only (mobile keyboard stays closed)
@@ -503,6 +577,41 @@ export function initKeyboardInput() {
 
   // Listen for input type changes (poll periodically - check every 500ms)
   setInterval(updateInputVisibility, 500);
+
+  // Track keyboard open/close state based on viewport resize
+  if (window.visualViewport) {
+    // Set baseline height (when keyboard is closed)
+    baselineViewportHeight = window.visualViewport.height;
+    console.log(`[Keyboard] Baseline viewport height: ${baselineViewportHeight}px`);
+
+    window.visualViewport.addEventListener('resize', () => {
+      const currentHeight = window.visualViewport.height;
+      const heightDiff = baselineViewportHeight - currentHeight;
+
+      // Keyboard opened if viewport shrunk by >100px from baseline
+      const wasOpen = keyboardIsOpen;
+      keyboardIsOpen = heightDiff > 100;
+
+      if (wasOpen !== keyboardIsOpen) {
+        console.log(`[Keyboard] State changed: ${keyboardIsOpen ? 'OPENED' : 'CLOSED'} (baseline: ${baselineViewportHeight}px, current: ${currentHeight}px, diff: ${heightDiff}px)`);
+
+        // When keyboard closes, clear text selection and blur input
+        if (!keyboardIsOpen && messageInputEl) {
+          // Clear selection
+          messageInputEl.setSelectionRange(0, 0);
+          // Blur input to remove focus
+          messageInputEl.blur();
+          console.log(`[Keyboard] Cleared selection and blurred input on keyboard close`);
+        }
+      }
+
+      // Update baseline when keyboard fully closes (height returns to normal)
+      if (!keyboardIsOpen && currentHeight > baselineViewportHeight) {
+        baselineViewportHeight = currentHeight;
+        console.log(`[Keyboard] Updated baseline height: ${baselineViewportHeight}px`);
+      }
+    });
+  }
 }
 
 /**

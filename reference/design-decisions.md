@@ -211,8 +211,8 @@ _Old two-panel input system has been removed. Now uses inline keyboard input at 
 
 ## Pronunciation Dictionary System
 
-- **Client-side** (app.js lines 571-598): localStorage-backed, editable via settings panel
-- **Server-side** (server.js lines 260-270): Same dictionary applied to ElevenLabs
+- **Client-side**: localStorage-backed, editable via settings panel
+- **Browser TTS**: Dictionary applied before text-to-speech synthesis
 - **Auto-detection**: Spaced capitals "A N C H O R H E A D" → "Anchorhead" → Title case
 - Settings panel (⚙️) allows adding/removing pronunciation fixes
 
