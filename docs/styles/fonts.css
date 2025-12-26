@@ -1,8 +1,9 @@
 /**
  * Local Font Hosting for Offline PWA Support
- * Material Icons - served locally instead of Google Fonts CDN
+ * All fonts served locally instead of Google Fonts CDN
  */
 
+/* Material Icons - UI icons */
 @font-face {
   font-family: 'Material Icons';
   font-style: normal;
@@ -27,4 +28,31 @@
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
   font-feature-settings: 'liga';
+}
+
+/* Literata - Serif font for game text */
+@font-face {
+  font-family: 'Literata';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url(../fonts/Literata-Regular.woff2) format('truetype');
+}
+
+/* Inter - Sans-serif font for UI */
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url(../fonts/Inter-Regular.woff2) format('woff2');
+}
+
+/* Iosevka - Monospace font for code (using JetBrains Mono) */
+@font-face {
+  font-family: 'Iosevka';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url(../fonts/Iosevka-Regular.woff2) format('woff2');
 }

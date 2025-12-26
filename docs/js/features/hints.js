@@ -313,35 +313,97 @@ function showHintPromptDialog(prompt) {
   }
 
   // Copy & Open ChatGPT button (primary action)
-  dialog.querySelector('#copyAndOpenBtn').onclick = () => {
-    textarea.select();
-    try {
-      document.execCommand('copy');
-      updateStatus('✓ Prompt copied! Opening ChatGPT...');
-      
-      // Visual feedback - change button text briefly
-      const btn = dialog.querySelector('#copyAndOpenBtn');
-      const originalHTML = btn.innerHTML;
-      btn.innerHTML = '<span class="material-icons">check_circle</span> Copied!';
-      btn.style.background = 'var(--success,#66BB6A)';
-      
-      // Open ChatGPT in new tab after brief delay
-      setTimeout(() => {
-        // Note: Cross-origin restrictions prevent reliable window reuse
-        // Multiple ChatGPT tabs may open - user can close extra tabs manually
-        window.open('https://chat.openai.com/', '_blank');
+  const copyAndOpenBtn = dialog.querySelector('#copyAndOpenBtn');
+  console.log('[Hints] Copy & Open button found:', !!copyAndOpenBtn);
 
-        updateStatus('ChatGPT opening - paste prompt (Ctrl+V)');
-        // Close dialog after opening ChatGPT
-        setTimeout(() => {
-          document.body.removeChild(overlay);
-        }, 300);
-      }, 600);
+  // Ensure button is clickable (fix potential CSS issues)
+  if (copyAndOpenBtn) {
+    copyAndOpenBtn.style.pointerEvents = 'auto';
+    copyAndOpenBtn.style.touchAction = 'manipulation';
+    console.log('[Hints] Button styles set for iOS compatibility');
+  }
 
-    } catch (e) {
-      updateStatus('Press Ctrl+C to copy the selected text');
+  const handleCopyAndOpen = (e) => {
+    console.log('[Hints] 🔘 Copy & Open button clicked!', e.type);
+    e.preventDefault();
+    e.stopPropagation();
+
+    // Visual feedback immediately (so user knows button was tapped)
+    const btn = dialog.querySelector('#copyAndOpenBtn');
+    const originalHTML = btn.innerHTML;
+    btn.innerHTML = '<span class="material-icons">check_circle</span> Copying...';
+    btn.style.background = 'var(--success,#66BB6A)';
+    console.log('[Hints] Button UI updated to "Copying..."');
+
+    // Try to copy to clipboard using modern API (better for iOS)
+    let copySuccess = false;
+    const promptText = textarea.value;
+
+    // Try modern Clipboard API first (iOS 13.4+)
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      try {
+        // Note: This returns a promise, but we can't await it without making the click handler async
+        // which might break window.open on iOS. So we fire-and-forget.
+        navigator.clipboard.writeText(promptText).then(() => {
+          console.log('[Hints] ✅ Copy to clipboard: SUCCESS (modern API)');
+        }).catch(err => {
+          console.log('[Hints] ⚠️ Modern clipboard API failed:', err.message);
+        });
+        copySuccess = true; // Assume success
+      } catch (err) {
+        console.log('[Hints] Modern clipboard API error:', err.message);
+      }
     }
+
+    // Fallback to legacy method if modern API not available
+    if (!copySuccess) {
+      textarea.select();
+      try {
+        copySuccess = document.execCommand('copy');
+        console.log('[Hints] Copy to clipboard (legacy):', copySuccess ? 'SUCCESS' : 'FAILED');
+      } catch (err) {
+        console.log('[Hints] Legacy copy error:', err.message);
+      }
+    }
+
+    // Open ChatGPT - MUST be synchronous in click handler for iOS
+    // Try window.open first, fallback to location.href if blocked
+    const chatGPTUrl = 'https://chat.openai.com/';
+    console.log('[Hints] Opening ChatGPT:', chatGPTUrl);
+    const newWindow = window.open(chatGPTUrl, '_blank');
+    console.log('[Hints] window.open returned:', newWindow ? 'window object' : 'null/undefined');
+
+    // If window.open was blocked (returns null on some browsers), use location.href
+    if (!newWindow || newWindow.closed || typeof newWindow.closed === 'undefined') {
+      console.log('[Hints] ⚠️ window.open blocked - using location.href fallback');
+      // iOS Safari might block window.open, so navigate current page instead
+      window.location.href = chatGPTUrl;
+      return; // Don't close dialog since we're navigating away
+    }
+
+    // Update button text
+    console.log('[Hints] ✅ ChatGPT opened successfully');
+    btn.innerHTML = '<span class="material-icons">check_circle</span> Opened!';
+    updateStatus(copySuccess ? '✓ Copied! Paste in ChatGPT' : 'Paste prompt in ChatGPT (Ctrl+V)');
+
+    // Close dialog after brief delay
+    setTimeout(() => {
+      console.log('[Hints] Closing dialog');
+      document.body.removeChild(overlay);
+
+      // Resume narration if it was paused by hint
+      if (state.pausedByHint) {
+        console.log('[Hints] Resuming narration');
+        state.pausedByHint = false;
+        state.isPaused = false;
+      }
+    }, 600);
   };
+
+  // Register event listeners - use both click and touchend for iOS compatibility
+  copyAndOpenBtn.addEventListener('click', handleCopyAndOpen);
+  copyAndOpenBtn.addEventListener('touchend', handleCopyAndOpen);
+  console.log('[Hints] Event listeners registered (click + touchend)');
 
   // Copy Only button (secondary action)
   dialog.querySelector('#copyOnlyBtn').onclick = () => {
@@ -366,6 +428,13 @@ function showHintPromptDialog(prompt) {
   // Close button
   const closeDialog = () => {
     document.body.removeChild(overlay);
+
+    // Resume narration if it was paused by hint
+    if (state.pausedByHint) {
+      state.pausedByHint = false;
+      state.isPaused = false;
+    }
+
     updateStatus('Hint request canceled');
   };
 
@@ -419,9 +488,20 @@ export async function getHint(hintType = 'general') {
       return;
     }
 
+    // Pause narration if currently playing
+    if (state.isNarrating && !state.isPaused) {
+      state.isPaused = true;
+      state.pausedByHint = true; // Track that we paused for hint
+    }
+
     // Show confirmation dialog
     const confirmed = await showConfirmationDialog();
     if (!confirmed) {
+      // Resume narration if user cancels
+      if (state.pausedByHint) {
+        state.pausedByHint = false;
+        state.isPaused = false;
+      }
       updateStatus('Hint request canceled');
       return;
     }

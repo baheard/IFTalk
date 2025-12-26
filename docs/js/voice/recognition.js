@@ -203,6 +203,22 @@ export function initVoiceRecognition(processVoiceKeywords) {
       // Reset command processed flag
       state.pendingCommandProcessed = false;
 
+      // When muted, only process "unmute" command - ignore everything else silently
+      if (state.isMuted) {
+        const lower = finalTranscript.toLowerCase().trim();
+        if (lower === 'unmute' || lower === 'on mute' || lower === 'un mute') {
+          // Process unmute command
+          const processed = processVoiceKeywords(finalTranscript, finalConfidence);
+          showConfirmedTranscript(finalTranscript, true);
+          if (state.pendingCommandProcessed) {
+            playAppCommand();
+          }
+        }
+        // Ignore all other commands when muted (no sound, no display)
+        state.hasManualTyping = false;
+        return;
+      }
+
       // Check for echo
       try {
         if (isEchoOfSpokenText(finalTranscript)) {

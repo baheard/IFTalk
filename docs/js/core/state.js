@@ -30,6 +30,7 @@ const _state = {
 
   // Narration state
   pausedByTabSwitch: false,  // Track if narration was auto-paused by tab switch (for auto-resume)
+  pausedByHint: false,  // Track if narration was auto-paused for hint gathering
   currentAudio: null,
   narrationEnabled: false,
   _autoplayEnabled: false,  // When true, new content auto-plays and nav buttons auto-start

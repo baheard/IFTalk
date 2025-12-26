@@ -3,7 +3,7 @@
  * Provides offline caching for all bundled games and core app resources
  */
 
-const CACHE_VERSION = 'v1.0.0';
+const CACHE_VERSION = 'v1.0.2';
 const CACHE_NAMES = {
   core: `iftalk-core-${CACHE_VERSION}`,
   games: `iftalk-games-${CACHE_VERSION}`,
@@ -125,7 +125,10 @@ const BUNDLED_GAMES = [
 
 // Font files
 const FONTS = [
-  './fonts/MaterialIcons-Regular.woff2'
+  './fonts/MaterialIcons-Regular.woff2',
+  './fonts/Literata-Regular.woff2',
+  './fonts/Inter-Regular.woff2',
+  './fonts/Iosevka-Regular.woff2'
 ];
 
 // PWA icons

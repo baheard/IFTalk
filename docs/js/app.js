@@ -135,6 +135,30 @@ export const voiceCommandHandlers = {
       state.narrationEnabled = false;
       state.isPaused = true;
       stopNarration(true);  // Preserve highlight when pausing
+
+      // Auto-mute mic when pausing (unless manually controlled or in push-to-talk mode)
+      if (!state.pushToTalkMode && !state.isMuted && !state.manuallyMuted) {
+        state.isMuted = true;
+        state.listeningEnabled = false;
+
+        // Update UI to reflect muted state
+        playMuteTone();
+        const icon = dom.muteBtn?.querySelector('.material-icons');
+        if (icon) icon.textContent = 'mic_off';
+        if (dom.muteBtn) dom.muteBtn.classList.add('muted');
+        stopVoiceMeter();
+        updateLockScreenMicStatus();
+
+        // Stop voice recognition
+        if (state.recognition && state.isRecognitionActive) {
+          try {
+            state.recognition.stop();
+          } catch (err) {
+            // Recognition already stopped
+          }
+        }
+      }
+
       updateStatus('Autoplay off');
       updateNavButtons();
     }
@@ -153,6 +177,29 @@ export const voiceCommandHandlers = {
       state.autoplayEnabled = true;
       state.narrationEnabled = true;
       state.isPaused = false;
+
+      // Auto-unmute mic when playing (unless manually controlled or in push-to-talk mode)
+      if (!state.pushToTalkMode && state.isMuted && !state.manuallyMuted) {
+        state.isMuted = false;
+        state.listeningEnabled = true;
+
+        // Update UI to reflect unmuted state
+        playUnmuteTone();
+        const icon = dom.muteBtn?.querySelector('.material-icons');
+        if (icon) icon.textContent = 'mic';
+        if (dom.muteBtn) dom.muteBtn.classList.remove('muted');
+        startVoiceMeter();
+        updateLockScreenMicStatus();
+
+        // Restart voice recognition if needed
+        if (state.recognition && !state.isRecognitionActive) {
+          try {
+            state.recognition.start();
+          } catch (err) {
+            // Recognition already running or failed to start
+          }
+        }
+      }
 
       // Start playing from current position (if not at end)
       if (state.narrationChunks.length > 0 && state.currentChunkIndex < state.narrationChunks.length) {
@@ -214,6 +261,7 @@ export const voiceCommandHandlers = {
   unmute: () => {
     playUnmuteTone();
     state.isMuted = false;
+    state.manuallyMuted = false;  // User manually unmuted - allow auto-management again
     state.listeningEnabled = true;
     const icon = dom.muteBtn?.querySelector('.material-icons');
     if (icon) icon.textContent = 'mic';
@@ -242,6 +290,7 @@ export const voiceCommandHandlers = {
   mute: () => {
     playMuteTone();
     state.isMuted = true;
+    state.manuallyMuted = true;  // User manually muted - break auto-link to play/pause
     // Keep listeningEnabled = true so recognition keeps running for "unmute"
     // state.listeningEnabled = false; // DON'T disable - need to hear "unmute"
     const icon = dom.muteBtn?.querySelector('.material-icons');
@@ -545,6 +594,32 @@ async function initApp() {
         state.narrationEnabled = false;
         state.isPaused = true;
         stopNarration(true);  // Preserve highlight when pausing
+
+        // Auto-mute mic when pausing (unless manually controlled or in push-to-talk mode)
+        console.log('[Pause] pushToTalkMode:', state.pushToTalkMode, 'isMuted:', state.isMuted, 'manuallyMuted:', state.manuallyMuted);
+        if (!state.pushToTalkMode && !state.isMuted && !state.manuallyMuted) {
+          console.log('[Pause] Auto-muting mic');
+          state.isMuted = true;
+          state.listeningEnabled = false;
+
+          // Update UI to reflect muted state
+          playMuteTone();
+          const icon = dom.muteBtn?.querySelector('.material-icons');
+          if (icon) icon.textContent = 'mic_off';
+          if (dom.muteBtn) dom.muteBtn.classList.add('muted');
+          stopVoiceMeter();
+          updateLockScreenMicStatus();
+
+          // Stop voice recognition
+          if (state.recognition && state.isRecognitionActive) {
+            try {
+              state.recognition.stop();
+            } catch (err) {
+              // Recognition already stopped
+            }
+          }
+        }
+
         updateStatus('Autoplay off');
         updateNavButtons();
       } else {
@@ -552,6 +627,31 @@ async function initApp() {
         state.autoplayEnabled = true;
         state.narrationEnabled = true;
         state.isPaused = false;
+
+        // Auto-unmute mic when playing (unless manually controlled or in push-to-talk mode)
+        console.log('[Play] pushToTalkMode:', state.pushToTalkMode, 'isMuted:', state.isMuted, 'manuallyMuted:', state.manuallyMuted);
+        if (!state.pushToTalkMode && state.isMuted && !state.manuallyMuted) {
+          console.log('[Play] Auto-unmuting mic');
+          state.isMuted = false;
+          state.listeningEnabled = true;
+
+          // Update UI to reflect unmuted state
+          playUnmuteTone();
+          const icon = dom.muteBtn?.querySelector('.material-icons');
+          if (icon) icon.textContent = 'mic';
+          if (dom.muteBtn) dom.muteBtn.classList.remove('muted');
+          startVoiceMeter();
+          updateLockScreenMicStatus();
+
+          // Restart voice recognition if needed
+          if (state.recognition && !state.isRecognitionActive) {
+            try {
+              state.recognition.start();
+            } catch (err) {
+              // Recognition already running or failed to start
+            }
+          }
+        }
 
         // Start playing from current position (if not at end)
         if (state.narrationChunks.length > 0 && state.currentChunkIndex < state.narrationChunks.length) {
