@@ -44,7 +44,7 @@ import { playMuteTone, playUnmuteTone } from './utils/audio-feedback.js';
 // PWA Service Worker Registration
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/service-worker.js')
+    navigator.serviceWorker.register('./service-worker.js')
       .then(registration => {
         console.log('[PWA] Service worker registered:', registration.scope);
       })
