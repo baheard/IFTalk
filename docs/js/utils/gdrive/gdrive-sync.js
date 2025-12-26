@@ -328,10 +328,6 @@ function createConflictBackup(localStorageKey, localData) {
     const toRemove = allBackups.slice(maxBackups);
     toRemove.forEach(({ key }) => {
       localStorage.removeItem(key);
-      console.log(`[Backup] Removed old conflict backup: ${key}`);
     });
   }
-
-  console.log(`[Backup] Created conflict backup from Drive sync: ${backupKey}`);
-  console.log(`[Backup] Total backups for this save: ${Math.min(allBackups.length, maxBackups)}/${maxBackups}`);
 }

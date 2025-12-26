@@ -36,7 +36,6 @@ export async function startGame(gamePath, onOutput) {
     state._loadingAutoplay = true;
     state.autoplayEnabled = false;
     state._loadingAutoplay = false;
-    console.log(`[Game Loader] Initialized autoplayEnabled: false (always start paused)`);
 
     // Activate keep awake if enabled (requires user gesture - game click qualifies)
     activateIfEnabled();

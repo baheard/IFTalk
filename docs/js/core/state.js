@@ -26,8 +26,10 @@ const _state = {
   hasProcessedResult: false,
   hasManualTyping: false,
   pushToTalkMode: false,  // When true, mic only activates while button is held (for car Bluetooth)
+  currentInterimTranscript: '',  // Current interim (non-final) recognition text
 
   // Narration state
+  pausedByTabSwitch: false,  // Track if narration was auto-paused by tab switch (for auto-resume)
   currentAudio: null,
   narrationEnabled: false,
   _autoplayEnabled: false,  // When true, new content auto-plays and nav buttons auto-start
@@ -97,7 +99,6 @@ Object.defineProperty(_state, 'autoplayEnabled', {
   },
   set(value) {
     if (this._autoplayEnabled !== value) {
-      console.log(`[State] autoplayEnabled changed: ${this._autoplayEnabled} → ${value}`);
       // Note: No longer persisting autoplay state - always start paused
     }
     this._autoplayEnabled = value;

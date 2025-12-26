@@ -34,7 +34,6 @@ export function initConfirmDialog() {
   cancelBtn = document.getElementById('confirmCancelBtn');
 
   if (!overlay || !dialog || !titleEl || !messageEl || !okBtn || !cancelBtn) {
-    console.warn('[ConfirmDialog] DOM elements not found - confirm dialog disabled');
     return;
   }
 
@@ -64,7 +63,6 @@ export function initConfirmDialog() {
  */
 export function confirmDialog(message, options = {}) {
   if (!overlay || !titleEl || !messageEl) {
-    console.warn('[ConfirmDialog] Not initialized, falling back to browser confirm');
     return Promise.resolve(window.confirm(message));
   }
 

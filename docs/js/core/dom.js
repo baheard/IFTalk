@@ -59,7 +59,7 @@ export function initDOM() {
   dom.lowerWindow = document.getElementById('lowerWindow');
 
   // Command input
-  dom.userInput = document.getElementById('commandText');
+  dom.userInput = document.getElementById('messageInput');
   dom.commandLine = document.getElementById('commandLine');
   dom.voiceIndicator = document.getElementById('voiceIndicator');
 

@@ -129,7 +129,6 @@ export async function playWithBrowserTTS(text, voiceType = 'narrator') {
 
       // Check if page is hidden (tab switch) - if so, mark as interrupted
       if (document.hidden) {
-        console.log('[TTS] Speech ended while page hidden - will replay chunk on return');
         state.chunkWasInterrupted = true;
       } else {
         state.chunkWasInterrupted = false;
@@ -206,7 +205,6 @@ export async function speakTextChunked(text, startFromIndex = 0) {
   if (!state.pushToTalkMode && state.isMuted && !state.manuallyMuted) {
     state.isMuted = false;
     state.listeningEnabled = true;
-    console.log('[TTS] Auto-unmuted mic for narration (not in push-to-talk mode, not manually muted)');
 
     // Update UI to reflect unmuted state
     const { playUnmuteTone } = await import('../utils/audio-feedback.js');
@@ -236,7 +234,7 @@ export async function speakTextChunked(text, startFromIndex = 0) {
       const { restartRecognitionIfEnabled } = await import('../voice/recognition.js');
       restartRecognitionIfEnabled();
     } catch (err) {
-      console.warn('[TTS] Could not restart voice recognition:', err);
+      // Could not restart voice recognition
     }
   }
 
@@ -290,7 +288,6 @@ export async function speakTextChunked(text, startFromIndex = 0) {
 
     // Check if chunk was interrupted by tab switch
     if (state.chunkWasInterrupted) {
-      console.log('[TTS] Chunk interrupted - waiting for page to become visible again');
       // Don't advance to next chunk - wait for visibility change to resume
       // The loop will pause here, and visibilitychange handler will restart narration
       state.isPaused = true;

@@ -313,7 +313,7 @@ export function addGameText(text, isCommand = false, isVoiceCommand = false, isA
         // Speak system message (no beep)
         speakAppMessage(systemText);
       })().catch(err => {
-        console.error('[Game Output] Failed to auto-narrate system message:', err);
+        // Failed to auto-narrate system message
       });
     }
   }

@@ -17,7 +17,6 @@ export function getItem(key, defaultValue = null) {
         const value = localStorage.getItem(key);
         return value !== null ? value : defaultValue;
     } catch (error) {
-        console.error(`Storage getItem error for key "${key}":`, error);
         return defaultValue;
     }
 }
@@ -33,7 +32,6 @@ export function setItem(key, value) {
         localStorage.setItem(key, value);
         return true;
     } catch (error) {
-        console.error(`Storage setItem error for key "${key}":`, error);
         return false;
     }
 }
@@ -48,7 +46,6 @@ export function removeItem(key) {
         localStorage.removeItem(key);
         return true;
     } catch (error) {
-        console.error(`Storage removeItem error for key "${key}":`, error);
         return false;
     }
 }
@@ -62,7 +59,6 @@ export function hasItem(key) {
     try {
         return localStorage.getItem(key) !== null;
     } catch (error) {
-        console.error(`Storage hasItem error for key "${key}":`, error);
         return false;
     }
 }
@@ -81,7 +77,6 @@ export function getJSON(key, defaultValue = null) {
         }
         return JSON.parse(value);
     } catch (error) {
-        console.error(`Storage getJSON error for key "${key}":`, error);
         return defaultValue;
     }
 }
@@ -97,7 +92,6 @@ export function setJSON(key, value) {
         localStorage.setItem(key, JSON.stringify(value));
         return true;
     } catch (error) {
-        console.error(`Storage setJSON error for key "${key}":`, error);
         return false;
     }
 }
@@ -118,7 +112,6 @@ export function getItemsByPrefix(prefix) {
         }
         return keys;
     } catch (error) {
-        console.error(`Storage getItemsByPrefix error for prefix "${prefix}":`, error);
         return [];
     }
 }
@@ -134,7 +127,6 @@ export function removeItemsByPrefix(prefix) {
         keys.forEach(key => localStorage.removeItem(key));
         return keys.length;
     } catch (error) {
-        console.error(`Storage removeItemsByPrefix error for prefix "${prefix}":`, error);
         return 0;
     }
 }
@@ -154,7 +146,6 @@ export function getAllKeys() {
         }
         return keys;
     } catch (error) {
-        console.error('Storage getAllKeys error:', error);
         return [];
     }
 }
@@ -168,7 +159,6 @@ export function getAllKeys() {
 export function getGameKey(type, gameName = null) {
     const game = gameName || state.currentGameName;
     if (!game) {
-        console.warn(`getGameKey called with type "${type}" but no game name available`);
         return `iftalk_${type}`;
     }
     return `iftalk_${type}_${game}`;
@@ -195,7 +185,6 @@ export function getGameKeys(gameName = null) {
 export function clearGameData(gameName = null) {
     const game = gameName || state.currentGameName;
     if (!game) {
-        console.warn('clearGameData called but no game name available');
         return 0;
     }
 
@@ -228,7 +217,6 @@ export function getStorageInfo() {
             keys: iftalkKeys
         };
     } catch (error) {
-        console.error('Storage getStorageInfo error:', error);
         return { totalKeys: 0, iftalkKeys: 0, estimatedSizeKB: 0, keys: [] };
     }
 }

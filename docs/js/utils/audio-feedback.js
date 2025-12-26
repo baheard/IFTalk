@@ -81,7 +81,7 @@ export async function playCommandSent() {
     osc.start(ctx.currentTime);
     osc.stop(ctx.currentTime + 0.02);
   } catch (err) {
-    console.error('[Audio] Command sent tone error:', err);
+    // Command sent tone error
   }
 }
 

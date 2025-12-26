@@ -133,7 +133,6 @@ export function initKeyboardInput() {
               // No space - select all (single verb command)
               messageInputEl.select();
             }
-            console.log('[Keyboard] Selected first word on focus for easy override');
           }
         }, 100);
       }
@@ -165,7 +164,6 @@ export function initKeyboardInput() {
       const shouldKeepFocus = inputFocused && (keyboardIsOpen || !window.visualViewport);
 
       clearBtnKeyboardCapture = shouldKeepFocus;
-      console.log(`[Keyboard] Clear button pressed - input focused: ${inputFocused}, keyboard open: ${keyboardIsOpen}, will keep focus: ${shouldKeepFocus}`);
     };
     clearInputBtnEl.addEventListener('mousedown', captureKeyboardState);
     clearInputBtnEl.addEventListener('touchstart', captureKeyboardState, { passive: true });
@@ -551,7 +549,7 @@ export function initKeyboardInput() {
     lowerWindow.addEventListener('mouseup', handleGameClick); // Word click
 
     // Touch events (mobile)
-    lowerWindow.addEventListener('touchstart', handleTouchStart); // Track start position
+    lowerWindow.addEventListener('touchstart', handleTouchStart, { passive: true }); // Track start position
     lowerWindow.addEventListener('touchend', handleGameClick); // Word tap
   }
 
@@ -582,7 +580,6 @@ export function initKeyboardInput() {
   if (window.visualViewport) {
     // Set baseline height (when keyboard is closed)
     baselineViewportHeight = window.visualViewport.height;
-    console.log(`[Keyboard] Baseline viewport height: ${baselineViewportHeight}px`);
 
     window.visualViewport.addEventListener('resize', () => {
       const currentHeight = window.visualViewport.height;
@@ -593,22 +590,18 @@ export function initKeyboardInput() {
       keyboardIsOpen = heightDiff > 100;
 
       if (wasOpen !== keyboardIsOpen) {
-        console.log(`[Keyboard] State changed: ${keyboardIsOpen ? 'OPENED' : 'CLOSED'} (baseline: ${baselineViewportHeight}px, current: ${currentHeight}px, diff: ${heightDiff}px)`);
-
         // When keyboard closes, clear text selection and blur input
         if (!keyboardIsOpen && messageInputEl) {
           // Clear selection
           messageInputEl.setSelectionRange(0, 0);
           // Blur input to remove focus
           messageInputEl.blur();
-          console.log(`[Keyboard] Cleared selection and blurred input on keyboard close`);
         }
       }
 
       // Update baseline when keyboard fully closes (height returns to normal)
       if (!keyboardIsOpen && currentHeight > baselineViewportHeight) {
         baselineViewportHeight = currentHeight;
-        console.log(`[Keyboard] Updated baseline height: ${baselineViewportHeight}px`);
       }
     });
   }

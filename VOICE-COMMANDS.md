@@ -11,6 +11,38 @@ Click **"🎤 Start Listening"** to enable hands-free voice control.
 - 🔄 **Auto-restart** - Listens again after each command
 - ⏱️ **Fast** - 300ms delay after you stop speaking
 
+### Push-to-Talk Mode
+Enable in settings for car Bluetooth environments where continuous listening causes audio quality issues.
+
+**Features:**
+- Hold the mic button to speak
+- Recognition only active while button is held
+- Prevents audio feedback loops
+- Ideal for car stereo systems
+
+## Recognition Behavior
+
+### Tab Switching
+When you switch browser tabs:
+- Voice recognition automatically stops
+- Any partial (interim) text is sent as a **0% confidence command**
+- Recognition auto-restarts when you return to the tab
+- Ensures no speech is lost during tab switches
+
+### Auto-Unmute on Narration
+When you press **"▶️ Start Narration"**:
+- Microphone automatically unmutes (if not in push-to-talk mode)
+- Allows you to speak commands during narration
+- **Exception**: If you manually muted the mic, it stays muted (respects your choice)
+
+### Confidence Levels
+Voice recognition includes confidence scores:
+- **High confidence (≥50%)** - Command executes normally
+- **Low confidence (<50%)** - Command displays but doesn't execute (visual feedback only)
+- **0% confidence** - Partial/interrupted speech (shown in gray with "0%" label)
+
+Low confidence commands are shown so you can manually type them if needed.
+
 ## Voice Commands
 
 ### Game Commands (When NOT Narrating)

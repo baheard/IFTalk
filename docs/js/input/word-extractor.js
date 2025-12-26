@@ -40,7 +40,6 @@ export function extractWordAtPoint(x, y) {
     }
     // Unsupported browser
     else {
-      console.warn('Browser does not support caretRangeFromPoint or caretPositionFromPoint');
       return null;
     }
 
@@ -90,7 +89,6 @@ export function extractWordAtPoint(x, y) {
       range: wordRange
     };
   } catch (error) {
-    console.error('Error extracting word at point:', error);
     return null;
   }
 }

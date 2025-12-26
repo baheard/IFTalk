@@ -196,13 +196,16 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 12px;
-  background: var(--bg-surface, #2a2a2a);
+  padding: 16px;
+  margin-bottom: 8px;
+  background: rgba(255, 255, 255, 0.03);
   border-radius: 8px;
-  border: 1px solid var(--border-subtle, #444);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  transition: all 0.15s ease;
 }
 
 .backup-item:hover {
+  background: rgba(255, 255, 255, 0.06);
   border-color: var(--accent-warm, #e8b86d);
 }
 

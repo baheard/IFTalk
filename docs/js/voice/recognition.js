@@ -84,6 +84,22 @@ export function showConfirmedTranscript(text, isNavCommand = false, confidence =
 }
 
 /**
+ * Send any pending interim transcript as 0% confidence command
+ * Call this before clearing interim text to ensure it's not lost
+ */
+async function sendInterimAsLowConfidence() {
+  if (state.currentInterimTranscript && state.currentInterimTranscript.trim()) {
+    try {
+      const { sendCommandDirect } = await import('../game/commands/command-router.js');
+      sendCommandDirect(state.currentInterimTranscript.trim(), true, 0);
+    } catch (err) {
+      // Failed to send interim text
+    }
+    state.currentInterimTranscript = '';
+  }
+}
+
+/**
  * Initialize voice recognition
  * @param {Function} processVoiceKeywords - Function to process voice commands
  * @returns {SpeechRecognition|null} Recognition instance
@@ -122,7 +138,7 @@ export function initVoiceRecognition(processVoiceKeywords) {
     // Browser handles silence detection automatically - no manual timeout needed
   };
 
-  recognition.onresult = (event) => {
+  recognition.onresult = async (event) => {
     let interimTranscript = '';
     let finalTranscript = '';
     let finalConfidence = 1.0; // Default to full confidence
@@ -140,6 +156,9 @@ export function initVoiceRecognition(processVoiceKeywords) {
         interimTranscript += result[0].transcript;
       }
     }
+
+    // Store interim transcript for potential use when tab is switched
+    state.currentInterimTranscript = interimTranscript;
 
     // Show live transcript (but not when muted)
     if (interimTranscript && !state.isMuted) {
@@ -178,6 +197,9 @@ export function initVoiceRecognition(processVoiceKeywords) {
 
     // Process final result
     if (finalTranscript && !state.hasProcessedResult) {
+      // Send any pending interim text before clearing it
+      await sendInterimAsLowConfidence();
+
       // Reset command processed flag
       state.pendingCommandProcessed = false;
 
@@ -244,7 +266,7 @@ export function initVoiceRecognition(processVoiceKeywords) {
           playCommandSent();
 
           // Import and call sendCommandDirect with confidence info
-          import('../game/commands.js').then(({ sendCommandDirect }) => {
+          import('../game/commands/command-router.js').then(({ sendCommandDirect }) => {
             sendCommandDirect(processed, true, finalConfidence);
 
             // Clear input and hide indicator after sending
@@ -266,7 +288,10 @@ export function initVoiceRecognition(processVoiceKeywords) {
     }
   };
 
-  recognition.onerror = (event) => {
+  recognition.onerror = async (event) => {
+    // Send interim text before handling error
+    await sendInterimAsLowConfidence();
+
     // Silently ignore common expected errors
     if (event.error === 'network' || event.error === 'aborted') {
       return;
@@ -280,7 +305,10 @@ export function initVoiceRecognition(processVoiceKeywords) {
     state.isRecognitionActive = false;
   };
 
-  recognition.onend = () => {
+  recognition.onend = async () => {
+    // Send any interim text before recognition ends
+    await sendInterimAsLowConfidence();
+
     state.isListening = false;
     state.isRecognitionActive = false;
 
@@ -289,7 +317,6 @@ export function initVoiceRecognition(processVoiceKeywords) {
 
     // In push-to-talk mode, don't auto-restart (only restart when button is held)
     if (state.pushToTalkMode) {
-      console.log('[Recognition] 🎤 Push-to-talk mode: not auto-restarting');
       return;
     }
 

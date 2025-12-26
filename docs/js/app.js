@@ -244,10 +244,9 @@ async function initApp() {
     setTimeout(() => {
       if (state.listeningEnabled && state.recognition && !state.isRecognitionActive) {
         try {
-          console.log('[App] Orientation changed - restarting voice recognition');
           state.recognition.start();
         } catch (err) {
-          console.log('[App] Voice recognition already active or failed to restart:', err.message);
+          // Voice recognition already active or failed to restart
         }
       }
     }, 500); // Wait for orientation transition to complete
@@ -346,7 +345,6 @@ async function initApp() {
     const { initGDriveSync } = await import('./utils/gdrive/index.js');
     await initGDriveSync();
   } catch (error) {
-    console.warn('[App] Google Drive sync unavailable:', error.message);
     // Hide Cloud Sync section if init fails
     const cloudSyncSection = document.getElementById('cloudSyncSection');
     if (cloudSyncSection) cloudSyncSection.style.display = 'none';
@@ -412,7 +410,7 @@ async function initApp() {
           try {
             state.recognition.stop();
           } catch (err) {
-            console.log('[App] Recognition already stopped');
+            // Recognition already stopped
           }
         }
         state.listeningEnabled = false;
@@ -424,7 +422,7 @@ async function initApp() {
           try {
             state.recognition.start();
           } catch (err) {
-            console.log('[App] Recognition already running');
+            // Recognition already running
           }
         }
       }
@@ -559,7 +557,6 @@ async function initApp() {
       e.preventDefault();
       pushToTalkActive = true;
 
-      console.log('[PushToTalk] 🎤 Button pressed - starting recognition');
       dom.muteBtn.classList.add('push-to-talk-active');
       updateStatus('🎤 Listening... Speak now!');
 
@@ -569,7 +566,7 @@ async function initApp() {
         try {
           state.recognition.start();
         } catch (err) {
-          console.log('[PushToTalk] Recognition already running');
+          // Recognition already running
         }
       }
     };
@@ -580,7 +577,6 @@ async function initApp() {
       e.preventDefault();
       pushToTalkActive = false;
 
-      console.log('[PushToTalk] 🎤 Button released - stopping recognition');
       dom.muteBtn.classList.remove('push-to-talk-active');
       updateStatus('Hold mic button to speak');
 
@@ -590,7 +586,7 @@ async function initApp() {
         try {
           state.recognition.stop();
         } catch (err) {
-          console.log('[PushToTalk] Recognition already stopped');
+          // Recognition already stopped
         }
       }
     };
@@ -654,38 +650,58 @@ async function initApp() {
     // If page was restored from bfcache, restart voice recognition
     if (event.persisted && state.listeningEnabled && state.recognition && !state.isRecognitionActive) {
       try {
-        console.log('[App] Page restored from cache - restarting voice recognition');
         state.recognition.start();
       } catch (err) {
-        console.log('[App] Voice recognition already active or failed to restart:', err.message);
+        // Voice recognition already active or failed to restart
       }
     }
   });
 
   // Handle visibility change (tab switch, minimize, lock screen, etc.)
-  document.addEventListener('visibilitychange', () => {
+  document.addEventListener('visibilitychange', async () => {
     if (document.hidden) {
       // Page hidden: pause narration immediately (like pause button)
-      if (state.isNarrating) {
+      if (state.isNarrating && !state.isPaused) {
         state.isPaused = true;
-        console.log('[App] Page hidden - paused narration');
+        state.pausedByTabSwitch = true;  // Track that this was auto-paused
       }
       // Cancel speech synthesis immediately
       if ('speechSynthesis' in window) {
         speechSynthesis.cancel();
       }
+
+      // Stop voice recognition when tab is hidden
+      if (state.recognition && state.isRecognitionActive) {
+        try {
+          // If there's interim text, send it as 0% confidence command
+          if (state.currentInterimTranscript && state.currentInterimTranscript.trim()) {
+            const { sendCommandDirect } = await import('./game/commands/command-router.js');
+            sendCommandDirect(state.currentInterimTranscript.trim(), true, 0);
+            state.currentInterimTranscript = '';
+          }
+
+          state.recognition.stop();
+        } catch (err) {
+          // Error stopping voice recognition
+        }
+      }
     } else {
       // Page visible again: restart voice recognition if it should be running
       if (state.listeningEnabled && state.recognition && !state.isRecognitionActive) {
         try {
-          console.log('[App] Page visible - restarting voice recognition');
           state.recognition.start();
         } catch (err) {
-          // Ignore if already running
-          console.log('[App] Voice recognition already active or failed to restart:', err.message);
+          // Voice recognition already active or failed to restart
         }
       }
-      // Note: User must manually resume narration with play button
+
+      // Auto-resume narration if it was paused by tab switch
+      if (state.pausedByTabSwitch && state.isPaused) {
+        state.pausedByTabSwitch = false;
+        state.isPaused = false;
+        // Resume from current chunk
+        speakTextChunked(null, state.currentChunkIndex);
+      }
     }
   });
 
@@ -695,10 +711,9 @@ async function initApp() {
     setTimeout(() => {
       if (state.listeningEnabled && state.recognition && !state.isRecognitionActive) {
         try {
-          console.log('[App] Window focused - restarting voice recognition');
           state.recognition.start();
         } catch (err) {
-          console.log('[App] Voice recognition already active or failed to restart:', err.message);
+          // Voice recognition already active or failed to restart
         }
       }
     }, 300); // Small delay to ensure focus is fully restored
@@ -787,8 +802,7 @@ async function startApp() {
   try {
     await initApp();
   } catch (error) {
-    console.error('[App] Initialization error:', error);
-    console.error('[App] Stack:', error.stack);
+    // Initialization error
   }
 }
 

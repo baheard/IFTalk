@@ -209,7 +209,7 @@ export function insertRealMarkersAtIDs(container, markerIDs, chunkOffset = 0, sk
         text = beforeNode.textContent;
 
       } catch (e) {
-        console.error('[Markers] Failed to insert marker:', e.message);
+        // Failed to insert marker
       }
     }
   }

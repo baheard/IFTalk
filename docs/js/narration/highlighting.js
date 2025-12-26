@@ -111,7 +111,6 @@ export function highlightUsingMarkers(chunkIndex) {
     }
     return false;
   } catch (e) {
-    console.error('[Highlight] Error for chunk', chunkIndex, ':', e.message);
     return false;
   }
 }

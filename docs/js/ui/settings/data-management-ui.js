@@ -102,7 +102,6 @@ export function initDataManagementUI() {
                 await deleteAllDataFromDrive();
                 updateStatus(`✓ Cleared all app data (local + Drive)`);
               } catch (driveError) {
-                console.error('[Settings] Failed to delete from Drive:', driveError);
                 updateStatus(`✓ Cleared local data (Drive deletion failed)`);
               }
             } else {
@@ -121,7 +120,6 @@ export function initDataManagementUI() {
                 const deleteCount = await deleteGameDataFromDrive(gameName);
                 updateStatus(`✓ Cleared data for ${gameName} (${deleteCount} files from Drive)`);
               } catch (driveError) {
-                console.error('[Settings] Failed to delete from Drive:', driveError);
                 updateStatus(`✓ Cleared local data for ${gameName} (Drive deletion failed)`);
               }
             } else {
@@ -137,7 +135,6 @@ export function initDataManagementUI() {
           }
 
         } catch (error) {
-          console.error('[Settings] Failed to clear data:', error);
           updateStatus('Error clearing data');
           alert('Failed to clear data: ' + error.message);
         }
@@ -173,7 +170,6 @@ export function initDataManagementUI() {
               await deleteAllDataFromDrive();
               updateStatus('✓ Cleared all app data (local + Drive)');
             } catch (driveError) {
-              console.error('[Settings] Failed to delete from Drive:', driveError);
               updateStatus('✓ Cleared local data (Drive deletion failed)');
             }
           } else {
@@ -187,7 +183,6 @@ export function initDataManagementUI() {
             dom.settingsPanel.classList.remove('open');
           }
         } catch (error) {
-          console.error('[Settings] Failed to clear data:', error);
           updateStatus('Error clearing data');
           alert('Failed to clear data: ' + error.message);
         }

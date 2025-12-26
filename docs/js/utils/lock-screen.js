@@ -56,7 +56,6 @@ export function initLockScreen() {
 
     if (state.isScreenLocked && !isFullscreen) {
       // Screen is locked but fullscreen was exited - show warning
-      console.warn('[LockScreen] ⚠️ Fullscreen exited while screen locked');
       showFullscreenWarning();
     }
   };
@@ -83,10 +82,7 @@ export function lockScreen() {
   import('./wake-lock.js').then(async module => {
     wasKeepAwakeEnabledBeforeLock = module.isKeepAwakeEnabled();
     if (!wasKeepAwakeEnabledBeforeLock) {
-      console.log('[LockScreen] 🔒 Enabling wake lock for locked screen');
       await module.enableKeepAwake();
-    } else {
-      console.log('[LockScreen] 🔒 Wake lock already enabled');
     }
   });
 
@@ -135,10 +131,7 @@ export function unlockScreen() {
   // Restore keep awake mode to previous state
   import('./wake-lock.js').then(async module => {
     if (!wasKeepAwakeEnabledBeforeLock) {
-      console.log('[LockScreen] 🔓 Disabling wake lock (restoring previous state)');
       await module.disableKeepAwake();
-    } else {
-      console.log('[LockScreen] 🔓 Keeping wake lock enabled (was enabled before lock)');
     }
   });
 
@@ -328,14 +321,11 @@ async function requestFullscreen() {
 
     if (fullscreenPromise) {
       await fullscreenPromise;
-      console.log('[LockScreen] ✅ Fullscreen activated');
       hideFullscreenWarning();
     } else {
-      console.warn('[LockScreen] ⚠️ Fullscreen API not supported');
       showFullscreenWarning();
     }
   } catch (err) {
-    console.warn('[LockScreen] ❌ Fullscreen request failed:', err.message);
     showFullscreenWarning();
   }
 }

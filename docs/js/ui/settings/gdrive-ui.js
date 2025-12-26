@@ -46,7 +46,6 @@ export function initGDriveUI() {
         updateGDriveUI();
         updateStatus('Signed in to Google Drive', 'success');
       } catch (error) {
-        console.error('[Settings] Sign-in failed:', error);
         updateStatus('Sign-in failed: ' + error.message, 'error');
       }
     });
@@ -62,7 +61,6 @@ export function initGDriveUI() {
         updateGDriveUI();
         updateStatus('Signed out of Google Drive');
       } catch (error) {
-        console.error('[Settings] Sign-out failed:', error);
         updateStatus('Sign-out failed: ' + error.message, 'error');
       }
     });
@@ -86,7 +84,6 @@ export function initGDriveUI() {
           updateStatus('No saves to upload');
         }
       } catch (error) {
-        console.error('[Settings] Upload failed:', error);
         updateStatus('Upload failed: ' + error.message, 'error');
       } finally {
         gdriveSyncToBtn.disabled = false;
@@ -112,7 +109,6 @@ export function initGDriveUI() {
           updateStatus('No saves to download');
         }
       } catch (error) {
-        console.error('[Settings] Download failed:', error);
         updateStatus('Download failed: ' + error.message, 'error');
       } finally {
         gdriveSyncFromBtn.disabled = false;

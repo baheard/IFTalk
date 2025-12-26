@@ -58,7 +58,7 @@ export async function startVoiceMeter() {
     }, 50);
 
   } catch (error) {
-    console.error('[Voice Meter] Error:', error);
+    // Voice meter error
   }
 }
 

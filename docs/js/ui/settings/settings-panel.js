@@ -154,7 +154,6 @@ function injectSyncButton() {
       updateStatus(`Synced ${result.synced} items from GitHub`);
       alert(`Sync complete!\n\n${result.synced} items updated from GitHub Pages.\n${result.total} total items found.`);
     } catch (error) {
-      console.error('[Sync] Failed:', error);
       updateStatus('Sync failed: ' + error.message);
       alert('Sync failed: ' + error.message);
     } finally {
@@ -226,9 +225,9 @@ function showBackupSavesDialog() {
       const saveType = backup.type === 'autosave' ? 'Auto-save' : 'Quick Save';
 
       backupListHTML += `
-        <div class="backup-item" style="padding:15px;border-bottom:1px solid var(--border-subtle,#3a3a3a);display:flex;justify-content:space-between;align-items:center;">
-          <div style="flex:1;">
-            <div style="font-weight:600;margin-bottom:4px;">${saveType} Backup</div>
+        <div class="backup-item">
+          <div class="backup-info">
+            <div style="font-weight:600;">${saveType} Backup</div>
             <div style="font-size:13px;color:var(--text-secondary,#999);">${formattedDate}</div>
           </div>
           <button class="restore-backup-btn" data-backup-key="${backup.key}" style="padding:8px 16px;background:var(--accent-primary,#4CAF50);color:white;border:none;border-radius:6px;cursor:pointer;font-size:14px;">
@@ -240,20 +239,20 @@ function showBackupSavesDialog() {
   }
 
   dialog.innerHTML = `
-    <div class="backup-dialog-header" style="padding:20px;border-bottom:1px solid var(--border-subtle,#3a3a3a);display:flex;justify-content:space-between;align-items:center;">
-      <h3 style="margin:0;font-size:18px;font-weight:600;">
-        <span class="material-icons" style="vertical-align:middle;margin-right:8px;color:var(--accent-primary,#4CAF50);">history</span>
-        Backup Saves
-      </h3>
-      <button class="close-backup-dialog-btn" style="background:none;border:none;color:var(--text-secondary,#999);font-size:24px;cursor:pointer;padding:0;width:32px;height:32px;display:flex;align-items:center;justify-content:center;border-radius:4px;">✕</button>
-    </div>
-    <div class="backup-dialog-body" style="flex:1;overflow:auto;">
-      ${backupListHTML}
-    </div>
-    <div class="backup-dialog-footer" style="padding:20px;border-top:1px solid var(--border-subtle,#3a3a3a);">
-      <p style="margin:0;font-size:13px;color:var(--text-secondary,#999);">
-        Restoring a backup will create a new backup of your current state first.
+    <div class="backup-dialog-header" style="padding:20px;border-bottom:1px solid var(--border-subtle,#3a3a3a);">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+        <h3 style="margin:0;font-size:18px;font-weight:600;">
+          <span class="material-icons" style="vertical-align:middle;margin-right:8px;color:var(--accent-primary,#4CAF50);">history</span>
+          Backup Saves
+        </h3>
+        <button class="close-backup-dialog-btn" style="background:none;border:none;color:var(--text-secondary,#999);font-size:24px;cursor:pointer;padding:0;width:32px;height:32px;display:flex;align-items:center;justify-content:center;border-radius:4px;">✕</button>
+      </div>
+      <p style="margin:0;font-size:13px;padding:10px 12px;background:var(--bg-subtle,rgba(255,255,255,0.05));border-radius:6px;border-left:3px solid var(--accent-primary,#4CAF50);">
+        <strong>Note:</strong> Restoring a backup will create a new backup of your current state first.
       </p>
+    </div>
+    <div class="backup-dialog-body" style="flex:1;overflow:auto;padding:16px;">
+      ${backupListHTML}
     </div>
   `;
 
@@ -306,9 +305,6 @@ async function restoreBackup(backupKey) {
     if (currentSave) {
       const { createBackup } = await import('../../game/save-manager.js');
       await createBackup(saveType, true); // true = exempt from limit
-      console.log(`[Backup Restore] Created safety backup before restoring`);
-    } else {
-      console.log(`[Backup Restore] No current ${saveType} to backup`);
     }
 
     // Restore the backup by setting it as the current save
@@ -321,7 +317,6 @@ async function restoreBackup(backupKey) {
     window.location.reload();
 
   } catch (err) {
-    console.error('[Backup] Restore failed:', err);
     updateStatus(`Error restoring backup: ${err.message}`);
   }
 }

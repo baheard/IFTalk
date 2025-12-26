@@ -454,8 +454,8 @@ export function importSaveFromFile() {
     input.click();
 }
 
-// Autosave backup interval (2 minutes)
-const BACKUP_INTERVAL_MS = 2 * 60 * 1000;
+// Autosave backup interval (5 minutes)
+const BACKUP_INTERVAL_MS = 5 * 60 * 1000;
 const MAX_BACKUPS_PER_GAME = 5;
 let backupIntervalId = null;
 
@@ -490,7 +490,6 @@ export async function createBackup(saveType, exemptFromLimit = false) {
     const saveData = getJSON(saveKey);
 
     if (!saveData) {
-        console.log(`[Backup] No ${saveType} found to backup`);
         return false;
     }
 
@@ -501,7 +500,6 @@ export async function createBackup(saveType, exemptFromLimit = false) {
         : `iftalk_backup_${saveType}_${gameId}_${timestamp}`;
 
     setJSON(backupKey, saveData);
-    console.log(`[Backup] Created ${saveType} backup: ${backupKey}`);
 
     // Clean up old backups (unless this is exempt)
     if (!exemptFromLimit) {
@@ -536,18 +534,15 @@ function cleanupOldBackups(gameId, saveType = 'autosave') {
 
     // Different max backups for different save types
     // Autosaves: 5 backups (more frequent, so keep more history)
-    // Other types: 2 backups (manual saves, less frequent)
-    const maxBackups = saveType === 'autosave' ? 5 : 2;
+    // Other types: 1 backup (manual saves, less frequent)
+    const maxBackups = saveType === 'autosave' ? 5 : 1;
 
     if (backupKeys.length > maxBackups) {
         const toRemove = backupKeys.slice(maxBackups);
         toRemove.forEach(({ key }) => {
             removeItem(key);
-            console.log(`[Backup] Removed old backup: ${key}`);
         });
     }
-
-    console.log(`[Backup] Keeping ${Math.min(backupKeys.length, maxBackups)} ${saveType} backups for ${gameId}`);
 }
 
 /**
@@ -564,8 +559,6 @@ export function startAutosaveBackupTimer() {
     backupIntervalId = setInterval(() => {
         createAutosaveBackup();
     }, BACKUP_INTERVAL_MS);
-
-    console.log(`[Backup] Started autosave backup timer (${BACKUP_INTERVAL_MS / 1000}s intervals, max ${MAX_BACKUPS_PER_GAME} backups)`);
 }
 
 /**
@@ -575,7 +568,6 @@ export function stopAutosaveBackupTimer() {
     if (backupIntervalId) {
         clearInterval(backupIntervalId);
         backupIntervalId = null;
-        console.log('[Backup] Stopped autosave backup timer');
     }
 }
 
