@@ -41,6 +41,76 @@ import { initKeepAwake, enableKeepAwake, disableKeepAwake, isKeepAwakeEnabled, a
 import { initLockScreen, lockScreen, unlockScreen, isScreenLocked, toggleLockScreen, updateLockScreenMicStatus } from './utils/lock-screen.js';
 import { playMuteTone, playUnmuteTone } from './utils/audio-feedback.js';
 
+// PWA Service Worker Registration
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/service-worker.js')
+      .then(registration => {
+        console.log('[PWA] Service worker registered:', registration.scope);
+      })
+      .catch(error => {
+        console.log('[PWA] Service worker registration failed:', error);
+      });
+  });
+}
+
+// PWA Install Prompt Handling
+let deferredPwaPrompt;
+
+window.addEventListener('beforeinstallprompt', (e) => {
+  // Prevent the mini-infobar from appearing on mobile
+  e.preventDefault();
+  // Stash the event so it can be triggered later
+  deferredPwaPrompt = e;
+  // Show the install button in settings
+  const pwaInstallSection = document.getElementById('pwaInstallSection');
+  if (pwaInstallSection) {
+    pwaInstallSection.classList.remove('hidden');
+  }
+  console.log('[PWA] Install prompt available');
+});
+
+// Handle install button click
+window.addEventListener('load', () => {
+  const pwaInstallBtn = document.getElementById('pwaInstallBtn');
+  if (pwaInstallBtn) {
+    pwaInstallBtn.addEventListener('click', async () => {
+      if (!deferredPwaPrompt) {
+        console.log('[PWA] Install prompt not available');
+        return;
+      }
+      // Show the install prompt
+      deferredPwaPrompt.prompt();
+      // Wait for the user to respond
+      const { outcome } = await deferredPwaPrompt.userChoice;
+      console.log(`[PWA] User response: ${outcome}`);
+      // Clear the deferred prompt
+      deferredPwaPrompt = null;
+      // Hide the install button
+      const pwaInstallSection = document.getElementById('pwaInstallSection');
+      if (pwaInstallSection) {
+        pwaInstallSection.classList.add('hidden');
+      }
+    });
+  }
+});
+
+// Detect if app is already installed (standalone mode)
+window.addEventListener('load', () => {
+  const isStandalone = window.matchMedia('(display-mode: standalone)').matches
+    || window.navigator.standalone
+    || document.referrer.includes('android-app://');
+
+  if (isStandalone) {
+    console.log('[PWA] App running in standalone mode');
+    // Hide install button if already installed
+    const pwaInstallSection = document.getElementById('pwaInstallSection');
+    if (pwaInstallSection) {
+      pwaInstallSection.classList.add('hidden');
+    }
+  }
+});
+
 // Voice command handlers (exported so typed commands can use them too)
 export const voiceCommandHandlers = {
   restart: () => {
