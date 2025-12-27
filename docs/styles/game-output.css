@@ -3,15 +3,17 @@
 /* Game Output */
 .game-output {
   flex: 1;
+  min-height: 0; /* Fix flex + overflow interaction */
   display: flex;
   flex-direction: column;
   align-items: center;
   max-width: 800px;
   width: 100%;
-  margin: env(safe-area-inset-top) auto 0 auto; /* top, right, bottom, left */
   font-family: var(--font-mono);
   background: var(--bg-surface);
   overflow-y: auto; /* Scroll when content exceeds viewport height */
+  /* Use margin for safe area - doesn't scroll away like padding */
+  margin: max(10px, env(safe-area-inset-top)) auto 0 auto;
 }
 
 .game-output-inner {

@@ -53,22 +53,27 @@ cd /e/Project/IFTalk && npm start
 
 **IMPORTANT:** Every time a new feature is added or a significant change is made:
 
-1. **Increment the version number** in `docs/index.html` (line ~686):
-   ```html
-   <span class="status-version">v1.0.0</span>
-   ```
+1. **Increment the version number** in TWO places:
+   - `docs/index.html` (line ~685):
+     ```html
+     <span class="status-version">v1.1.9</span>
+     ```
+   - `docs/service-worker.js` (line ~6):
+     ```javascript
+     const CACHE_VERSION = 'v1.1.9';
+     ```
 
 2. **Include the version number in commit messages**:
    ```bash
-   git commit -m "v1.0.1: Add ChatGPT hints mobile support"
+   git commit -m "v1.1.9: Add safe area insets for PWA mode"
    ```
 
 3. **Version numbering scheme:**
    - Major (v2.0.0): Breaking changes, major rewrites
    - Minor (v1.1.0): New features, significant improvements
-   - Patch (v1.0.1): Bug fixes, small tweaks
+   - Patch (v1.1.1): Bug fixes, small tweaks
 
-**Current Version:** v1.0.0
+**Current Version:** v1.2.0
 
 ## Third-Party Libraries
 

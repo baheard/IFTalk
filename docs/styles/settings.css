@@ -52,9 +52,10 @@
 }
 
 .settings-header {
-  padding: 20px;
+  padding: 16px 20px;
   /* Add safe area padding for iOS status bar in PWA */
-  padding-top: max(20px, calc(20px + env(safe-area-inset-top)));
+  padding-top: max(16px, calc(16px + env(safe-area-inset-top)));
+  padding-bottom: 8px;
   border-bottom: 1px solid var(--border-subtle);
   display: flex;
   justify-content: space-between;
@@ -95,12 +96,11 @@
 .settings-content {
   flex: 1;
   overflow-y: auto;
-  padding: 20px;
+  padding: 4px 20px 20px 20px; /* Minimal top padding */
   /* iOS-specific fixes for smooth scrolling and touch handling */
   -webkit-overflow-scrolling: touch;
   touch-action: pan-y;
-  /* Add safe area padding for iOS */
-  padding-top: max(20px, calc(20px + env(safe-area-inset-top)));
+  /* Bottom safe area for scrolling */
   padding-bottom: max(20px, calc(20px + env(safe-area-inset-bottom)));
 }
 

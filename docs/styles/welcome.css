@@ -4,17 +4,37 @@
 .welcome {
   position: relative;
   text-align: center;
-  padding: 30px 20px;
+  padding: 20px 20px;
   max-width: 860px;
   width: 100%;
-  margin: env(safe-area-inset-top) auto 0 auto; /* top, right, bottom, left */
+  margin: 0 auto;
   overflow-y: auto; /* Enable scrolling when content exceeds container height */
   height: 100%; /* Fill container height to enable scrolling */
+  /* Add more top padding so text doesn't start too high */
+  padding-top: max(40px, calc(25px + env(safe-area-inset-top)));
+}
+
+/* Welcome screen scrollbar styling */
+.welcome::-webkit-scrollbar {
+  width: 8px;
+}
+
+.welcome::-webkit-scrollbar-track {
+  background: var(--bg-secondary);
+}
+
+.welcome::-webkit-scrollbar-thumb {
+  background: var(--text-secondary);
+  border-radius: 4px;
+}
+
+.welcome::-webkit-scrollbar-thumb:hover {
+  background: var(--accent-primary);
 }
 
 .welcome-settings-btn {
   position: absolute;
-  top: 16px;
+  top: max(16px, calc(10px + env(safe-area-inset-top)));
   right: 16px;
   background: transparent;
   border: none;

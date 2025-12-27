@@ -109,7 +109,9 @@
 
   /* Welcome screen */
   .welcome {
-    padding: 30px 16px;
+    padding: 16px;
+    /* More top padding so text doesn't start too high */
+    padding-top: max(40px, calc(25px + env(safe-area-inset-top)));
   }
 
   .welcome h2 {
@@ -126,7 +128,7 @@
 
   /* Input area - compact on mobile */
   .input-area {
-    padding: 8px 12px;
+    padding: 4px 12px;
   }
 
   /* .controls {
@@ -300,7 +302,7 @@
 
   /* Status bar - slim */
   .status {
-    padding: 6px 12px;
+    padding: 2px 12px;
     font-size: 11px;
     display: flex !important;
     justify-content: space-between !important;
