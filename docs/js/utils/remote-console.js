@@ -32,6 +32,11 @@ console.remote = function(...args) {
   // Always log locally
   console.log('[REMOTE]', ...args);
 
+  // Skip remote logging when offline
+  if (!navigator.onLine) {
+    return;
+  }
+
   // Only send to LogTail on mobile
   if (LOGTAIL_TOKEN && isMobile()) {
     const payload = {
@@ -63,6 +68,11 @@ console.remote = function(...args) {
 };
 
 function sendLog(level, args) {
+  // Skip remote logging when offline to prevent fetch errors
+  if (!navigator.onLine) {
+    return;
+  }
+
   const payload = {
     level,
     message: args.map(arg => {

@@ -210,6 +210,14 @@ export function processVoiceKeywords(transcript, handlers, confidence = null) {
     return false;
   }
 
+  // SAVE Command (not quick save)
+  if (lower === 'save game' || lower === 'save') {
+    markCommandProcessed();
+    displayAppCommand('save', confidence);
+    if (handlers.saveGame) handlers.saveGame();
+    return false;
+  }
+
   // SAVE/RESTORE Commands
   if (lower === 'load game' || lower === 'restore game' || lower === 'load' || lower === 'restore') {
     markCommandProcessed();

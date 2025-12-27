@@ -56,7 +56,9 @@ export async function startGame(gamePath, onOutput) {
       history.pushState({ screen: 'game', gamePath }, '', null);
     }
 
-    // Show controls and message input
+    // Show controls wrapper and message input
+    const controlsWrapper = document.getElementById('controlsWrapper');
+    if (controlsWrapper) controlsWrapper.classList.remove('hidden');
     const controls = document.getElementById('controls');
     if (controls) controls.classList.remove('hidden');
     const messageInputRow = document.getElementById('messageInputRow');
@@ -214,11 +216,13 @@ export async function startGame(gamePath, onOutput) {
       loadingOverlay.remove();
     }
 
-    // Show welcome screen, hide game output
+    // Show welcome screen, hide game output and controls
     const welcome = document.getElementById('welcome');
     const gameOutput = document.getElementById('gameOutput');
+    const controlsWrapper = document.getElementById('controlsWrapper');
     if (welcome) welcome.classList.remove('hidden');
     if (gameOutput) gameOutput.classList.add('hidden');
+    if (controlsWrapper) controlsWrapper.classList.add('hidden');
 
     // Clear last game so we don't auto-retry on refresh
     localStorage.removeItem('iftalk_last_game');
@@ -243,6 +247,28 @@ export function sendCommandToGame(cmd) {
 
   // Send through our custom display layer with correct type
   sendInput(text, type);
+}
+
+/**
+ * Unload current game and return to welcome screen
+ */
+export function unloadGame() {
+  // Hide game output, show welcome screen
+  const gameOutput = document.getElementById('gameOutput');
+  const welcome = document.getElementById('welcome');
+  if (gameOutput) gameOutput.classList.add('hidden');
+  if (welcome) welcome.classList.remove('hidden');
+
+  // Hide controls wrapper
+  const controlsWrapper = document.getElementById('controlsWrapper');
+  if (controlsWrapper) controlsWrapper.classList.add('hidden');
+
+  // Clear game state
+  window._inGame = false;
+  localStorage.removeItem('iftalk_last_game');
+
+  // Update status
+  updateStatus('Select a game to start');
 }
 
 // List of predefined game files (to exclude from "recently played" section)
@@ -634,7 +660,14 @@ export function initGameSelection(onOutput) {
   let lastGameName = lastGame ? lastGame.split('/').pop().replace(/\.[^.]+$/, '').toLowerCase() : null;
   let hasAutosave = lastGameName ? localStorage.getItem(`iftalk_autosave_${lastGameName}`) !== null : false;
 
-  if (pendingRestoreJson) {
+  // Check if user requested to skip autoload (restart game)
+  const skipAutoload = localStorage.getItem('iftalk_skip_autoload');
+  if (skipAutoload === 'true' && lastGame) {
+    // Force load last game even without autosave (for restart)
+    // Note: startGame() will remove the flag and autosave
+    gameToLoad = lastGame;
+    shouldAutoLoad = true;
+  } else if (pendingRestoreJson) {
     // Pending restore - use last game path (should still be set)
     const pendingRestore = JSON.parse(pendingRestoreJson);
 

@@ -261,16 +261,8 @@ function showHintPromptDialog(prompt) {
       <button class="close-dialog-btn" style="background:none;border:none;color:var(--text-secondary,#999);font-size:24px;cursor:pointer;padding:0;width:32px;height:32px;display:flex;align-items:center;justify-content:center;border-radius:4px;">✕</button>
     </div>
     <div class="hint-dialog-body" style="padding:20px;flex:1;overflow:auto;">
-      <div style="margin-bottom:15px;">
-        <label style="display:block;margin-bottom:6px;font-size:14px;font-weight:500;">Hint Type:</label>
-        <select id="hintTypeSelect" class="hint-type-select" style="width:100%;padding:8px 12px;border:1px solid var(--border-subtle,#3a3a3a);border-radius:6px;background:var(--bg-primary,#1e1e1e);color:var(--text-primary,#e0e0e0);font-size:14px;">
-          <option value="general" ${savedHintType === 'general' ? 'selected' : ''}>General Hint</option>
-          <option value="puzzle" ${savedHintType === 'puzzle' ? 'selected' : ''}>Puzzle Help</option>
-          <option value="location" ${savedHintType === 'location' ? 'selected' : ''}>Navigation Help</option>
-        </select>
-      </div>
       <p class="hint-dialog-instructions" style="margin:0 0 12px 0;color:var(--text-secondary,#b0b0b0);font-size:14px;">
-        Review the prompt below, then copy it to get AI-powered hints:
+        Review the prompt below. Clicking the button will copy it and open ChatGPT with the prompt pre-filled:
       </p>
       <textarea readonly class="hint-prompt-textarea" style="width:100%;height:250px;font-family:monospace;font-size:13px;padding:12px;border:1px solid var(--border-subtle,#3a3a3a);border-radius:6px;background:var(--bg-primary,#1e1e1e);color:var(--text-primary,#e0e0e0);resize:vertical;min-height:200px;">${prompt}</textarea>
     </div>
@@ -298,20 +290,6 @@ function showHintPromptDialog(prompt) {
   const textarea = dialog.querySelector('.hint-prompt-textarea');
   textarea.select();
 
-  // Handle hint type changes
-  const hintTypeSelect = dialog.querySelector('#hintTypeSelect');
-  if (hintTypeSelect) {
-    hintTypeSelect.addEventListener('change', (e) => {
-      const newHintType = e.target.value;
-      // Save preference
-      localStorage.setItem('iftalk_hintType', newHintType);
-      // Rebuild prompt with new hint type
-      // We need to get the context from the original prompt
-      // For now, just update the prompt textarea
-      // TODO: Could rebuild the full prompt here, but that requires context
-    });
-  }
-
   // Copy & Open ChatGPT button (primary action)
   const copyAndOpenBtn = dialog.querySelector('#copyAndOpenBtn');
   console.log('[Hints] Copy & Open button found:', !!copyAndOpenBtn);
@@ -323,7 +301,7 @@ function showHintPromptDialog(prompt) {
     console.log('[Hints] Button styles set for iOS compatibility');
   }
 
-  const handleCopyAndOpen = (e) => {
+  const handleCopyAndOpen = async (e) => {
     console.log('[Hints] 🔘 Copy & Open button clicked!', e.type);
     e.preventDefault();
     e.stopPropagation();
@@ -339,23 +317,28 @@ function showHintPromptDialog(prompt) {
     let copySuccess = false;
     const promptText = textarea.value;
 
+    console.log('[Hints] Clipboard API available:', {
+      hasNavigatorClipboard: !!navigator.clipboard,
+      hasWriteText: !!(navigator.clipboard && navigator.clipboard.writeText),
+      isSecureContext: window.isSecureContext
+    });
+
     // Try modern Clipboard API first (iOS 13.4+)
+    // IMPORTANT: Await the promise so clipboard operation completes before opening window
     if (navigator.clipboard && navigator.clipboard.writeText) {
       try {
-        // Note: This returns a promise, but we can't await it without making the click handler async
-        // which might break window.open on iOS. So we fire-and-forget.
-        navigator.clipboard.writeText(promptText).then(() => {
-          console.log('[Hints] ✅ Copy to clipboard: SUCCESS (modern API)');
-        }).catch(err => {
-          console.log('[Hints] ⚠️ Modern clipboard API failed:', err.message);
-        });
-        copySuccess = true; // Assume success
+        await navigator.clipboard.writeText(promptText);
+        console.log('[Hints] ✅ Copy to clipboard: SUCCESS (modern API)');
+        copySuccess = true;
       } catch (err) {
-        console.log('[Hints] Modern clipboard API error:', err.message);
+        console.log('[Hints] ⚠️ Modern clipboard API failed:', err.message);
+        // Fall through to legacy method
       }
+    } else {
+      console.log('[Hints] Modern clipboard API not available, using legacy method');
     }
 
-    // Fallback to legacy method if modern API not available
+    // Fallback to legacy method if modern API not available or failed
     if (!copySuccess) {
       textarea.select();
       try {
@@ -366,9 +349,32 @@ function showHintPromptDialog(prompt) {
       }
     }
 
-    // Open ChatGPT - MUST be synchronous in click handler for iOS
-    // Try window.open first, fallback to location.href if blocked
-    const chatGPTUrl = 'https://chat.openai.com/';
+    // Both mobile and desktop: Use URL parameter with hints mode
+    // Now working on both platforms!
+    // Format: https://chatgpt.com/?hints=research&q=<prompt>
+    // The hints parameter activates a specific mode which makes ?q= more reliable
+    const maxUrlLength = 8000;
+    let chatGPTUrl;
+
+    try {
+      const encodedPrompt = encodeURIComponent(promptText);
+      // Use hints=research mode for better reliability (discovered Jan 2025)
+      const urlWithPrompt = `https://chatgpt.com/?hints=research&q=${encodedPrompt}`;
+
+      if (urlWithPrompt.length <= maxUrlLength) {
+        chatGPTUrl = urlWithPrompt;
+        console.log('[Hints] Using hints+q URL parameters to pre-fill prompt (length:', urlWithPrompt.length, ')');
+      } else {
+        // Prompt too long for URL - fallback to clipboard only
+        chatGPTUrl = 'https://chat.openai.com/';
+        console.log('[Hints] Prompt too long for URL parameter (', urlWithPrompt.length, 'chars), using clipboard only');
+      }
+    } catch (err) {
+      // Encoding error - fallback to clipboard only
+      chatGPTUrl = 'https://chat.openai.com/';
+      console.log('[Hints] Error encoding prompt for URL:', err.message);
+    }
+
     console.log('[Hints] Opening ChatGPT:', chatGPTUrl);
     const newWindow = window.open(chatGPTUrl, '_blank');
     console.log('[Hints] window.open returned:', newWindow ? 'window object' : 'null/undefined');
@@ -376,7 +382,6 @@ function showHintPromptDialog(prompt) {
     // If window.open was blocked (returns null on some browsers), use location.href
     if (!newWindow || newWindow.closed || typeof newWindow.closed === 'undefined') {
       console.log('[Hints] ⚠️ window.open blocked - using location.href fallback');
-      // iOS Safari might block window.open, so navigate current page instead
       window.location.href = chatGPTUrl;
       return; // Don't close dialog since we're navigating away
     }
@@ -384,7 +389,16 @@ function showHintPromptDialog(prompt) {
     // Update button text
     console.log('[Hints] ✅ ChatGPT opened successfully');
     btn.innerHTML = '<span class="material-icons">check_circle</span> Opened!';
-    updateStatus(copySuccess ? '✓ Copied! Paste in ChatGPT' : 'Paste prompt in ChatGPT (Ctrl+V)');
+
+    // Show appropriate status based on whether URL parameter was used
+    const usedUrlParam = chatGPTUrl.includes('?hints=');
+    if (usedUrlParam) {
+      updateStatus('✓ ChatGPT opened with prompt pre-filled!');
+    } else if (copySuccess) {
+      updateStatus('✓ Copied! Paste in ChatGPT (prompt too long for URL)');
+    } else {
+      updateStatus('Paste prompt in ChatGPT');
+    }
 
     // Close dialog after brief delay
     setTimeout(() => {

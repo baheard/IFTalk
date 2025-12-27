@@ -181,7 +181,7 @@ body {
 /* Container */
 .container {
   flex: 1;
-  overflow: auto;
+  overflow: hidden;
   display: flex;
 }
 
@@ -198,6 +198,9 @@ body {
   align-items: center;
   justify-content: center;
   gap: 4px;
+  /* iOS touch handling improvements */
+  -webkit-tap-highlight-color: rgba(255, 255, 255, 0.1);
+  touch-action: manipulation;
 }
 
 .btn-primary {

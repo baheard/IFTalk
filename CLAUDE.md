@@ -49,6 +49,27 @@ cd /e/Project/IFTalk && npm start
 
 **Context Management:** Claude will warn when context usage reaches 85% (15% remaining). Use `/context` to check current usage.
 
+## Version Management
+
+**IMPORTANT:** Every time a new feature is added or a significant change is made:
+
+1. **Increment the version number** in `docs/index.html` (line ~686):
+   ```html
+   <span class="status-version">v1.0.0</span>
+   ```
+
+2. **Include the version number in commit messages**:
+   ```bash
+   git commit -m "v1.0.1: Add ChatGPT hints mobile support"
+   ```
+
+3. **Version numbering scheme:**
+   - Major (v2.0.0): Breaking changes, major rewrites
+   - Minor (v1.1.0): New features, significant improvements
+   - Patch (v1.0.1): Bug fixes, small tweaks
+
+**Current Version:** v1.0.0
+
 ## Third-Party Libraries
 
 ### ifvms.js (Z-Machine Interpreter)

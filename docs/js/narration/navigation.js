@@ -131,6 +131,8 @@ export function skipToStart(speakTextChunked) {
  * Skip to end (stop all narration and jump to end)
  */
 export function skipToEnd() {
+  console.log('[skipToEnd] START - currentChunkIndex:', state.currentChunkIndex, 'totalChunks:', state.narrationChunks.length, 'isNarrating:', state.isNarrating);
+
   // Ensure chunks exist (lazy creation after autoload)
   if (!state.chunksValid || state.narrationChunks.length === 0) {
     ensureChunksReady();
@@ -138,7 +140,7 @@ export function skipToEnd() {
 
   if (state.narrationChunks.length === 0) return;
 
-  // Force stop everything immediately
+  // Force stop everything immediately (like the old working version)
   state.narrationEnabled = false;
   state.isPaused = true;
   state.isNavigating = false;
@@ -160,6 +162,7 @@ export function skipToEnd() {
   // Jump past end (no highlighting)
   state.currentChunkIndex = state.narrationChunks.length;
   state.currentChunkStartTime = 0;
+  console.log('[skipToEnd] Set currentChunkIndex =', state.currentChunkIndex, '(past end)');
 
   updateStatus('⏩ Skipped to end');
 

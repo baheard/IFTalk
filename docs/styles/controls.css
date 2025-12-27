@@ -6,9 +6,12 @@
   width: 100%;
   border-top: 1px solid var(--border-subtle);
   padding: 8px;
+  /* Add iOS safe area padding for bottom controls (notch/home indicator) */
+  padding-bottom: max(8px, env(safe-area-inset-bottom));
   display: flex;
   flex-direction: column;
   gap: 8px;
+  flex-shrink: 0;
 }
 
 .controls {
@@ -424,5 +427,30 @@
   background: var(--highlight-active);
   border-color: var(--accent-muted);
   color: var(--text-primary);
+}
+
+/* Status Bar */
+.status {
+  padding: 6px 16px;
+  background: var(--bg-surface);
+  color: var(--text-secondary);
+  font-size: 12px;
+  border-top: 1px solid var(--border-subtle);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.status-text {
+  flex: 1;
+  text-align: left;
+}
+
+.status-version {
+  padding-right: 20px;
+  color: var(--text-muted);
+  font-size: 11px;
+  font-family: var(--font-mono);
 }
 

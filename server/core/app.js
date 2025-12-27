@@ -5,7 +5,7 @@
  */
 
 import express from 'express';
-import { createServer } from 'http';
+import { createServer } from 'https';
 import { Server } from 'socket.io';
 import { readFileSync, writeFileSync, existsSync, mkdirSync, unlinkSync } from 'fs';
 import path from 'path';
@@ -28,7 +28,17 @@ if (!existsSync(savesDir)) {
  */
 export function createApp() {
   const app = express();
-  const httpServer = createServer(app);
+
+  // HTTPS options - load SSL certificates from project root
+  const certPath = path.join(__dirname, '../../localhost+3.pem');
+  const keyPath = path.join(__dirname, '../../localhost+3-key.pem');
+
+  const httpsOptions = {
+    key: readFileSync(keyPath),
+    cert: readFileSync(certPath)
+  };
+
+  const httpServer = createServer(httpsOptions, app);
   const io = new Server(httpServer);
 
   // Parse JSON bodies

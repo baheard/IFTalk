@@ -3,7 +3,7 @@
  * Provides offline caching for all bundled games and core app resources
  */
 
-const CACHE_VERSION = 'v1.0.2';
+const CACHE_VERSION = 'v1.1.8';
 const CACHE_NAMES = {
   core: `iftalk-core-${CACHE_VERSION}`,
   games: `iftalk-games-${CACHE_VERSION}`,
@@ -15,6 +15,7 @@ const CACHE_NAMES = {
 const CORE_ASSETS = [
   './',
   './index.html',
+  './manifest.json',
   './favicon.png',
   // CSS files
   './styles/base.css',
@@ -70,6 +71,7 @@ const CORE_ASSETS = [
   './js/utils/gdrive/gdrive-sync.js',
   './js/utils/gdrive/index.js',
   './js/utils/lock-screen.js',
+  './js/utils/offline-debug.js',
   './js/utils/pronunciation.js',
   './js/utils/remote-console.js',
   './js/utils/scroll.js',
@@ -166,7 +168,9 @@ self.addEventListener('install', (event) => {
       })
     ]).then(() => {
       console.log('[PWA] All assets cached successfully');
-      return self.skipWaiting();
+      // Don't skipWaiting - let user finish their session
+      // New version will activate on next app launch
+      // return self.skipWaiting();
     })
   );
 });
@@ -190,7 +194,8 @@ self.addEventListener('activate', (event) => {
       );
     }).then(() => {
       console.log('[PWA] Service worker activated');
-      return self.clients.claim();
+      // Don't claim clients immediately - can cause reloads on iOS
+      // return self.clients.claim();
     })
   );
 });

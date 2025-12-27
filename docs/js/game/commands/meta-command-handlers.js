@@ -564,3 +564,11 @@ export function cancelMetaInput() {
 export function isAwaitingMetaInput() {
   return awaitingMetaInput !== null;
 }
+
+/**
+ * Set awaiting meta input mode (for direct command syntax like "restore mysave")
+ * @param {string} mode - Mode to set ('save', 'restore', 'delete', etc.)
+ */
+export function setAwaitingMetaInput(mode) {
+  awaitingMetaInput = mode;
+}

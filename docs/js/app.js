@@ -9,10 +9,17 @@
 // Remote console (must be first for iOS debugging)
 import './utils/remote-console.js';
 
+// Offline debug console (for debugging load times)
+import { debugLog, showDebugOverlay } from './utils/offline-debug.js';
+debugLog('App.js start');
+
 // Core modules
 import { state } from './core/state.js';
 import { dom, initDOM } from './core/dom.js';
 import { updateStatus } from './utils/status.js';
+
+// Make debug overlay accessible globally (for testing)
+window.showDebugOverlay = showDebugOverlay;
 
 // Voice modules
 import { initVoiceRecognition, showConfirmedTranscript } from './voice/recognition.js';
@@ -52,6 +59,22 @@ if ('serviceWorker' in navigator) {
         console.log('[PWA] Service worker registration failed:', error);
       });
   });
+}
+
+// Load Google Identity Services (OAuth) - only when online
+// This prevents 60-second timeout when offline
+debugLog('Checking if should load Google OAuth');
+if (navigator.onLine) {
+  const script = document.createElement('script');
+  script.src = 'https://accounts.google.com/gsi/client';
+  script.async = true;
+  script.defer = true;
+  document.head.appendChild(script);
+  console.log('[OAuth] Loading Google Identity Services');
+  debugLog('Google OAuth script added');
+} else {
+  console.log('[OAuth] Offline - skipping Google Identity Services');
+  debugLog('Skipped Google OAuth (offline)');
 }
 
 // PWA Install Prompt Handling
@@ -108,6 +131,29 @@ window.addEventListener('load', () => {
     if (pwaInstallSection) {
       pwaInstallSection.classList.add('hidden');
     }
+  } else {
+    // Detect iOS devices (which don't support beforeinstallprompt)
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+
+    if (isIOS && !isStandalone) {
+      // Show iOS-specific install instructions
+      const pwaInstallSection = document.getElementById('pwaInstallSection');
+      const pwaInstallBtn = document.getElementById('pwaInstallBtn');
+      const pwaInstallDescription = document.getElementById('pwaInstallDescription');
+
+      if (pwaInstallSection && pwaInstallBtn && pwaInstallDescription) {
+        pwaInstallSection.classList.remove('hidden');
+        pwaInstallBtn.innerHTML = '<span class="material-icons">ios_share</span> Install App (iOS)';
+        pwaInstallDescription.innerHTML = 'Tap the Share button <span class="material-icons" style="vertical-align:middle;font-size:16px;">ios_share</span> in Safari, then select "Add to Home Screen"';
+
+        // Make button show an alert with instructions instead of triggering prompt
+        pwaInstallBtn.addEventListener('click', () => {
+          alert('To install Voxi on iOS:\n\n1. Tap the Share button (□↑) at the bottom of Safari\n2. Scroll down and tap "Add to Home Screen"\n3. Tap "Add" to confirm\n\nVoxi will then appear on your home screen like a native app!');
+        });
+
+        console.log('[PWA] iOS detected - showing manual install instructions');
+      }
+    }
   }
 });
 
@@ -137,7 +183,8 @@ export const voiceCommandHandlers = {
       stopNarration(true);  // Preserve highlight when pausing
 
       // Auto-mute mic when pausing (unless manually controlled or in push-to-talk mode)
-      if (!state.pushToTalkMode && !state.isMuted && !state.manuallyMuted) {
+      // TEMPORARILY DISABLED for debugging
+      if (false && !state.pushToTalkMode && !state.isMuted && !state.manuallyMuted) {
         state.isMuted = true;
         state.listeningEnabled = false;
 
@@ -145,7 +192,11 @@ export const voiceCommandHandlers = {
         playMuteTone();
         const icon = dom.muteBtn?.querySelector('.material-icons');
         if (icon) icon.textContent = 'mic_off';
-        if (dom.muteBtn) dom.muteBtn.classList.add('muted');
+        if (dom.muteBtn) {
+          dom.muteBtn.classList.add('muted');
+          dom.muteBtn.classList.remove('listening');
+          dom.muteBtn.style.setProperty('--mic-intensity', '0');
+        }
         stopVoiceMeter();
         updateLockScreenMicStatus();
 
@@ -179,7 +230,8 @@ export const voiceCommandHandlers = {
       state.isPaused = false;
 
       // Auto-unmute mic when playing (unless manually controlled or in push-to-talk mode)
-      if (!state.pushToTalkMode && state.isMuted && !state.manuallyMuted) {
+      // TEMPORARILY DISABLED for debugging
+      if (false && !state.pushToTalkMode && state.isMuted && !state.manuallyMuted) {
         state.isMuted = false;
         state.listeningEnabled = true;
 
@@ -257,6 +309,47 @@ export const voiceCommandHandlers = {
   },
   quickLoad: () => {
     quickLoad();
+  },
+  restoreLatest: async () => {
+    try {
+      const { handleRestoreCommand } = await import('./game/commands/meta-command-handlers.js');
+      await handleRestoreCommand();
+    } catch (error) {
+      console.error('Error in restoreLatest:', error);
+      updateStatus('Restore failed', 'error');
+      speakAppMessage('Restore command failed');
+    }
+  },
+  restoreSlot: async (slot) => {
+    try {
+      const { getUnifiedSavesList } = await import('./game/commands/save-list-formatter.js');
+      const { handleMetaResponse, setAwaitingMetaInput } = await import('./game/commands/meta-command-handlers.js');
+
+      const allSaves = getUnifiedSavesList();
+
+      if (!slot || slot < 1 || slot > allSaves.length) {
+        speakAppMessage(`Invalid slot number. There are ${allSaves.length} saved games.`);
+        updateStatus('Invalid slot number');
+        return;
+      }
+
+      setAwaitingMetaInput('restore');
+      await handleMetaResponse(slot.toString());
+    } catch (error) {
+      console.error('Error in restoreSlot:', error);
+      updateStatus('Restore failed', 'error');
+      speakAppMessage('Restore command failed');
+    }
+  },
+  saveGame: async () => {
+    try {
+      const { handleSaveCommand } = await import('./game/commands/meta-command-handlers.js');
+      await handleSaveCommand();
+    } catch (error) {
+      console.error('Error in saveGame:', error);
+      updateStatus('Save failed', 'error');
+      speakAppMessage('Save command failed');
+    }
   },
   unmute: () => {
     playUnmuteTone();
@@ -349,6 +442,8 @@ function handleGameOutput(text) {
 
 // Initialize app
 async function initApp() {
+  debugLog('initApp() start');
+
   // Fix mobile viewport height for browser chrome
   function setMobileViewportHeight() {
     const vh = window.innerHeight * 0.01;
@@ -357,6 +452,7 @@ async function initApp() {
 
   setMobileViewportHeight();
   window.addEventListener('resize', setMobileViewportHeight);
+  debugLog('Viewport height set');
   window.addEventListener('orientationchange', () => {
     setMobileViewportHeight();
     // Restart voice recognition after orientation change (can terminate recognition)
@@ -420,12 +516,26 @@ async function initApp() {
     }
   });
 
-  // Load voice configuration
-  await loadBrowserVoiceConfig();
+  // Load voice configuration (with timeout, non-blocking)
+  debugLog('Loading voice config (background)...');
+  loadBrowserVoiceConfig().then(() => {
+    debugLog('Voice config loaded');
+  }).catch(() => {
+    debugLog('Voice config failed (expected offline)');
+  });
 
-  // Initialize voice recognition with command processor
-  const processVoice = (transcript, confidence) => processVoiceKeywords(transcript, voiceCommandHandlers, confidence);
-  state.recognition = initVoiceRecognition(processVoice);
+  // Initialize voice recognition in background (non-blocking)
+  // This allows it to work offline if device supports it, but doesn't delay app load
+  debugLog('Initializing voice recognition (background)...');
+  setTimeout(() => {
+    try {
+      const processVoice = (transcript, confidence) => processVoiceKeywords(transcript, voiceCommandHandlers, confidence);
+      state.recognition = initVoiceRecognition(processVoice);
+      debugLog('Voice recognition ready');
+    } catch (error) {
+      debugLog('Voice recognition failed: ' + error.message);
+    }
+  }, 100); // Small delay to let app finish loading first
 
   // Make sendCommand available globally for recognition module
   window._sendCommand = () => {
@@ -459,15 +569,18 @@ async function initApp() {
   initDialogInterceptor();
   initScrollDetection();
 
-  // Initialize Google Drive sync (optional, graceful degradation)
-  try {
-    const { initGDriveSync } = await import('./utils/gdrive/index.js');
-    await initGDriveSync();
-  } catch (error) {
+  // Initialize Google Drive sync (optional, non-blocking)
+  debugLog('Initializing Google Drive (background)...');
+  import('./utils/gdrive/index.js').then(({ initGDriveSync }) => {
+    return initGDriveSync();
+  }).then(() => {
+    debugLog('Google Drive sync ready');
+  }).catch(error => {
+    debugLog('Google Drive init failed (expected offline)');
     // Hide Cloud Sync section if init fails
     const cloudSyncSection = document.getElementById('cloudSyncSection');
     if (cloudSyncSection) cloudSyncSection.style.display = 'none';
-  }
+  });
 
   // Initialize keep awake (screen wake lock)
   initKeepAwake();
@@ -573,16 +686,18 @@ async function initApp() {
   // Navigation button handlers
   const skipToStartBtn = document.getElementById('skipToStartBtn');
   if (skipToStartBtn) {
-    skipToStartBtn.addEventListener('click', () =>
-      skipToStart(() => speakTextChunked(null, state.currentChunkIndex))
-    );
+    skipToStartBtn.addEventListener('click', () => {
+      state.autoplayEnabled = true;  // Enable autoplay when clicking nav buttons
+      skipToStart(() => speakTextChunked(null, state.currentChunkIndex));
+    });
   }
 
   const prevChunkBtn = document.getElementById('prevChunkBtn');
   if (prevChunkBtn) {
-    prevChunkBtn.addEventListener('click', () =>
-      skipToChunk(-1, () => speakTextChunked(null, state.currentChunkIndex))
-    );
+    prevChunkBtn.addEventListener('click', () => {
+      state.autoplayEnabled = true;  // Enable autoplay when clicking nav buttons
+      skipToChunk(-1, () => speakTextChunked(null, state.currentChunkIndex));
+    });
   }
 
   const pausePlayBtn = document.getElementById('pausePlayBtn');
@@ -596,9 +711,8 @@ async function initApp() {
         stopNarration(true);  // Preserve highlight when pausing
 
         // Auto-mute mic when pausing (unless manually controlled or in push-to-talk mode)
-        console.log('[Pause] pushToTalkMode:', state.pushToTalkMode, 'isMuted:', state.isMuted, 'manuallyMuted:', state.manuallyMuted);
-        if (!state.pushToTalkMode && !state.isMuted && !state.manuallyMuted) {
-          console.log('[Pause] Auto-muting mic');
+        // TEMPORARILY DISABLED for debugging
+        if (false && !state.pushToTalkMode && !state.isMuted && !state.manuallyMuted) {
           state.isMuted = true;
           state.listeningEnabled = false;
 
@@ -606,7 +720,11 @@ async function initApp() {
           playMuteTone();
           const icon = dom.muteBtn?.querySelector('.material-icons');
           if (icon) icon.textContent = 'mic_off';
-          if (dom.muteBtn) dom.muteBtn.classList.add('muted');
+          if (dom.muteBtn) {
+            dom.muteBtn.classList.add('muted');
+            dom.muteBtn.classList.remove('listening');
+            dom.muteBtn.style.setProperty('--mic-intensity', '0');
+          }
           stopVoiceMeter();
           updateLockScreenMicStatus();
 
@@ -629,9 +747,8 @@ async function initApp() {
         state.isPaused = false;
 
         // Auto-unmute mic when playing (unless manually controlled or in push-to-talk mode)
-        console.log('[Play] pushToTalkMode:', state.pushToTalkMode, 'isMuted:', state.isMuted, 'manuallyMuted:', state.manuallyMuted);
-        if (!state.pushToTalkMode && state.isMuted && !state.manuallyMuted) {
-          console.log('[Play] Auto-unmuting mic');
+        // TEMPORARILY DISABLED for debugging
+        if (false && !state.pushToTalkMode && state.isMuted && !state.manuallyMuted) {
           state.isMuted = false;
           state.listeningEnabled = true;
 
@@ -640,7 +757,11 @@ async function initApp() {
           const icon = dom.muteBtn?.querySelector('.material-icons');
           if (icon) icon.textContent = 'mic';
           if (dom.muteBtn) dom.muteBtn.classList.remove('muted');
-          startVoiceMeter();
+
+          // IMPORTANT: Await microphone permission before starting narration
+          // On mobile, getUserMedia shows a permission dialog that can interrupt playback
+          await startVoiceMeter();
+
           updateLockScreenMicStatus();
 
           // Restart voice recognition if needed
@@ -688,14 +809,18 @@ async function initApp() {
 
   const nextChunkBtn = document.getElementById('nextChunkBtn');
   if (nextChunkBtn) {
-    nextChunkBtn.addEventListener('click', () =>
-      skipToChunk(1, () => speakTextChunked(null, state.currentChunkIndex))
-    );
+    nextChunkBtn.addEventListener('click', () => {
+      state.autoplayEnabled = true;  // Enable autoplay when clicking nav buttons
+      skipToChunk(1, () => speakTextChunked(null, state.currentChunkIndex));
+    });
   }
 
   const skipToEndBtn = document.getElementById('skipToEndBtn');
   if (skipToEndBtn) {
-    skipToEndBtn.addEventListener('click', () => skipToEnd());
+    skipToEndBtn.addEventListener('click', () => {
+      state.autoplayEnabled = true;  // Enable autoplay when clicking nav buttons
+      skipToEnd();
+    });
   }
 
   // Talk Mode button - REMOVED
@@ -969,10 +1094,12 @@ function initHelpTooltips() {
 
 // Initialize when DOM is ready
 async function startApp() {
+  debugLog('startApp() called - DOM ready');
   try {
     await initApp();
+    debugLog('initApp() completed successfully');
   } catch (error) {
-    // Initialization error
+    debugLog('ERROR in initApp(): ' + error.message);
   }
 }
 

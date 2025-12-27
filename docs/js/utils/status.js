@@ -13,7 +13,14 @@ import { dom } from '../core/dom.js';
  */
 export function updateStatus(message, type = '') {
   if (dom.status) {
-    dom.status.textContent = message;
+    // Update the status text span, not the whole status bar (preserves version number)
+    const statusText = dom.status.querySelector('.status-text');
+    if (statusText) {
+      statusText.textContent = message;
+    } else {
+      // Fallback for backwards compatibility
+      dom.status.textContent = message;
+    }
     dom.status.className = 'status ' + type;
   }
 }

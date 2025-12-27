@@ -21,7 +21,8 @@ import {
   handleQuitCommand,
   handleRepairCommand,
   handleMetaResponse,
-  isAwaitingMetaInput
+  isAwaitingMetaInput,
+  setAwaitingMetaInput
 } from './meta-command-handlers.js';
 import { getCustomSaves, getUnifiedSavesList } from './save-list-formatter.js';
 
@@ -276,20 +277,22 @@ function respondAsGame(html) {
   }
 }
 
-// Import response handlers for save/restore/delete with arguments
+// Response handlers for save/restore/delete with arguments (e.g., "restore mysave")
 async function handleSaveResponse(saveName, saves) {
-  const { handleMetaResponse } = await import('./meta-command-handlers.js');
   // Simulate entering save mode and immediately providing the name
+  setAwaitingMetaInput('save');
   return await handleMetaResponse(saveName);
 }
 
 async function handleRestoreResponse(saveName, saves) {
-  const { handleMetaResponse } = await import('./meta-command-handlers.js');
+  // Simulate entering restore mode and immediately providing the name
+  setAwaitingMetaInput('restore');
   return await handleMetaResponse(saveName);
 }
 
 async function handleDeleteResponse(saveName, saves) {
-  const { handleMetaResponse } = await import('./meta-command-handlers.js');
+  // Simulate entering delete mode and immediately providing the name
+  setAwaitingMetaInput('delete');
   return await handleMetaResponse(saveName);
 }
 

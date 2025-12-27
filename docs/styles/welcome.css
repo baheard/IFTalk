@@ -4,10 +4,12 @@
 .welcome {
   position: relative;
   text-align: center;
-  padding: 50px 30px;
+  padding: 30px 20px;
   max-width: 860px;
   width: 100%;
-  margin: 0 auto;
+  margin: env(safe-area-inset-top) auto 0 auto; /* top, right, bottom, left */
+  overflow-y: auto; /* Enable scrolling when content exceeds container height */
+  height: 100%; /* Fill container height to enable scrolling */
 }
 
 .welcome-settings-btn {

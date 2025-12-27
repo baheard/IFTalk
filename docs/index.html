@@ -1,8 +1,15 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+  <!-- Inline timing script - runs IMMEDIATELY to catch early delays -->
+  <script>
+    window.performanceMarks = {
+      htmlStart: performance.now()
+    };
+    console.log('[TIMING] HTML parsing started at:', window.performanceMarks.htmlStart, 'ms');
+  </script>
+
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>IF Talk - Voice-Powered Interactive Fiction</title>
   <link rel="icon" type="image/png" href="favicon.png">
 
@@ -28,15 +35,22 @@
   <!-- ifvms ZVM interpreter -->
   <script src="lib/zvm.js"></script>
 
-  <!-- Google Identity Services (OAuth 2.0) -->
-  <script src="https://accounts.google.com/gsi/client" async defer></script>
+  <!-- Google Identity Services loaded dynamically when online (see app.js) -->
 
   <link rel="stylesheet" href="styles/main.css">
 
-  <meta name="viewport" content="width=device-width, initial-scale=1, interactive-widget=resizes-content">
+  <meta name="viewport" content="width=device-width, initial-scale=1, interactive-widget=resizes-content, viewport-fit=cover">
 
+  <script>
+    window.performanceMarks.headComplete = performance.now();
+    console.log('[TIMING] Head complete at:', window.performanceMarks.headComplete, 'ms');
+  </script>
 </head>
 <body>
+  <script>
+    window.performanceMarks.bodyStart = performance.now();
+    console.log('[TIMING] Body started at:', window.performanceMarks.bodyStart, 'ms');
+  </script>
 
   <!-- Loading Overlay -->
   <div class="loading-overlay" id="loadingOverlay"></div>
@@ -267,11 +281,11 @@
           </div>
 
           <!-- Install App button (PWA) -->
-          <div id="pwaInstallSection" class="hidden">
+          <div id="pwaInstallSection" class="setting-item hidden">
             <button id="pwaInstallBtn" class="compact-btn quick-action-btn">
               <span class="material-icons">install_mobile</span> Install App for Offline Use
             </button>
-            <p class="setting-description">Install Voxi as a standalone app that works without internet</p>
+            <p class="setting-description" id="pwaInstallDescription">Install Voxi as a standalone app that works without internet</p>
           </div>
 
           <!-- Cloud Sync submenu -->
@@ -591,7 +605,7 @@
   </div>
 
   <!-- Controls Panel -->
-  <div class="controls-wrapper">
+  <div class="controls-wrapper hidden" id="controlsWrapper">
     <!-- Navigation Controls -->
     <div class="controls hidden" id="controls">
       <button id="skipToStartBtn" class="btn-nav" title="&quot;Restart&quot;"><span class="material-icons">skip_previous</span></button>
@@ -666,7 +680,10 @@
   
 
 
-  <div class="status" id="status">Select a game to start</div>
+  <div class="status" id="status">
+    <span class="status-text">Select a game to start</span>
+    <span class="status-version">v1.1.8</span>
+  </div>
 
   <!-- Lock Screen Overlay -->
   <div class="lock-screen-overlay hidden" id="lockScreenOverlay">
@@ -710,6 +727,14 @@
     </div>
   </div>
 
+  <script>
+    window.performanceMarks.beforeAppJs = performance.now();
+    console.log('[TIMING] Before app.js at:', window.performanceMarks.beforeAppJs, 'ms');
+  </script>
   <script type="module" src="js/app.js"></script>
+  <script>
+    window.performanceMarks.afterAppJs = performance.now();
+    console.log('[TIMING] After app.js queued at:', window.performanceMarks.afterAppJs, 'ms');
+  </script>
 </body>
 </html>

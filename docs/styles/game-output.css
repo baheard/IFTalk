@@ -8,8 +8,7 @@
   align-items: center;
   max-width: 800px;
   width: 100%;
-  height: 100%;
-  margin: 0 auto;
+  margin: env(safe-area-inset-top) auto 0 auto; /* top, right, bottom, left */
   font-family: var(--font-mono);
   background: var(--bg-surface);
   overflow-y: auto; /* Scroll when content exceeds viewport height */
@@ -311,6 +310,8 @@ body.tap-to-examine-enabled .game-text {
   flex: 1; /* Take remaining space */
   overflow-y: visible; /* Don't scroll - let parent (game-output) handle scrolling */
   padding: 16px 24px;
+  /* Add extra bottom padding to prevent text from hiding behind command input */
+  padding-bottom: 48px;
   display: flex;
   flex-direction: column;
   cursor: text; /* Default to text cursor for selection */

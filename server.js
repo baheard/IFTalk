@@ -1,5 +1,5 @@
 import express from 'express';
-import { createServer } from 'http';
+import { createServer } from 'https';
 import { Server } from 'socket.io';
 import { spawn } from 'child_process';
 import { readFileSync, writeFileSync, existsSync, mkdirSync, unlinkSync } from 'fs';
@@ -31,7 +31,14 @@ const convert = new Convert({
 
 // Initialize Express and Socket.IO
 const app = express();
-const httpServer = createServer(app);
+
+// HTTPS options - load SSL certificates
+const httpsOptions = {
+  key: readFileSync(path.join(__dirname, 'localhost+3-key.pem')),
+  cert: readFileSync(path.join(__dirname, 'localhost+3.pem'))
+};
+
+const httpServer = createServer(httpsOptions, app);
 const io = new Server(httpServer);
 
 // Serve static files
@@ -569,10 +576,10 @@ httpServer.listen(PORT, async () => {
   const localIP = await getLocalIP();
 
   console.log('\n🎮 IF Talk - Voice-Powered Interactive Fiction\n');
-  console.log(`✅ Server running!`);
+  console.log(`✅ Server running with HTTPS!`);
   console.log(`\n📱 Access from:`);
-  console.log(`   This computer:  http://localhost:${PORT}`);
-  console.log(`   Your phone:     http://${localIP}:${PORT}`);
+  console.log(`   This computer:  https://localhost:${PORT}`);
+  console.log(`   Your phone:     https://${localIP}:${PORT}`);
   console.log(`   (Make sure phone is on same WiFi)\n`);
   console.log(`🔊 Voice: ${config.voice.enabled ? 'Enabled' : 'Disabled'}`);
   console.log(`🎮 Frotz: ${config.interpreter} ${config.interpreterArgs.join(' ')}`);

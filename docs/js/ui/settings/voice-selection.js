@@ -16,11 +16,18 @@ const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
 const isWindows = /Win/.test(navigator.platform);
 
 // iOS preferred voices (starred, shown at top, in order)
-// Order: Karen (default), Daniel, Tessa
+// High-quality and classic Mac voices
 const IOS_PREFERRED_VOICES = [
-  { name: 'Karen', lang: 'en-AU' },
-  { name: 'Daniel', lang: 'en-GB' },
-  { name: 'Tessa', lang: 'en-ZA' }
+  // Modern high-quality voices
+  { name: 'Karen', lang: 'en-AU' },      // Australian - warm, clear
+  { name: 'Daniel', lang: 'en-GB' },     // British male - professional
+  { name: 'Moira', lang: 'en-IE' },      // Irish female - expressive
+  { name: 'Samantha', lang: 'en-US' },   // US female - clear, loud
+  { name: 'Tessa', lang: 'en-ZA' },      // South African - distinctive
+  // Classic Mac novelty voices
+  { name: 'Fred', lang: 'en-US' },       // Original Mac voice - robotic
+  { name: 'Ralph', lang: 'en-US' },      // MacinTalk - used in WALL-E
+  { name: 'Junior', lang: 'en-US' }      // MacinTalk 3 - child-like
 ];
 
 // Preferred voices in order of preference (researched quality voices)
@@ -30,6 +37,8 @@ const VOICE_PREFERENCES = [
   'Karen',
   'Daniel',
   'Tessa',
+  'Moira',
+  'Samantha',
   // Chrome/Google voices (best quality)
   'Google UK English Male',
   'Google UK English Female',
@@ -41,10 +50,11 @@ const VOICE_PREFERENCES = [
   'Microsoft Ryan - English (United Kingdom)',
   'Microsoft Sonia - English (United Kingdom)',
   'Microsoft Zira - English (United States)',
-  'Microsoft Mark - English (United States)',
-  'Microsoft David - English (United States)',
+  // Classic Mac voices
+  'Fred',
+  'Ralph',
+  'Junior',
   // macOS voices
-  'Samantha',
   'Alex',
   // Fallbacks
   'English United Kingdom',
@@ -264,13 +274,21 @@ export function populateVoiceDropdown() {
  */
 export async function loadBrowserVoiceConfig() {
   try {
-    const response = await fetch('/api/config');
-    const config = await response.json();
+    // Race between fetch and 2-second timeout
+    const timeoutPromise = new Promise((_, reject) =>
+      setTimeout(() => reject(new Error('Config fetch timeout')), 2000)
+    );
 
-    if (config.voice?.tts?.browser) {
+    const fetchPromise = fetch('/api/config').then(r => r.json());
+
+    const config = await Promise.race([fetchPromise, timeoutPromise]);
+
+    if (config?.voice?.tts?.browser) {
       state.browserVoiceConfig = config.voice.tts.browser;
     }
   } catch (error) {
+    // Silently fail - not critical for app functionality
+    // This will catch both network errors and timeouts
   }
 
   // Load global voice settings from localStorage

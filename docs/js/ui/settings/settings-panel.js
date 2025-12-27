@@ -108,17 +108,14 @@ export function updateCurrentGameDisplay(gameName) {
  * @param {boolean} enabled - Whether voice controls should be shown
  */
 function updateVoiceControlsVisibility(enabled) {
-  const controls = document.getElementById('controls');
   const body = document.body;
 
-  if (controls) {
-    if (enabled) {
-      controls.classList.remove('hidden');
-      body.classList.remove('voice-controls-hidden');
-    } else {
-      controls.classList.add('hidden');
-      body.classList.add('voice-controls-hidden');
-    }
+  // Only toggle body class - don't touch controls element
+  // Controls visibility is managed by game-loader.js (shown when game loads)
+  if (enabled) {
+    body.classList.remove('voice-controls-hidden');
+  } else {
+    body.classList.add('voice-controls-hidden');
   }
 }
 

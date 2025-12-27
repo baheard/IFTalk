@@ -122,7 +122,23 @@ export async function playWithBrowserTTS(text, voiceType = 'narrator') {
     utterance.pitch = state.browserVoiceConfig?.pitch || 1.0;
     utterance.volume = state.browserVoiceConfig?.volume ?? 1.0;
 
+    // Track if TTS actually started
+    let ttsStarted = false;
+    let startTimeout = null;
+
+    utterance.onstart = () => {
+      ttsStarted = true;
+      if (startTimeout) {
+        clearTimeout(startTimeout);
+        startTimeout = null;
+      }
+    };
+
     utterance.onend = () => {
+      if (startTimeout) {
+        clearTimeout(startTimeout);
+        startTimeout = null;
+      }
       // Don't set isNarrating = false here - let speakTextChunked manage it
       state.ttsIsSpeaking = false;
       // Recognition stays active (no need to restart - we don't stop it anymore)
@@ -138,6 +154,17 @@ export async function playWithBrowserTTS(text, voiceType = 'narrator') {
     };
 
     utterance.onerror = (err) => {
+      if (startTimeout) {
+        clearTimeout(startTimeout);
+        startTimeout = null;
+      }
+
+      // If interrupted unexpectedly (not by user pause), mark as interrupted
+      // This catches iOS permission dialogs and other system interruptions
+      if (err.error === 'interrupted' && !state.isPaused) {
+        state.chunkWasInterrupted = true;
+      }
+
       // Only show status for non-interrupted errors
       if (err.error !== 'interrupted') {
         updateStatus('TTS error: ' + err.error);
@@ -159,6 +186,22 @@ export async function playWithBrowserTTS(text, voiceType = 'narrator') {
 
     // Speak (recognition stays active, echo detection filters out our own voice)
     speechSynthesis.speak(utterance);
+
+    // Safety timeout: If TTS doesn't start within 2 seconds, assume it failed
+    // This catches iOS permission dialog interruptions and other silent failures
+    startTimeout = setTimeout(() => {
+      if (!ttsStarted && state.ttsIsSpeaking) {
+        // TTS claimed to start but never actually began speaking
+        state.ttsIsSpeaking = false;
+        state.chunkWasInterrupted = true;
+
+        // Force a full reset of speech synthesis to clear any stuck state
+        speechSynthesis.cancel();
+
+        // If in play mode, the interruption handler will retry automatically
+        resolve();
+      }
+    }, 2000);
   });
 }
 
@@ -202,7 +245,8 @@ export async function speakTextChunked(text, startFromIndex = 0) {
   state.isNarrating = true;
 
   // Auto-unmute mic when narration starts (if not in push-to-talk mode and not manually muted)
-  if (!state.pushToTalkMode && state.isMuted && !state.manuallyMuted) {
+  // TEMPORARILY DISABLED for debugging - mic and narration are now decoupled
+  if (false && !state.pushToTalkMode && state.isMuted && !state.manuallyMuted) {
     state.isMuted = false;
     state.listeningEnabled = true;
 
@@ -223,18 +267,10 @@ export async function speakTextChunked(text, startFromIndex = 0) {
 
     // Update lock screen if active
     try {
-      const { updateLockScreenMicStatus } = await import('../ui/lock-screen.js');
+      const { updateLockScreenMicStatus } = await import('../utils/lock-screen.js');
       updateLockScreenMicStatus();
     } catch (err) {
       // Lock screen module may not be loaded yet
-    }
-
-    // Restart voice recognition if it was stopped
-    try {
-      const { restartRecognitionIfEnabled } = await import('../voice/recognition.js');
-      restartRecognitionIfEnabled();
-    } catch (err) {
-      // Could not restart voice recognition
     }
   }
 
@@ -260,7 +296,8 @@ export async function speakTextChunked(text, startFromIndex = 0) {
     state.currentChunkIndex = i;
 
     // Check narration state
-    if (!state.narrationEnabled || state.isPaused) {
+    if (!state.narrationEnabled || state.isPaused || state.isNavigating) {
+      console.log('[NarrationLoop] Breaking at chunk', i, '- narrationEnabled:', state.narrationEnabled, 'isPaused:', state.isPaused, 'isNavigating:', state.isNavigating);
       // NOTE: Currently there is no "stop" command (only pause).
       // If stop is reimplemented, add: if (!state.isPaused) { removeHighlight(); }
       updateNavButtons();
@@ -286,16 +323,34 @@ export async function speakTextChunked(text, startFromIndex = 0) {
     state.currentChunkStartTime = Date.now();
     await playWithBrowserTTS(chunkText, voiceType);
 
-    // Check if chunk was interrupted by tab switch
+    // Check if chunk was interrupted by tab switch or TTS failure
     if (state.chunkWasInterrupted) {
-      // Don't advance to next chunk - wait for visibility change to resume
-      // The loop will pause here, and visibilitychange handler will restart narration
-      state.isPaused = true;
-      break;
+      state.chunkWasInterrupted = false;  // Clear the flag
+
+      // Skip recovery if we're navigating (user clicked a nav button)
+      if (state.isNavigating) {
+        break;  // Let navigation handle it
+      }
+
+      // If not manually paused, resume playing from current position
+      // This handles iOS permission dialogs and other system interruptions
+      if (!state.isPaused) {
+        // Small delay to let iOS settle after permission dialog
+        await new Promise(resolve => setTimeout(resolve, 100));
+        state.isNarrating = true;  // Resume narrating state
+        // Continue loop from current chunk (don't increment i)
+        i--;  // Decrement so loop increment brings us back to current chunk
+        continue;
+      } else {
+        // User manually paused - stay paused
+        state.isNarrating = false;  // Clear narrating flag so voice commands work
+        break;
+      }
     }
 
     // Check if we should still continue
-    if (!state.narrationEnabled || state.isPaused) {
+    if (!state.narrationEnabled || state.isPaused || state.isNavigating) {
+      console.log('[NarrationLoop] Breaking after chunk', i, '- narrationEnabled:', state.narrationEnabled, 'isPaused:', state.isPaused, 'isNavigating:', state.isNavigating);
       // NOTE: Currently there is no "stop" command (only pause).
       // If stop is reimplemented, add: if (!state.isPaused) { removeHighlight(); }
       break;
@@ -308,9 +363,16 @@ export async function speakTextChunked(text, startFromIndex = 0) {
     if (state.currentChunkIndex >= totalChunks - 1 && state.narrationEnabled && !state.isPaused) {
       // Completed all chunks naturally
       state.currentChunkIndex = totalChunks;
-      state.narrationEnabled = false;
-      state.isPaused = true;
       state.isNarrating = false;
+
+      // If in autoplay mode, stay ready for new content (don't enter pause mode)
+      // This allows new text to auto-play when it appears
+      if (!state.autoplayEnabled) {
+        // Not in autoplay mode - stop completely
+        state.narrationEnabled = false;
+        state.isPaused = true;
+      }
+      // Otherwise: stay in play mode, ready to auto-play new content
 
       removeHighlight();
 
@@ -321,9 +383,10 @@ export async function speakTextChunked(text, startFromIndex = 0) {
       updateStatus('Ready');
       updateNavButtons();
     } else {
-      // Interrupted (paused) - preserve highlight
+      // Interrupted (paused) - preserve highlight and autoplay state
       // NOTE: Currently there is no "stop" command (only pause).
       // If stop is reimplemented, add: if (!state.isPaused) { removeHighlight(); }
+      state.isNarrating = false;  // Ensure narrating flag is cleared when paused
       updateNavButtons();
     }
   }
